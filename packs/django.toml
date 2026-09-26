@@ -15,7 +15,8 @@ manage = "{python} manage.py"
 [[action]]
 name = "runserver"
 command = "{manage} runserver"
-description = "Start the development server"
+description = "Start the development server (in the tmux window 'server')"
+tmux = { window = "server" }
 
 [[action]]
 name = "migrate"
@@ -35,10 +36,6 @@ description = "Run the test suite"
 [[action]]
 name = "shell"
 command = "{manage} shell"
-description = "Django shell (interactive: better opened in tmux)"
+description = "Django shell (interactive, in the tmux window 'shell')"
+tmux = { window = "shell" }
 
-# In the project's tmux session: a window with the dev server ready to start (press Enter)
-[[tmux.window]]
-name = "server"
-command = "{manage} runserver"
-run = false

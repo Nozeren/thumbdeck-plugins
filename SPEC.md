@@ -57,6 +57,7 @@ Each `[[action]]` is one button.
 | `description` | | tooltip text |
 | `confirm` | | `true` asks before running (for deploys, resets, …) |
 | `when` | | a `[detect]`-style table: the button only shows when it also matches, e.g. `when = { files = ["pytest.ini"] }` |
+| `tmux` | | run in the project's tmux session instead of inside thumbdeck: `{ window = "name" }` or `true` (see [Running in tmux](#running-in-tmux)) |
 
 An action's id is `<pack id>:<name>` (e.g. `django:migrate`); that's what hiding an action in
 thumbdeck refers to.
@@ -129,24 +130,29 @@ of requirements are followed as well.
 - Circular requirements (`a` needs `b`, `b` needs `a`) are an error; neither pack loads.
 - If both packs define the same variable, the pack that requires the other wins.
 
-## tmux windows
+## Running in tmux
 
-When thumbdeck opens a project in tmux for the first time, it creates the session with Neovim
-in window 1 and a shell in window 2. Packs that apply can add more windows after those:
+By default a button runs its command inside thumbdeck: output in the center, a notification
+when it ends. For long-running or interactive commands (servers, watchers, shells) an action
+can run in the project's **tmux session** instead:
 
 ```toml
-[[tmux.window]]
-name = "server"                 # window name
-command = "{manage} runserver"  # typed into a shell in the project folder (venv active)
-run = false                     # false: typed but not started, you press Enter (default true)
-when = { files = ["manage.py"] }  # optional, like for actions
+[[action]]
+name = "runserver"
+command = "{manage} runserver"
+tmux = { window = "server" }    # or: tmux = true (the window is named after the action)
 ```
 
-- The command is typed into a shell, so the window stays open (at a prompt) when it stops.
-- Windows are added in `priority` order of their packs, and only when the session is created;
-  an existing session is never changed.
-- Prefer `run = false` for anything long-running or heavy (servers, watchers, containers):
-  opening a project shouldn't start them by surprise.
+Pressing the button:
+
+1. makes sure the project's tmux session exists (creating it as usual: Neovim + a shell),
+2. reuses the window with that name, or creates it in the project folder,
+3. types the command into its shell (venv active) and starts it.
+
+You stay in thumbdeck, which confirms with a short message; Enter still takes you to the
+project in tmux. If the window is **already running something** (it isn't at a shell prompt),
+thumbdeck doesn't type into it and says so instead, so pressing `runserver` twice never sends
+the command into the running server. The command keeps running when thumbdeck closes.
 
 ## Where packs come from
 
