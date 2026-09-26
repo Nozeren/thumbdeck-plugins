@@ -1,0 +1,37 @@
+# Django projects: the everyday manage.py commands
+schema = 1
+name = "Django"
+description = "manage.py commands"
+icon = "django"
+priority = 10
+
+[detect]
+files = ["manage.py"]
+
+[vars]
+manage = "{python} manage.py"
+
+[[action]]
+name = "runserver"
+command = "{manage} runserver"
+description = "Start the development server"
+
+[[action]]
+name = "migrate"
+command = "{manage} migrate"
+description = "Apply database migrations"
+
+[[action]]
+name = "makemigrations"
+command = "{manage} makemigrations"
+description = "Create migrations from model changes"
+
+[[action]]
+name = "test"
+command = "{manage} test"
+description = "Run the test suite"
+
+[[action]]
+name = "shell"
+command = "{manage} shell"
+description = "Django shell (interactive: better opened in tmux)"
