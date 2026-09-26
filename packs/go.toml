@@ -1,0 +1,17 @@
+# Go modules
+schema = 1
+name = "Go"
+description = "go run, go test"
+icon = "go"
+priority = 45
+
+[detect]
+files = ["go.mod"]
+
+[[action]]
+name = "run"
+command = "go run ."
+
+[[action]]
+name = "test"
+command = "go test ./..."

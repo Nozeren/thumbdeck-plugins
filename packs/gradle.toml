@@ -1,0 +1,28 @@
+# Gradle projects (mostly Android): build, install and test through the project's wrapper
+schema = 1
+name = "Gradle"
+description = "gradlew build, install, test"
+icon = "android"
+priority = 20
+
+[detect]
+files = ["gradlew", "build.gradle", "build.gradle.kts"]
+
+# The buttons use ./gradlew, so they need the wrapper
+[[action]]
+name = "assembleDebug"
+command = "./gradlew assembleDebug"
+description = "Build the debug APK"
+when = { files = ["gradlew"] }
+
+[[action]]
+name = "installDebug"
+command = "./gradlew installDebug"
+description = "Build and install the debug APK on the connected device"
+when = { files = ["gradlew"] }
+
+[[action]]
+name = "test"
+command = "./gradlew test"
+description = "Run the unit tests"
+when = { files = ["gradlew"] }

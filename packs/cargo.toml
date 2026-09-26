@@ -1,0 +1,21 @@
+# Rust projects
+schema = 1
+name = "Cargo"
+description = "cargo run, build, test"
+icon = "rust"
+priority = 45
+
+[detect]
+files = ["Cargo.toml"]
+
+[[action]]
+name = "run"
+command = "cargo run"
+
+[[action]]
+name = "build"
+command = "cargo build"
+
+[[action]]
+name = "test"
+command = "cargo test"

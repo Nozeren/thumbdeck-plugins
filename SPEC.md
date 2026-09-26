@@ -36,8 +36,19 @@ folder and may use globs (`*`, `**`, `?`).
 | `all_files = ["a", "b"]` | **all** of these exist |
 | `not_files = ["a"]` | **none** of these exist |
 | `json = [{ file = "package.json", key = "dependencies.react" }]` | each file exists and contains the key (dotted path); add `value = "..."` to also compare the value |
+| `contains = [{ file = "pyproject.toml", text = "[tool.pytest" }]` | each file exists and contains the text (plain text, not a pattern) |
+| `any = [{ files = ["pytest.ini"] }, { contains = [...] }]` | **at least one** of these `[detect]`-style tables matches (for "this or that") |
 | `git_remote = "github.com[:/]acme/"` | the `origin` remote URL matches this regular expression (for packs about one project or organisation) |
 | `path = "~/work/**"` | the project folder matches this glob |
+
+Example, a button that shows when pytest is configured in either way:
+
+```toml
+when = { any = [
+    { files = ["pytest.ini", "conftest.py"] },
+    { contains = [{ file = "pyproject.toml", text = "[tool.pytest" }] },
+] }
+```
 
 Example, a pack that only applies to one repository:
 
@@ -74,7 +85,11 @@ Commands can use `{name}`. Built in:
 | `{pm}` | the JavaScript package manager, from the lockfile: `pnpm`, `yarn`, `bun` or `npm` |
 | `{item}` | in generated actions: the current item (see below) |
 
-A pack can define its own in `[vars]`; a value may use the built-ins:
+Anything else in braces is left as it is, so shell syntax like `${HOME}` or
+`awk '{print $1}'` works in commands.
+
+A pack can define its own in `[vars]`; a value may use the built-ins (a pack variable can't
+replace a built-in one):
 
 ```toml
 [vars]

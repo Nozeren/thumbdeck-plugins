@@ -1,0 +1,12 @@
+# Makefile projects: one button per target
+schema = 1
+name = "make"
+description = "Makefile targets"
+
+[detect]
+files = ["Makefile"]
+
+[[generate]]
+# Targets like "build:" or "dist/app:"; not special targets (".PHONY:") or assignments ("VAR := value")
+source = { file = "Makefile", regex = "^([A-Za-z0-9_/-][A-Za-z0-9_./-]*):([^=]|$)" }
+action = { name = "{item}", command = "make {item}" }

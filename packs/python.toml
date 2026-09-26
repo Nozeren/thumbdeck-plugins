@@ -6,7 +6,7 @@ icon = "python"
 priority = 60
 
 [detect]
-files = ["pyproject.toml", "requirements.txt", "setup.py", ".venv", "venv"]
+files = ["pyproject.toml", "requirements.txt", "setup.py", ".venv", "venv", "pytest.ini", "conftest.py"]
 
 [[action]]
 name = "create venv"
@@ -29,4 +29,8 @@ when = { files = ["pyproject.toml", "setup.py"] }
 [[action]]
 name = "pytest"
 command = "{python} -m pytest"
-when = { files = ["pytest.ini", "conftest.py", "tests"] }
+description = "Run the tests"
+when = { any = [
+    { files = ["pytest.ini", "conftest.py", "tests"] },
+    { contains = [{ file = "pyproject.toml", text = "[tool.pytest" }] },
+] }

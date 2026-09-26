@@ -1,0 +1,28 @@
+# Docker Compose: start, stop and watch the project's services
+schema = 1
+name = "Compose"
+description = "docker compose up, down, logs, ps"
+priority = 70
+
+[detect]
+files = ["compose.yaml", "compose.yml", "docker-compose.yml", "docker-compose.yaml"]
+
+[[action]]
+name = "up"
+command = "docker compose up -d"
+description = "Start the services in the background"
+
+[[action]]
+name = "down"
+command = "docker compose down"
+description = "Stop and remove the services"
+
+[[action]]
+name = "logs"
+command = "docker compose logs -f --tail=100"
+description = "Follow the services' logs"
+
+[[action]]
+name = "ps"
+command = "docker compose ps"
+description = "List the services"
