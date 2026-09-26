@@ -4,6 +4,7 @@ name = "Django"
 description = "manage.py commands"
 icon = "django"
 priority = 10
+requires = ["python"]           # pip install, venv, ... come along
 
 [detect]
 files = ["manage.py"]
@@ -35,3 +36,9 @@ description = "Run the test suite"
 name = "shell"
 command = "{manage} shell"
 description = "Django shell (interactive: better opened in tmux)"
+
+# In the project's tmux session: a window with the dev server ready to start (press Enter)
+[[tmux.window]]
+name = "server"
+command = "{manage} runserver"
+run = false

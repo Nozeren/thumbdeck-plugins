@@ -1,0 +1,32 @@
+# Python projects: virtual environment, dependencies, tests
+schema = 1
+name = "Python"
+description = "venv, pip, pytest"
+icon = "python"
+priority = 60
+
+[detect]
+files = ["pyproject.toml", "requirements.txt", "setup.py", ".venv", "venv"]
+
+[[action]]
+name = "create venv"
+command = "python3 -m venv .venv"
+description = "Create a virtual environment in .venv"
+when = { not_files = [".venv", "venv"] }
+
+[[action]]
+name = "install"
+command = "{python} -m pip install -r requirements.txt"
+description = "Install requirements.txt into the project's Python"
+when = { files = ["requirements.txt"] }
+
+[[action]]
+name = "install (editable)"
+command = "{python} -m pip install -e ."
+description = "Install the project itself, in editable mode"
+when = { files = ["pyproject.toml", "setup.py"] }
+
+[[action]]
+name = "pytest"
+command = "{python} -m pytest"
+when = { files = ["pytest.ini", "conftest.py", "tests"] }

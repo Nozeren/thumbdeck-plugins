@@ -14,6 +14,7 @@ name = "Django"                 # shown as the group title in the Toolkit
 description = "manage.py commands"
 icon = "django"                 # a project-type icon (see Icons); optional
 priority = 50                   # order among packs that apply; lower comes first (default 50)
+requires = ["python"]           # other packs that apply along with this one (see Dependencies)
 
 [detect]                        # when the pack applies (see Detection)
 files = ["manage.py"]
@@ -117,6 +118,36 @@ watch = ["justfile", "Justfile"]
 action = { name = "{item}", command = "just {item}" }
 ```
 
+## Dependencies
+
+`requires = ["python"]` lists packs that come **along** with this one: when this pack applies,
+the required packs apply too, even if their own `[detect]` doesn't match. Their buttons show
+(under their own names) and their `[vars]` can be used in this pack's commands. Requirements
+of requirements are followed as well.
+
+- A required pack that can't be found disables the pack that needs it (thumbdeck says why).
+- Circular requirements (`a` needs `b`, `b` needs `a`) are an error; neither pack loads.
+- If both packs define the same variable, the pack that requires the other wins.
+
+## tmux windows
+
+When thumbdeck opens a project in tmux for the first time, it creates the session with Neovim
+in window 1 and a shell in window 2. Packs that apply can add more windows after those:
+
+```toml
+[[tmux.window]]
+name = "server"                 # window name
+command = "{manage} runserver"  # typed into a shell in the project folder (venv active)
+run = false                     # false: typed but not started, you press Enter (default true)
+when = { files = ["manage.py"] }  # optional, like for actions
+```
+
+- The command is typed into a shell, so the window stays open (at a prompt) when it stops.
+- Windows are added in `priority` order of their packs, and only when the session is created;
+  an existing session is never changed.
+- Prefer `run = false` for anything long-running or heavy (servers, watchers, containers):
+  opening a project shouldn't start them by surprise.
+
 ## Where packs come from
 
 thumbdeck reads packs from, in order (a later pack with the same id replaces an earlier one):
@@ -134,9 +165,3 @@ Your custom actions and hidden actions in thumbdeck's settings apply on top of a
 `icon` picks one of thumbdeck's project-type icons: `django`, `python`, `android`, `node`,
 `tauri`, `rust`, `go`, `nvim`, `folder`. When several packs apply, the one with the lowest
 `priority` that has an icon decides the project's icon.
-
-## Open questions
-
-- Should packs be able to add actions to the tmux session thumbdeck opens (e.g. start the dev
-  server in a third window)?
-- Should a pack be able to declare dependencies ("needs the `python` pack")?
