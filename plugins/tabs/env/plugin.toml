@@ -1,0 +1,41 @@
+id = "env"
+name = "Env check"
+version = "1.0.0"
+api = 1
+description = "Compares the project's .env with its .env.example: what's missing, empty or still the example's (values hidden)"
+homepage = "https://github.com/Nozeren/thumbdeck-plugins/tree/main/plugins/tabs/env"
+
+[detect]
+files = [".env.example", ".env.sample", ".env.template", ".env.dist", "example.env"]
+
+[[tab]]
+id = "env"
+name = "Env"
+page = "tab.html"
+
+[[tab.setup]]
+key = "env_file"
+label = "The env file"
+type = "text"
+default = ".env"
+
+[[tab.setup]]
+key = "example_file"
+label = "Its example"
+type = "text"
+default = ""
+help = "Empty: the first of .env.example, .env.sample, .env.template, .env.dist, example.env"
+
+[keys.list]
+name = "ENV"
+surface = "tab:env"
+bindings = [
+  { keys = ["j", "ArrowDown"], action = "down", does = "next key" },
+  { keys = ["k", "ArrowUp"], action = "up", does = "previous" },
+  { keys = ["g"], action = "first", does = "first" },
+  { keys = ["G"], action = "last", does = "last" },
+  { keys = ["l", "Enter"], action = "open", does = "open the file at that line in the project's tmux (nvim)" },
+  { keys = ["m"], action = "show", does = "show or hide the highlighted value" },
+  { keys = ["a"], action = "add", does = "add the missing keys to the env file, with the example's values (asks first)" },
+  { keys = ["r"], action = "refresh", does = "read the files again" },
+]

@@ -105,3 +105,10 @@ name = "Ports"
 description = "What's listening on which port, which project it's from, and stopping it (after asking)"
 source = "https://github.com/Nozeren/thumbdeck-plugins#plugins/views/ports"
 recommended = true
+
+[[plugin]]
+id = "env"
+name = "Env check"
+description = "Compares the project's .env with its .env.example: what's missing, empty or still the example's"
+source = "https://github.com/Nozeren/thumbdeck-plugins#plugins/tabs/env"
+recommended = true
