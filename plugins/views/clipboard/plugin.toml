@@ -1,0 +1,47 @@
+id = "clipboard"
+name = "Clipboard"
+version = "1.0.0"
+api = 1
+description = "What you copied: the last 100 texts, searchable, copied again with one key; pin the ones you reuse"
+homepage = "https://github.com/Nozeren/thumbdeck-plugins/tree/main/plugins/views/clipboard"
+
+[view]
+name = "Clipboard"
+page = "view.html"
+status = true
+
+[backend]
+command = "node backend.js"
+# It notices copies while thumbdeck runs, not only while its view is open
+autostart = true
+
+[[settings]]
+key = "keep"
+label = "Keep this many (pinned ones don't count)"
+type = "number"
+min = 10
+max = 1000
+default = 100
+
+[[settings]]
+key = "remember"
+label = "Remember them when thumbdeck closes"
+type = "bool"
+default = true
+help = "Kept in the plugin's data folder, readable only by you. Password managers' copies are never kept."
+
+[keys.view]
+name = "CLIPBOARD"
+surface = "view"
+bindings = [
+  { keys = ["j", "ArrowDown"], action = "down", does = "next" },
+  { keys = ["k", "ArrowUp"], action = "up", does = "previous" },
+  { keys = ["g"], action = "first", does = "first" },
+  { keys = ["G"], action = "last", does = "last" },
+  { keys = ["y", "Enter"], action = "copy", does = "copy it again (it goes back to the top)" },
+  { keys = ["/"], action = "filter", does = "search" },
+  { keys = ["p"], action = "pin", does = "pin or unpin it (pinned ones stay at the top and are never dropped)" },
+  { keys = ["x"], action = "remove", does = "remove it from the list" },
+  { keys = ["X"], action = "clear", does = "clear the list, except the pinned ones (asks first)" },
+  { keys = ["s"], action = "pause", does = "pause or resume keeping copies" },
+]

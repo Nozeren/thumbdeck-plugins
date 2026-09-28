@@ -126,3 +126,10 @@ name = "Notes"
 description = "A notes tab for each project: a scratchpad and checklist kept by thumbdeck, not in the repository"
 source = "https://github.com/Nozeren/thumbdeck-plugins#plugins/tabs/notes"
 recommended = true
+
+[[plugin]]
+id = "clipboard"
+name = "Clipboard"
+description = "What you copied: the last 100 texts, searchable, copied again with one key; pin the ones you reuse"
+source = "https://github.com/Nozeren/thumbdeck-plugins#plugins/views/clipboard"
+recommended = true
