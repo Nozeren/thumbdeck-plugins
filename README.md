@@ -11,16 +11,17 @@ thumbdeck, **Settings** (`,`) **› Plugins › Add a plugin** lists the ones yo
 
 | plugin | adds |
 | --- | --- |
-| [git](plugins/git) | a tab: the repo at a glance (changes and diffs, commits, branches, stashes), read-only |
-| [logs](plugins/logs) | a tab: the project's logs, with levels, search, live tail and sections |
-| [agents](plugins/agents) | a tab: Claude Code sessions, subagents and skills; tells the avatar when Claude waits |
-| [prs](plugins/prs) | a tab: the open pull requests that concern you (with the GitHub CLI) |
-| [python](plugins/python), [django](plugins/django) | Toolkit buttons: venv, pip, pytest; manage.py |
-| [npm](plugins/npm), [make](plugins/make) | Toolkit buttons: package.json scripts; Makefile targets |
-| [cargo](plugins/cargo), [go](plugins/go), [gradle](plugins/gradle), [compose](plugins/compose) | Toolkit buttons for those projects |
+| [git](plugins/tabs/git) | a tab: the repo at a glance (changes and diffs, commits, branches, stashes), read-only |
+| [logs](plugins/tabs/logs) | a tab: the project's logs, with levels, search, live tail and sections |
+| [agents](plugins/tabs/agents) | a tab: Claude Code sessions, subagents and skills; tells the avatar when Claude waits |
+| [prs](plugins/tabs/prs) | a tab: the open pull requests that concern you (with the GitHub CLI) |
+| [python](plugins/toolkits/python), [django](plugins/toolkits/django) | Toolkit buttons: venv, pip, pytest; manage.py |
+| [npm](plugins/toolkits/npm), [make](plugins/toolkits/make) | Toolkit buttons: package.json scripts; Makefile targets |
+| [cargo](plugins/toolkits/cargo), [go](plugins/toolkits/go), [gradle](plugins/toolkits/gradle), [compose](plugins/toolkits/compose) | Toolkit buttons for those projects |
 
-`catalog.toml` lists them for thumbdeck. Each is installed on its own, from its folder:
-`https://github.com/Nozeren/thumbdeck-plugins#plugins/git`, at its latest `git-v1.2.0` tag.
+They're in `plugins/tabs/` (tabs) and `plugins/toolkits/` (Toolkit buttons for a kind of
+project). `catalog.toml` lists them for thumbdeck. Each is installed on its own, from its folder:
+`https://github.com/Nozeren/thumbdeck-plugins#plugins/tabs/git`, at its latest `git-v1.2.0` tag.
 
 ## Examples and the template
 

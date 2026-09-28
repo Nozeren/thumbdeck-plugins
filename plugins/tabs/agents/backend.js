@@ -3,7 +3,7 @@
 import { basename, join } from "node:path";
 // In your own plugin: `npm install @thumbdeck/backend`. The official plugins use the copy in
 // this repository.
-import { serve } from "../../packages/backend/index.js";
+import { serve } from "../../../packages/backend/index.js";
 import { claudeHome, listDefined, listSessions, listSkills, live, sessionsDir, startCommand, transcript } from "./claude.js";
 
 const home = claudeHome();

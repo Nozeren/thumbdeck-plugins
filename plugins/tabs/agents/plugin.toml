@@ -3,7 +3,7 @@ name = "Agents"
 version = "1.0.0"
 api = 1
 description = "Claude Code sessions in this project, their subagents, and the subagents and skills it defines"
-homepage = "https://github.com/Nozeren/thumbdeck-plugins/tree/main/plugins/agents"
+homepage = "https://github.com/Nozeren/thumbdeck-plugins/tree/main/plugins/tabs/agents"
 
 [backend]
 command = "node backend.js"

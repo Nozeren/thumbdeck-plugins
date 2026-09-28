@@ -5,82 +5,82 @@
 id = "git"
 name = "Git"
 description = "The repo at a glance: changes and their diffs, the branch, commits, branches and stashes (read-only)"
-source = "https://github.com/Nozeren/thumbdeck-plugins#plugins/git"
+source = "https://github.com/Nozeren/thumbdeck-plugins#plugins/tabs/git"
 recommended = true
 
 [[plugin]]
 id = "logs"
 name = "Logs"
 description = "The project's log files: levels, search, errors, live tail, optional sections"
-source = "https://github.com/Nozeren/thumbdeck-plugins#plugins/logs"
+source = "https://github.com/Nozeren/thumbdeck-plugins#plugins/tabs/logs"
 recommended = true
 
 [[plugin]]
 id = "agents"
 name = "Agents"
 description = "Claude Code sessions in this project, their subagents, and the subagents and skills it defines"
-source = "https://github.com/Nozeren/thumbdeck-plugins#plugins/agents"
+source = "https://github.com/Nozeren/thumbdeck-plugins#plugins/tabs/agents"
 recommended = true
 
 [[plugin]]
 id = "prs"
 name = "Pull requests"
 description = "The repo's open PRs that concern you: to review again, to review, reviewed, yours"
-source = "https://github.com/Nozeren/thumbdeck-plugins#plugins/prs"
+source = "https://github.com/Nozeren/thumbdeck-plugins#plugins/tabs/prs"
 recommended = true
 
 [[plugin]]
 id = "python"
 name = "Python"
 description = "venv, pip, pytest"
-source = "https://github.com/Nozeren/thumbdeck-plugins#plugins/python"
+source = "https://github.com/Nozeren/thumbdeck-plugins#plugins/toolkits/python"
 recommended = true
 
 [[plugin]]
 id = "django"
 name = "Django"
 description = "manage.py commands"
-source = "https://github.com/Nozeren/thumbdeck-plugins#plugins/django"
+source = "https://github.com/Nozeren/thumbdeck-plugins#plugins/toolkits/django"
 recommended = true
 
 [[plugin]]
 id = "npm"
 name = "npm"
 description = "package.json scripts"
-source = "https://github.com/Nozeren/thumbdeck-plugins#plugins/npm"
+source = "https://github.com/Nozeren/thumbdeck-plugins#plugins/toolkits/npm"
 recommended = true
 
 [[plugin]]
 id = "make"
 name = "make"
 description = "Makefile targets"
-source = "https://github.com/Nozeren/thumbdeck-plugins#plugins/make"
+source = "https://github.com/Nozeren/thumbdeck-plugins#plugins/toolkits/make"
 recommended = true
 
 [[plugin]]
 id = "cargo"
 name = "Cargo"
 description = "cargo run, build, test"
-source = "https://github.com/Nozeren/thumbdeck-plugins#plugins/cargo"
+source = "https://github.com/Nozeren/thumbdeck-plugins#plugins/toolkits/cargo"
 recommended = true
 
 [[plugin]]
 id = "go"
 name = "Go"
 description = "go run, go test"
-source = "https://github.com/Nozeren/thumbdeck-plugins#plugins/go"
+source = "https://github.com/Nozeren/thumbdeck-plugins#plugins/toolkits/go"
 recommended = true
 
 [[plugin]]
 id = "gradle"
 name = "Gradle"
 description = "gradlew build, install, test"
-source = "https://github.com/Nozeren/thumbdeck-plugins#plugins/gradle"
+source = "https://github.com/Nozeren/thumbdeck-plugins#plugins/toolkits/gradle"
 recommended = true
 
 [[plugin]]
 id = "compose"
 name = "Compose"
 description = "docker compose up, down, logs, ps"
-source = "https://github.com/Nozeren/thumbdeck-plugins#plugins/compose"
+source = "https://github.com/Nozeren/thumbdeck-plugins#plugins/toolkits/compose"
 recommended = true

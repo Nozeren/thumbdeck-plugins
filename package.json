@@ -6,7 +6,7 @@
   "scripts": {
     "build": "node scripts/build.mjs",
     "test": "node --test 'plugins/**/*.test.js' 'examples/**/*.test.js' 'packages/**/*.test.js'",
-    "check": "node packages/check/bin/thumbdeck-check.js plugins/* examples/* template"
+    "check": "node packages/check/bin/thumbdeck-check.js plugins/*/* examples/* template"
   },
   "devDependencies": {
     "@sveltejs/vite-plugin-svelte": "^7.3.1",

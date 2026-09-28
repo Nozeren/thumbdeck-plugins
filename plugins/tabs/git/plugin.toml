@@ -3,7 +3,7 @@ name = "Git"
 version = "1.0.0"
 api = 1
 description = "The repo at a glance: changes and their diffs, the branch, commits, branches and stashes (read-only)"
-homepage = "https://github.com/Nozeren/thumbdeck-plugins/tree/main/plugins/git"
+homepage = "https://github.com/Nozeren/thumbdeck-plugins/tree/main/plugins/tabs/git"
 
 # Only for git repositories
 [detect]

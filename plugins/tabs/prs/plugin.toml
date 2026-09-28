@@ -3,7 +3,7 @@ name = "Pull requests"
 version = "1.0.0"
 api = 1
 description = "The repo's open PRs that concern you: to review again, to review, reviewed, yours"
-homepage = "https://github.com/Nozeren/thumbdeck-plugins/tree/main/plugins/prs"
+homepage = "https://github.com/Nozeren/thumbdeck-plugins/tree/main/plugins/tabs/prs"
 
 [[tab]]
 id = "prs"

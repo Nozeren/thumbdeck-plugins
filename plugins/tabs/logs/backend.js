@@ -3,7 +3,7 @@
 import { statSync } from "node:fs";
 // In your own plugin: `npm install @thumbdeck/backend`. The official plugins use the copy in
 // this repository.
-import { serve } from "../../packages/backend/index.js";
+import { serve } from "../../../packages/backend/index.js";
 import { list, open, problems, summary } from "./logs.js";
 
 serve({

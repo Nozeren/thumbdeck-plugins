@@ -5,11 +5,14 @@ import { join } from "node:path";
 import { build } from "vite";
 
 const only = process.argv[2];
-for (const group of ["plugins", "examples"]) {
-  for (const name of readdirSync(group)) {
-    const config = join(group, name, "vite.config.js");
-    if (!existsSync(config) || (only && only !== name)) continue;
-    console.log(`building ${group}/${name}`);
-    await build({ configFile: config, logLevel: "warn" });
-  }
+// plugins/<kind>/<id> and examples/<id>
+const folders = [
+  ...readdirSync("plugins").flatMap((kind) => readdirSync(join("plugins", kind)).map((id) => join("plugins", kind, id))),
+  ...readdirSync("examples").map((id) => join("examples", id)),
+];
+for (const folder of folders) {
+  const config = join(folder, "vite.config.js");
+  if (!existsSync(config) || (only && !folder.endsWith(`/${only}`))) continue;
+  console.log(`building ${folder}`);
+  await build({ configFile: config, logLevel: "warn" });
 }

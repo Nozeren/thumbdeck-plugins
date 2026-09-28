@@ -704,7 +704,7 @@ serve({
 **Settings** (`,`, or **+ › Settings…**) **› Plugins › Add a plugin** takes:
 
 - a git URL: `https://github.com/x/thumbdeck-pomodoro`
-- a folder inside a repository holding several plugins: `https://github.com/Nozeren/thumbdeck-plugins#plugins/django`
+- a folder inside a repository holding several plugins: `https://github.com/Nozeren/thumbdeck-plugins#plugins/toolkits/django`
 - a folder on disk, linked rather than copied, for developing (reloads when files change)
 
 thumbdeck installs the **latest release tag** of the plugin (the default branch when there are
@@ -731,7 +731,7 @@ can browse it.
 ```toml
 [[plugin]]
 id = "git"
-source = "https://github.com/Nozeren/thumbdeck-plugins#plugins/git"
+source = "https://github.com/Nozeren/thumbdeck-plugins#plugins/tabs/git"
 description = "The repo at a glance: changes, commits, branches and stashes (read-only)"
 ```
 
@@ -779,6 +779,6 @@ thumbdeck-plugins has these, smallest first:
 | `examples/todos` | a tab page using `td.exec`, a `td-list` and keys |
 | `examples/pomodoro` | a view with a status, an app panel, a page, settings, storage, notifications |
 | `examples/tasks` | a backend in Node answering `actions` and a page's calls |
-| `plugins/git` | a real tab: several keymaps, the review page |
-| `plugins/logs` | the most complete: a Node backend, its own setup page, live tail, Svelte built with Vite |
-| `plugins/agents` | a backend that starts with thumbdeck and tells the avatar what's going on |
+| `plugins/tabs/git` | a real tab: several keymaps, the review page |
+| `plugins/tabs/logs` | the most complete: a Node backend, its own setup page, live tail, Svelte built with Vite |
+| `plugins/tabs/agents` | a backend that starts with thumbdeck and tells the avatar what's going on |

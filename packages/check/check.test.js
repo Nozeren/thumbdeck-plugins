@@ -12,7 +12,8 @@ const dir = mkdtempSync(join(tmpdir(), "thumbdeck-check-"));
 const check = (text) => checkManifest(text, dir);
 
 test("every plugin, example and the template in this repo is fine", () => {
-  const folders = ["plugins", "examples"].flatMap((g) => readdirSync(join(repo, g)).map((n) => join(repo, g, n)));
+  const kinds = readdirSync(join(repo, "plugins")).map((k) => join(repo, "plugins", k));
+  const folders = [...kinds, join(repo, "examples")].flatMap((g) => readdirSync(g).map((n) => join(g, n)));
   for (const f of [...folders, join(repo, "template")]) assert.deepEqual(checkFolder(f).problems, [], f);
 });
 
