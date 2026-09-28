@@ -84,3 +84,10 @@ name = "Compose"
 description = "docker compose up, down, logs, ps"
 source = "https://github.com/Nozeren/thumbdeck-plugins#plugins/toolkits/compose"
 recommended = true
+
+[[plugin]]
+id = "calendar"
+name = "Calendar"
+description = "Your calendars' coming events, what's next, and reminders (from iCal links, read-only)"
+source = "https://github.com/Nozeren/thumbdeck-plugins#plugins/views/calendar"
+recommended = false

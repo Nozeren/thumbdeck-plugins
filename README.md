@@ -15,12 +15,13 @@ thumbdeck, **Settings** (`,`) **› Plugins › Add a plugin** lists the ones yo
 | [logs](plugins/tabs/logs) | a tab: the project's logs, with levels, search, live tail and sections |
 | [agents](plugins/tabs/agents) | a tab: Claude Code sessions, subagents and skills; tells the avatar when Claude waits |
 | [prs](plugins/tabs/prs) | a tab: the open pull requests that concern you (with the GitHub CLI) |
+| [calendar](plugins/views/calendar) | a view: your calendars' coming events, what's next, reminders (iCal links) |
 | [python](plugins/toolkits/python), [django](plugins/toolkits/django) | Toolkit buttons: venv, pip, pytest; manage.py |
 | [npm](plugins/toolkits/npm), [make](plugins/toolkits/make) | Toolkit buttons: package.json scripts; Makefile targets |
 | [cargo](plugins/toolkits/cargo), [go](plugins/toolkits/go), [gradle](plugins/toolkits/gradle), [compose](plugins/toolkits/compose) | Toolkit buttons for those projects |
 
-They're in `plugins/tabs/` (tabs) and `plugins/toolkits/` (Toolkit buttons for a kind of
-project). `catalog.toml` lists them for thumbdeck. Each is installed on its own, from its folder:
+They're in `plugins/tabs/` (tabs), `plugins/views/` (a view of their own in the Plugins pane)
+and `plugins/toolkits/` (Toolkit buttons for a kind of project). `catalog.toml` lists them for thumbdeck. Each is installed on its own, from its folder:
 `https://github.com/Nozeren/thumbdeck-plugins#plugins/tabs/git`, at its latest `git-v1.2.0` tag.
 
 ## Examples and the template

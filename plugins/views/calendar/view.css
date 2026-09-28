@@ -1,0 +1,24 @@
+body { display: flex; flex-direction: column; overflow: hidden; font: 13px var(--sans); }
+.spacer { flex: 1; }
+#refresh { padding: 2px 8px; }
+#problems { margin: 6px 12px; font: 12px var(--mono); white-space: pre-line; }
+main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); }
+#list { list-style: none; margin: 0; padding: 6px; overflow: auto; border-right: 1px solid var(--bg2); font: 12.5px var(--mono); }
+.day { padding: 10px 8px 3px; color: var(--grey); font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; }
+.day.today { color: var(--green); }
+.ev { display: flex; gap: 10px; padding: 3px 8px; border-radius: 6px; cursor: default; white-space: nowrap; }
+.ev.cursor { background: var(--bg2); }
+body.td-keys .ev.cursor { box-shadow: inset 2px 0 var(--orange); }
+.ev .time { flex: none; min-width: 9.5em; color: var(--yellow); }
+.ev .title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.ev.past { opacity: 0.45; }
+.ev.now .time { color: var(--green); font-weight: 700; }
+.ev .link { flex: none; color: var(--aqua); }
+.nowline { margin: 2px 8px; border-top: 1px solid var(--red); }
+#detail { padding: 14px 18px; overflow: auto; }
+#detail h2 { margin: 0 0 6px; font: 600 15px var(--mono); }
+#detail .when { color: var(--yellow); font-family: var(--mono); margin: 0 0 10px; }
+#detail dl { display: grid; grid-template-columns: 80px 1fr; gap: 4px 10px; margin: 0 0 12px; }
+#detail dt { color: var(--grey); } #detail dd { margin: 0; word-break: break-word; }
+#detail pre { white-space: pre-wrap; word-break: break-word; font: 12.5px/1.45 var(--sans); background: var(--bg1); }
+.empty { padding: 20px; color: var(--grey); line-height: 1.6; }

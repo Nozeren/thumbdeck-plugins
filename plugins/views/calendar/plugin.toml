@@ -1,0 +1,58 @@
+id = "calendar"
+name = "Calendar"
+version = "1.0.0"
+api = 1
+description = "Your calendars' coming events, what's next, and reminders (from iCal links, read-only)"
+homepage = "https://github.com/Nozeren/thumbdeck-plugins/tree/main/plugins/views/calendar"
+
+[view]
+name = "Calendar"
+page = "view.html"
+status = true
+
+[backend]
+command = "node backend.js"
+# Reminders and "what's next" work without the view open
+autostart = true
+
+[[settings]]
+key = "calendars"
+label = "iCal links"
+type = "list"
+default = []
+help = "A calendar's private iCal address (Google: Settings › the calendar › Secret address in iCal format; Outlook: Publish a calendar › ICS). webcal:// works too."
+
+[[settings]]
+key = "remind_minutes"
+label = "Remind me this many minutes before"
+type = "number"
+min = 0
+default = 5
+
+[[settings]]
+key = "days"
+label = "Days ahead to show"
+type = "number"
+min = 1
+max = 60
+default = 7
+
+[[settings]]
+key = "refresh_minutes"
+label = "Read the calendars again every (minutes)"
+type = "number"
+min = 1
+default = 15
+
+[keys.view]
+name = "CALENDAR"
+surface = "view"
+bindings = [
+  { keys = ["j", "ArrowDown"], action = "down", does = "next event" },
+  { keys = ["k", "ArrowUp"], action = "up", does = "previous event" },
+  { keys = ["g"], action = "first", does = "first" },
+  { keys = ["G"], action = "last", does = "last" },
+  { keys = ["t"], action = "now", does = "back to what's next" },
+  { keys = ["o"], action = "outside", does = "open the meeting link (or the event's link) in the browser" },
+  { keys = ["r"], action = "refresh", does = "read the calendars again" },
+]
