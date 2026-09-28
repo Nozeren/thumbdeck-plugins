@@ -1,0 +1,32 @@
+id = "ports"
+name = "Ports"
+version = "1.0.0"
+api = 1
+description = "What's listening on which port, which project it's from, and stopping it (after asking)"
+homepage = "https://github.com/Nozeren/thumbdeck-plugins/tree/main/plugins/views/ports"
+
+[view]
+name = "Ports"
+page = "view.html"
+
+[[settings]]
+key = "only_mine"
+label = "Only ports my processes listen on"
+type = "bool"
+default = true
+help = "Off: also the system's (printing, SSH, …), whose process you can't see or stop"
+
+[keys.view]
+name = "PORTS"
+surface = "view"
+bindings = [
+  { keys = ["j", "ArrowDown"], action = "down", does = "next port" },
+  { keys = ["k", "ArrowUp"], action = "up", does = "previous" },
+  { keys = ["g"], action = "first", does = "first" },
+  { keys = ["G"], action = "last", does = "last" },
+  { keys = ["o"], action = "outside", does = "open http://localhost:<port> in the browser" },
+  { keys = ["y"], action = "copy", does = "copy http://localhost:<port>" },
+  { keys = ["x"], action = "stop", does = "stop the process (asks first)" },
+  { keys = ["X"], action = "kill", does = "kill it: for one that doesn't stop (asks first)" },
+  { keys = ["r"], action = "refresh", does = "look again (it also looks every 3 seconds)" },
+]

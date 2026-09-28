@@ -98,3 +98,10 @@ name = "Azure Boards"
 description = "Your Azure DevOps work items: what's assigned to you, details, branch names (with a token, read-only)"
 source = "https://github.com/Nozeren/thumbdeck-plugins#plugins/views/azure-boards"
 recommended = false
+
+[[plugin]]
+id = "ports"
+name = "Ports"
+description = "What's listening on which port, which project it's from, and stopping it (after asking)"
+source = "https://github.com/Nozeren/thumbdeck-plugins#plugins/views/ports"
+recommended = true

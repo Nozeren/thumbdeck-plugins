@@ -1,0 +1,6 @@
+p4242
+fcwd
+n/Users/me/dev/shop
+p881
+fcwd
+n/usr/local/var/postgres

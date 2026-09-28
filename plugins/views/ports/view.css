@@ -1,0 +1,19 @@
+body { display: flex; flex-direction: column; overflow: hidden; }
+#error { margin: 6px 12px; }
+#table { flex: 1; overflow: auto; padding: 4px 6px; }
+table { table-layout: fixed; }
+th:nth-child(1) { width: 64px; } th:nth-child(2) { width: 130px; } th:nth-child(3) { width: 150px; } th:nth-child(4) { width: 110px; }
+td { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+tr.cursor td { background: var(--bg2); }
+body.td-keys tr.cursor td:first-child { box-shadow: inset 2px 0 var(--orange); }
+.port { color: var(--orange); font-weight: 600; }
+.known { color: var(--grey); }
+.project { color: var(--aqua); }
+.cmd { color: var(--grey); }
+.open { color: var(--yellow); }
+.empty { padding: 20px; color: var(--grey); }
+/* A narrow window: port, process and project (the rest is in the row's tooltip) */
+@media (max-width: 640px) {
+  th:nth-child(2), td:nth-child(2), th:nth-child(5), td:nth-child(5) { display: none; }
+  th:nth-child(3) { width: auto; } th:nth-child(4) { width: 40%; }
+}
