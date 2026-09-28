@@ -1,6 +1,8 @@
 # Makefile projects: one button per target
-schema = 1
+id = "make"
 name = "make"
+version = "1.0.0"
+api = 1
 description = "Makefile targets"
 
 [detect]

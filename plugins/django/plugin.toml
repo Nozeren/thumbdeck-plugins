@@ -1,13 +1,15 @@
 # Django projects: the everyday manage.py commands
-schema = 1
+id = "django"
 name = "Django"
+version = "1.0.0"
+api = 1
 description = "manage.py commands"
-icon = "django"
-priority = 10
-requires = ["python"]           # pip install, venv, ... come along
 
 [detect]
 files = ["manage.py"]
+icon = "django"
+priority = 10
+requires = ["python"]           # pip install, venv, ... come along
 
 [vars]
 manage = "{python} manage.py"
@@ -38,4 +40,3 @@ name = "shell"
 command = "{manage} shell"
 description = "Django shell (interactive, in the tmux window 'shell')"
 tmux = { window = "shell" }
-

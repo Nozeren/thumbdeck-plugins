@@ -1,12 +1,14 @@
 # Rust projects
-schema = 1
+id = "cargo"
 name = "Cargo"
+version = "1.0.0"
+api = 1
 description = "cargo run, build, test"
-icon = "rust"
-priority = 45
 
 [detect]
 files = ["Cargo.toml"]
+icon = "rust"
+priority = 45
 
 [[action]]
 name = "run"

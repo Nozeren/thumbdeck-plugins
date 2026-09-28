@@ -1,13 +1,15 @@
 # JavaScript projects: one button per script in package.json, run with the project's
 # package manager (npm, pnpm, yarn or bun, from the lockfile)
-schema = 1
+id = "npm"
 name = "npm"
+version = "1.0.0"
+api = 1
 description = "package.json scripts"
-icon = "node"
-priority = 40
 
 [detect]
 files = ["package.json"]
+icon = "node"
+priority = 40
 
 [[generate]]
 source = { json = "package.json", keys = "scripts" }

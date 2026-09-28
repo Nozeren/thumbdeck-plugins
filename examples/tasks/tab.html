@@ -1,0 +1,61 @@
+<!doctype html>
+<html>
+<head>
+  <style>
+    body { display: flex; flex-direction: column; }
+    .cmd { color: var(--grey); margin-left: 12px; }
+    #list { flex: 1; overflow: auto; }
+    #out { margin: 8px 12px; max-height: 40%; overflow: auto; }
+  </style>
+</head>
+<body>
+  <div class="td-toolbar"><strong>Tasks</strong> <span class="td-muted">from tasks.txt</span>
+    <span style="flex: 1"></span><span id="tick" class="td-muted"></span></div>
+  <ul id="list" class="td-list"></ul>
+  <pre id="out" hidden></pre>
+  <script type="module">
+    const td = window.thumbdeck;
+    let items = [];
+    let cursor = 0;
+
+    async function load() {
+      items = await td.backend.call("list");
+      cursor = Math.min(cursor, Math.max(0, items.length - 1));
+      render();
+    }
+
+    function render() {
+      const list = document.getElementById("list");
+      if (!items.length) return (list.innerHTML = `<li class="td-empty">No tasks: add lines like <code>test: npm test</code> to tasks.txt.</li>`);
+      list.innerHTML = items.map((t, i) => `<li aria-selected="${i === cursor}" data-i="${i}">
+        ${td.escape(t.name)}<span class="cmd">${td.escape(t.command)}</span></li>`).join("");
+    }
+
+    // Run it like a Toolkit button, and show its output here too
+    async function run() {
+      const t = items[cursor];
+      if (!t) return;
+      const out = document.getElementById("out");
+      out.hidden = false;
+      out.textContent = `$ ${t.command}\n`;
+      const r = await td.run(t.command, { label: t.name });
+      r.onOutput((line) => (out.textContent += `${line}\n`));
+      const code = await r.done;
+      out.textContent += code === 0 ? "✓ done" : `✗ exited with ${code}`;
+    }
+
+    td.on("key", ({ action }) => {
+      if (action === "down") (cursor = Math.min(items.length - 1, cursor + 1)), render();
+      else if (action === "up") (cursor = Math.max(0, cursor - 1)), render();
+      else if (action === "open") run();
+      else if (action === "refresh") load().then(() => td.actions.refresh());
+    });
+    td.backend.on("tick", ({ at }) => (document.getElementById("tick").textContent = `backend alive · ${new Date(at).toLocaleTimeString()}`));
+    document.getElementById("list").addEventListener("click", (e) => {
+      const li = e.target.closest("[data-i]");
+      if (li) (cursor = Number(li.dataset.i)), render();
+    });
+    load();
+  </script>
+</body>
+</html>

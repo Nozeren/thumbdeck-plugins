@@ -1,12 +1,14 @@
 # Python projects: virtual environment, dependencies, tests
-schema = 1
+id = "python"
 name = "Python"
+version = "1.0.0"
+api = 1
 description = "venv, pip, pytest"
-icon = "python"
-priority = 60
 
 [detect]
 files = ["pyproject.toml", "requirements.txt", "setup.py", ".venv", "venv", "pytest.ini", "conftest.py"]
+icon = "python"
+priority = 60
 
 [[action]]
 name = "create venv"

@@ -1,12 +1,14 @@
 # Gradle projects (mostly Android): build, install and test through the project's wrapper
-schema = 1
+id = "gradle"
 name = "Gradle"
+version = "1.0.0"
+api = 1
 description = "gradlew build, install, test"
-icon = "android"
-priority = 20
 
 [detect]
 files = ["gradlew", "build.gradle", "build.gradle.kts"]
+icon = "android"
+priority = 20
 
 # The buttons use ./gradlew, so they need the wrapper
 [[action]]

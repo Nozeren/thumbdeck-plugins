@@ -1,0 +1,30 @@
+# Toolkit buttons from a backend: one per line of the project's tasks.txt ("name: command"),
+# and a tab listing them. Shows [backend], its `actions`, calls from a page, and events.
+id = "tasks"
+name = "Tasks"
+version = "0.1.0"
+api = 1
+description = "Buttons for the commands in the project's tasks.txt"
+
+[detect]
+files = ["tasks.txt"]
+
+[backend]
+command = "node backend.js"
+actions = true
+watch = ["tasks.txt"]
+
+[[tab]]
+id = "tasks"
+name = "Tasks"
+page = "tab.html"
+
+[keys.list]
+name = "TASKS"
+surface = "tab:tasks"
+bindings = [
+  { keys = ["j", "ArrowDown"], action = "down", does = "down" },
+  { keys = ["k", "ArrowUp"], action = "up", does = "up" },
+  { keys = ["l", "Enter"], action = "open", does = "run the task (its output in a tab)" },
+  { keys = ["r"], action = "refresh", does = "read tasks.txt again" },
+]

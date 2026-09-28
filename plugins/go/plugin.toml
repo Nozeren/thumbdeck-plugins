@@ -1,12 +1,14 @@
 # Go modules
-schema = 1
+id = "go"
 name = "Go"
+version = "1.0.0"
+api = 1
 description = "go run, go test"
-icon = "go"
-priority = 45
 
 [detect]
 files = ["go.mod"]
+icon = "go"
+priority = 45
 
 [[action]]
 name = "run"

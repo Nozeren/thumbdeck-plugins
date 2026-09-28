@@ -1,11 +1,13 @@
 # Docker Compose: start, stop and watch the project's services
-schema = 1
+id = "compose"
 name = "Compose"
+version = "1.0.0"
+api = 1
 description = "docker compose up, down, logs, ps"
-priority = 70
 
 [detect]
 files = ["compose.yaml", "compose.yml", "docker-compose.yml", "docker-compose.yaml"]
+priority = 70
 
 [[action]]
 name = "up"
