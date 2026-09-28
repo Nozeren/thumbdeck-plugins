@@ -1,0 +1,109 @@
+id = "logs"
+name = "Logs"
+version = "1.0.0"
+api = 1
+description = "The project's log files: levels, search, errors, live tail, optional sections"
+homepage = "https://github.com/Nozeren/thumbdeck-plugins/tree/main/plugins/logs"
+
+[backend]
+command = "node backend.js"
+
+[[tab]]
+id = "logs"
+name = "Logs"
+page = "dist/tab.html"
+# Sections are more than a form of fields: the tab has its own setup page
+setup_page = "dist/setup.html"
+
+[[tab.setup]]
+key = "folders"
+label = "Folders"
+type = "folders"
+default = [".", "logs", "log"]
+
+[[tab.setup]]
+key = "pattern"
+label = "Log files"
+type = "text"
+default = "*.log"
+
+[[tab.setup]]
+key = "blocks"
+label = "Sections"
+type = "json"
+default = []
+
+[[tab.setup]]
+key = "fields"
+label = "JSON field names"
+type = "json"
+default = { message = ["message", "msg", "event", "text", "log"], level = ["level", "levelname", "severity", "lvl", "loglevel"], time = ["timestamp", "time", "ts", "@timestamp", "asctime", "datetime", "date"] }
+
+[[tab.setup]]
+key = "line_pattern"
+label = "Plain-text line pattern"
+type = "text"
+default = ""
+
+[keys.files]
+name = "LOGS"
+surface = "tab:logs"
+bindings = [
+  { keys = ["j", "ArrowDown"], action = "down", does = "down" },
+  { keys = ["k", "ArrowUp"], action = "up", does = "up" },
+  { keys = ["g"], action = "first", does = "first" },
+  { keys = ["G"], action = "last", does = "last" },
+  { keys = ["l", "Enter"], action = "open", does = "open the log" },
+  { keys = ["r"], action = "refresh", does = "look for logs again" },
+]
+
+[keys.log]
+name = "LOG"
+surface = "tab:logs"
+bindings = [
+  { keys = ["j", "ArrowDown"], action = "down", does = "down" },
+  { keys = ["k", "ArrowUp"], action = "up", does = "up" },
+  { keys = ["g"], action = "first", does = "first" },
+  { keys = ["G"], action = "last", does = "last" },
+  { keys = ["l", "Enter", "Space", "ArrowRight"], action = "open", does = "open a section / a line's full entry" },
+  { keys = ["h", "ArrowLeft"], action = "close", does = "close a section (on a line: its section)" },
+  { keys = ["d", "Ctrl+d"], action = "page-down", does = "half a page down" },
+  { keys = ["u", "Ctrl+u"], action = "page-up", does = "half a page up" },
+  { keys = ["Ctrl+f", "PageDown"], action = "full-down", does = "a page down" },
+  { keys = ["Ctrl+b", "PageUp"], action = "full-up", does = "a page up" },
+  { keys = ["e", "E"], action = "error", does = "next / previous ERROR" },
+  { keys = ["/"], action = "search", does = "search" },
+  { keys = ["n", "N"], action = "match", does = "next / previous match" },
+  { keys = ["t"], action = "tail", does = "live tail on / off" },
+  { keys = ["f"], action = "levels", does = "show / hide levels: then D I W E, or A for all" },
+  { keys = ["y", "Y"], action = "copy", does = "copy the message (a section: its title) / the entry as JSON" },
+  { keys = ["r"], action = "refresh", does = "read the log again" },
+  { keys = ["Backspace", "-"], action = "back", does = "back to the files" },
+  { keys = ["q", "Escape"], action = "leave", does = "close the search status, else give the keyboard back" },
+]
+
+[keys.levels]
+name = "LEVELS"
+surface = "tab:logs"
+bindings = [
+  { keys = ["D"], action = "DEBUG", does = "show / hide DEBUG" },
+  { keys = ["I"], action = "INFO", does = "show / hide INFO" },
+  { keys = ["W"], action = "WARNING", does = "show / hide WARNING" },
+  { keys = ["E"], action = "ERROR", does = "show / hide ERROR" },
+  { keys = ["A"], action = "all", does = "show all" },
+  { keys = ["Escape"], action = "leave", does = "never mind" },
+]
+
+[keys.entry]
+name = "ENTRY"
+surface = "tab:logs"
+bindings = [
+  { keys = ["j", "ArrowDown"], action = "down", does = "down" },
+  { keys = ["k", "ArrowUp"], action = "up", does = "up" },
+  { keys = ["g"], action = "first", does = "first" },
+  { keys = ["G"], action = "last", does = "last" },
+  { keys = ["l", "Enter", "Space"], action = "open", does = "open / close a value" },
+  { keys = ["h"], action = "close", does = "close (on a value: its parent)" },
+  { keys = ["y", "Y"], action = "copy", does = "copy the value / the whole entry" },
+  { keys = ["q", "Escape", "Backspace"], action = "leave", does = "close the entry" },
+]

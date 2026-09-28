@@ -1,0 +1,28 @@
+{"timestamp": "2026-07-31 10:00:00,001", "level": "INFO", "message": "Read 'ppe.yml' configuration file."}
+{"timestamp": "2026-07-31 10:00:00,102", "level": "DEBUG", "message": "Resolved base_url=https://qa.example.test"}
+{"timestamp": "2026-07-31 10:00:00,201", "level": "INFO", "message": "################ Login works ################\n# Scenario: Login works"}
+{"timestamp": "2026-07-31 10:00:00,305", "level": "DEBUG", "message": "Launching browser session"}
+{"timestamp": "2026-07-31 10:00:00,410", "level": "INFO", "message": ">>>>>>>>>>>>>>>>Given I am on the login page<<<<<<<<<<<<<<<<"}
+{"timestamp": "2026-07-31 10:00:00,512", "level": "DEBUG", "message": "Navigated to /login"}
+{"timestamp": "2026-07-31 10:00:00,620", "level": "INFO", "message": "Page title: 'Sign in'"}
+{"timestamp": "2026-07-31 10:00:00,715", "level": "INFO", "message": ">>>>>>>>>>>>>>>>When I submit valid credentials<<<<<<<<<<<<<<<<"}
+{"timestamp": "2026-07-31 10:00:00,820", "level": "DEBUG", "message": "Filling username field"}
+{"timestamp": "2026-07-31 10:00:00,915", "level": "ERROR", "message": "Element '#submit-button' not found after 10s timeout"}
+{"timestamp": "2026-07-31 10:00:01,020", "level": "WARNING", "message": "Retrying click via JS fallback"}
+{"timestamp": "2026-07-31 10:00:01,130", "level": "INFO", "message": ">>>>>>>>>>>>>>>>Then I should see the dashboard<<<<<<<<<<<<<<<<"}
+{"timestamp": "2026-07-31 10:00:01,240", "level": "ERROR", "message": "AssertionError: expected dashboard heading, got login page"}
+{"timestamp": "2026-07-31 10:00:01,350", "level": "INFO", "message": "# Scenario completed: Login works"}
+{"timestamp": "2026-07-31 10:00:01,455", "level": "DEBUG", "message": "Closing browser session"}
+{"timestamp": "2026-07-31 10:00:01,560", "level": "INFO", "message": "Captured screenshot: login_works_failure.png"}
+{"timestamp": "2026-07-31 10:00:01,665", "level": "INFO", "message": "################ Logout works ################\n# Scenario: Logout works"}
+{"timestamp": "2026-07-31 10:00:01,770", "level": "DEBUG", "message": "Launching browser session"}
+{"timestamp": "2026-07-31 10:00:01,880", "level": "INFO", "message": ">>>>>>>>>>>>>>>>Given I am logged in<<<<<<<<<<<<<<<<"}
+{"timestamp": "2026-07-31 10:00:01,985", "level": "DEBUG", "message": "Session token issued"}
+{"timestamp": "2026-07-31 10:00:02,090", "level": "INFO", "message": ">>>>>>>>>>>>>>>>When I click logout<<<<<<<<<<<<<<<<"}
+{"timestamp": "2026-07-31 10:00:02,195", "level": "DEBUG", "message": "Logout button clicked"}
+{"timestamp": "2026-07-31 10:00:02,300", "level": "INFO", "message": ">>>>>>>>>>>>>>>>Then I should see the login page<<<<<<<<<<<<<<<<"}
+{"timestamp": "2026-07-31 10:00:02,405", "level": "INFO", "message": "Page title: 'Sign in'"}
+{"timestamp": "2026-07-31 10:00:02,510", "level": "INFO", "message": "# Scenario completed: Logout works"}
+{"timestamp": "2026-07-31 10:00:02,615", "level": "DEBUG", "message": "Closing browser session"}
+{"timestamp": "2026-07-31 10:00:02,720", "level": "INFO", "message": "short test summary info"}
+{"timestamp": "2026-07-31 10:00:02,725", "level": "INFO", "message": "1 failed, 1 passed in 2.72s"}
