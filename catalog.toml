@@ -112,3 +112,17 @@ name = "Env check"
 description = "Compares the project's .env with its .env.example: what's missing, empty or still the example's"
 source = "https://github.com/Nozeren/thumbdeck-plugins#plugins/tabs/env"
 recommended = true
+
+[[plugin]]
+id = "dev-utils"
+name = "Dev utils"
+description = "Paste a JWT, JSON, base64, a timestamp or a URL: decoded; a UUID or the time now"
+source = "https://github.com/Nozeren/thumbdeck-plugins#plugins/views/dev-utils"
+recommended = true
+
+[[plugin]]
+id = "notes"
+name = "Notes"
+description = "A notes tab for each project: a scratchpad and checklist kept by thumbdeck, not in the repository"
+source = "https://github.com/Nozeren/thumbdeck-plugins#plugins/tabs/notes"
+recommended = true
