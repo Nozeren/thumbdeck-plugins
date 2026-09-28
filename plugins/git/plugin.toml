@@ -1,0 +1,39 @@
+id = "git"
+name = "Git"
+version = "1.0.0"
+api = 1
+description = "The repo at a glance: changes and their diffs, the branch, commits, branches and stashes (read-only)"
+homepage = "https://github.com/Nozeren/thumbdeck-plugins/tree/main/plugins/git"
+
+# Only for git repositories
+[detect]
+files = [".git"]
+
+[[tab]]
+id = "git"
+name = "Git"
+page = "tab.html"
+
+[[tab.setup]]
+key = "commits"
+label = "Recent commits to list"
+type = "number"
+min = 1
+default = 100
+
+[keys.git]
+name = "GIT"
+surface = "tab:git"
+bindings = [
+  { keys = ["j", "ArrowDown"], action = "down", does = "down" },
+  { keys = ["k", "ArrowUp"], action = "up", does = "up" },
+  { keys = ["g"], action = "first", does = "first" },
+  { keys = ["G"], action = "last", does = "last" },
+  { keys = ["l", "Enter"], action = "open", does = "review: all changes (at this file), the commit, the stash" },
+  { keys = ["v"], action = "review", does = "review (the same)" },
+  { keys = ["Tab"], action = "next-list", does = "next list: changes → commits → branches" },
+  { keys = ["Shift+Tab"], action = "previous-list", does = "previous list" },
+  { keys = ["d", "PageDown"], action = "page-down", does = "scroll the diff down" },
+  { keys = ["u", "PageUp"], action = "page-up", does = "scroll the diff up" },
+  { keys = ["r"], action = "refresh", does = "refresh" },
+]

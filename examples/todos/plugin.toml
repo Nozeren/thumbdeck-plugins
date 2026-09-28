@@ -1,0 +1,29 @@
+# A tab listing the project's TODO comments: the smallest plugin with a page.
+id = "todos"
+name = "TODOs"
+version = "0.1.0"
+api = 1
+description = "The project's TODO and FIXME comments"
+
+[[tab]]
+id = "todos"
+name = "TODOs"
+page = "tab.html"
+
+[[tab.setup]]
+key = "words"
+label = "Words to look for"
+type = "list"
+default = ["TODO", "FIXME"]
+
+[keys.list]
+name = "TODOS"
+surface = "tab:todos"
+bindings = [
+  { keys = ["j", "ArrowDown"], action = "down", does = "down" },
+  { keys = ["k", "ArrowUp"], action = "up", does = "up" },
+  { keys = ["g"], action = "first", does = "first" },
+  { keys = ["G"], action = "last", does = "last" },
+  { keys = ["l", "Enter"], action = "open", does = "open the file in the project's tmux (nvim)" },
+  { keys = ["r"], action = "refresh", does = "look again" },
+]
