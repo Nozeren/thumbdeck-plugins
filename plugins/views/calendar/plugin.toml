@@ -1,6 +1,6 @@
 id = "calendar"
 name = "Calendar"
-version = "1.0.0"
+version = "1.1.0"
 api = 1
 description = "Your calendars' coming events, what's next, and reminders (from iCal links, read-only)"
 homepage = "https://github.com/Nozeren/thumbdeck-plugins/tree/main/plugins/views/calendar"
@@ -44,15 +44,27 @@ type = "number"
 min = 1
 default = 15
 
+[[settings]]
+key = "week_starts"
+label = "Weeks start on"
+type = "choice"
+choices = [{ value = "monday", label = "Monday" }, { value = "sunday", label = "Sunday" }]
+default = "monday"
+
 [keys.view]
 name = "CALENDAR"
 surface = "view"
 bindings = [
-  { keys = ["j", "ArrowDown"], action = "down", does = "next event" },
-  { keys = ["k", "ArrowUp"], action = "up", does = "previous event" },
+  { keys = ["j", "ArrowDown"], action = "down", does = "next event (a week later, in the month)" },
+  { keys = ["k", "ArrowUp"], action = "up", does = "previous event (a week earlier)" },
   { keys = ["g"], action = "first", does = "first" },
   { keys = ["G"], action = "last", does = "last" },
-  { keys = ["t"], action = "now", does = "back to what's next" },
+  { keys = ["m"], action = "month", does = "the month, or back to the coming days" },
+  { keys = ["t"], action = "now", does = "back to what's next (today, in the month)" },
+  { keys = ["h", "ArrowLeft"], action = "left", does = "the day before (in the month)" },
+  { keys = ["ArrowRight"], action = "right", does = "the day after (in the month)" },
+  { keys = ["d", "]"], action = "page-down", does = "next month (10 events down in the coming days)" },
+  { keys = ["u", "["], action = "page-up", does = "previous month (10 events up)" },
   { keys = ["o"], action = "outside", does = "open the meeting link (or the event's link) in the browser" },
   { keys = ["r"], action = "refresh", does = "read the calendars again" },
 ]

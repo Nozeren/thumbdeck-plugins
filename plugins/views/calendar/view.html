@@ -6,11 +6,13 @@
 </head>
 <body>
   <header class="td-toolbar"><strong>Calendar</strong> <span class="td-muted" id="summary"></span>
+    <span class="td-muted" id="modehint"></span>
     <span class="spacer"></span><span class="td-muted" id="updated"></span>
     <button id="refresh" title="Read the calendars again (r)">↻</button></header>
   <p class="td-error" id="problems" hidden></p>
   <main>
     <ul id="list"></ul>
+    <div id="grid" hidden></div>
     <section id="detail"></section>
   </main>
   <script type="module" src="view.js"></script>

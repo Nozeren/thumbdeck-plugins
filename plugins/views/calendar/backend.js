@@ -86,6 +86,8 @@ serve({
   },
   /** For the view: the coming events, and whatever went wrong */
   list: () => ({ events: upcoming(), problems, updated, links: settings.calendars.filter((l) => l.trim()).length }),
+  /** For the month: the events between two times */
+  range: ({ from, to }) => agenda(calendars, from, to),
   /** Read the links again now */
   async refresh(_p, tb) {
     await refresh(tb);
