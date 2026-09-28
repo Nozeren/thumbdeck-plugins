@@ -23,7 +23,7 @@ export const RULES = {
 export const RESERVED = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "z", "Ctrl+p"];
 
 export const ICONS = ["django", "python", "android", "node", "tauri", "rust", "go", "nvim", "folder"];
-const FIELD_TYPES = ["text", "number", "bool", "choice", "list", "folder", "file", "folders", "files", "json"];
+const FIELD_TYPES = ["text", "number", "bool", "choice", "list", "folder", "file", "folders", "files", "json", "secret"];
 
 // ------------------------------------------------------------ the keys each table may have
 const CONDITIONS = ["files", "all_files", "not_files", "json", "contains", "any", "git_remote", "path"];

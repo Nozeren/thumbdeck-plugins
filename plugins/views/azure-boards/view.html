@@ -1,0 +1,19 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <link rel="stylesheet" href="view.css">
+</head>
+<body>
+  <header class="td-toolbar"><strong>Azure Boards</strong> <span class="td-muted" id="summary"></span>
+    <span class="spacer"></span><span class="td-muted" id="updated"></span>
+    <button id="refresh" title="Look again (r)">↻</button></header>
+  <p class="td-error" id="error" hidden></p>
+  <input id="filter" placeholder="Filter by title… (Enter keeps it, Esc clears)" hidden>
+  <main>
+    <ul id="list"></ul>
+    <section id="detail"></section>
+  </main>
+  <script type="module" src="view.js"></script>
+</body>
+</html>

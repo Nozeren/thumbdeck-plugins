@@ -91,3 +91,10 @@ name = "Calendar"
 description = "Your calendars' coming events, what's next, and reminders (from iCal links, read-only)"
 source = "https://github.com/Nozeren/thumbdeck-plugins#plugins/views/calendar"
 recommended = false
+
+[[plugin]]
+id = "azure-boards"
+name = "Azure Boards"
+description = "Your Azure DevOps work items: what's assigned to you, details, branch names (with a token, read-only)"
+source = "https://github.com/Nozeren/thumbdeck-plugins#plugins/views/azure-boards"
+recommended = false

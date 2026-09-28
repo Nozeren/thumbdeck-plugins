@@ -1,0 +1,82 @@
+id = "azure-boards"
+name = "Azure Boards"
+version = "1.0.0"
+api = 1
+description = "Your Azure DevOps work items: what's assigned to you, their details, branch names (with a token, read-only)"
+homepage = "https://github.com/Nozeren/thumbdeck-plugins/tree/main/plugins/views/azure-boards"
+
+[view]
+name = "Azure Boards"
+page = "view.html"
+status = true
+
+[backend]
+command = "node backend.js"
+# It looks every few minutes, and tells you when a work item is assigned to you
+autostart = true
+
+[[settings]]
+key = "organization"
+label = "Organization"
+type = "text"
+default = ""
+help = "Its name (dev.azure.com/<name>) or URL. demo shows sample work items."
+
+[[settings]]
+key = "token"
+label = "Personal access token"
+type = "secret"
+default = ""
+help = "Azure DevOps › User settings › Personal access tokens › New token, with Work Items: Read. Kept in thumbdeck's settings file, which only you can read."
+
+[[settings]]
+key = "show"
+label = "Show"
+type = "choice"
+choices = [
+  { value = "assigned", label = "Assigned to me" },
+  { value = "created", label = "Created by me" },
+  { value = "following", label = "Ones I follow" },
+]
+default = "assigned"
+
+[[settings]]
+key = "projects"
+label = "Only these projects"
+type = "list"
+default = []
+help = "Empty: every project"
+
+[[settings]]
+key = "hidden_states"
+label = "Leave out these states"
+type = "list"
+default = ["Closed", "Done", "Removed"]
+
+[[settings]]
+key = "branch_prefix"
+label = "Branch names start with"
+type = "text"
+default = "feature/"
+
+[[settings]]
+key = "refresh_minutes"
+label = "Look again every (minutes)"
+type = "number"
+min = 1
+default = 5
+
+[keys.view]
+name = "AZURE BOARDS"
+surface = "view"
+bindings = [
+  { keys = ["j", "ArrowDown"], action = "down", does = "next work item" },
+  { keys = ["k", "ArrowUp"], action = "up", does = "previous" },
+  { keys = ["g"], action = "first", does = "first" },
+  { keys = ["G"], action = "last", does = "last" },
+  { keys = ["o"], action = "outside", does = "open it in Azure DevOps" },
+  { keys = ["y"], action = "copy-branch", does = "copy a branch name for it (feature/1234-its-title)" },
+  { keys = ["Y"], action = "copy-ref", does = "copy '#1234 its title' (for a commit or a message)" },
+  { keys = ["/"], action = "filter", does = "filter by words in the title" },
+  { keys = ["r"], action = "refresh", does = "look again now" },
+]

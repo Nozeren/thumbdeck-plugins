@@ -348,6 +348,7 @@ help = "Relative to the project folder"
 | `folder`, `file` | string | a text field with a Browse button |
 | `folders`, `files` | array of strings | a list of those |
 | `json` | any JSON value | a text area with JSON (for values a form can't hold: a list of rules, …) |
+| `secret` | string | a password field, dots until you press Show (tokens; kept in thumbdeck's settings file, which only you can read) |
 
 Every field takes `label`, `default` and `help`. Every tab setup also has a `title` field,
 added by thumbdeck. A setup saved by an older version of the plugin gets new fields' defaults.

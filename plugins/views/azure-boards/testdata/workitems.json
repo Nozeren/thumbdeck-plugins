@@ -1,0 +1,80 @@
+{
+ "value": [
+  {
+   "id": 4211,
+   "fields": {
+    "System.Id": 4211,
+    "System.Title": "Login redirects to a blank page after SSO",
+    "System.State": "Active",
+    "System.WorkItemType": "Bug",
+    "System.TeamProject": "Shop",
+    "System.AssignedTo": {
+     "displayName": "Me",
+     "uniqueName": "me@example.test"
+    },
+    "System.ChangedDate": "2026-09-28T10:00:00Z",
+    "System.IterationPath": "Shop\\Sprint 42",
+    "System.Tags": "auth; sso",
+    "Microsoft.VSTS.Common.Priority": 1,
+    "System.Description": "<div>After signing in with SSO, the browser lands on <b>/callback</b> and stays blank.</div><div><br></div><div>Steps:</div><ol><li>Sign in with SSO</li><li>Wait</li></ol>"
+   }
+  },
+  {
+   "id": 4198,
+   "fields": {
+    "System.Id": 4198,
+    "System.Title": "Show a discount on the cart when a code is applied",
+    "System.State": "Active",
+    "System.WorkItemType": "User Story",
+    "System.TeamProject": "Shop",
+    "System.AssignedTo": {
+     "displayName": "Me",
+     "uniqueName": "me@example.test"
+    },
+    "System.ChangedDate": "2026-09-27T10:00:00Z",
+    "System.IterationPath": "Shop\\Sprint 42",
+    "System.Tags": "cart",
+    "Microsoft.VSTS.Common.Priority": 2,
+    "System.Description": "<p>As a customer I want to see the discount before paying.</p><p><b>Acceptance</b>: the cart shows the code and the amount saved.</p>"
+   }
+  },
+  {
+   "id": 4175,
+   "fields": {
+    "System.Id": 4175,
+    "System.Title": "Move the checkout tests to the new runner",
+    "System.State": "New",
+    "System.WorkItemType": "Task",
+    "System.TeamProject": "Shop",
+    "System.AssignedTo": {
+     "displayName": "Me",
+     "uniqueName": "me@example.test"
+    },
+    "System.ChangedDate": "2026-09-26T10:00:00Z",
+    "System.IterationPath": "Shop\\Sprint 43",
+    "System.Tags": "",
+    "Microsoft.VSTS.Common.Priority": 3,
+    "System.Description": "<p>The old runner goes away next month.</p>"
+   }
+  },
+  {
+   "id": 3990,
+   "fields": {
+    "System.Id": 3990,
+    "System.Title": "Nightly export fails on accounts with & in the name",
+    "System.State": "Resolved",
+    "System.WorkItemType": "Bug",
+    "System.TeamProject": "Backoffice",
+    "System.AssignedTo": {
+     "displayName": "Me",
+     "uniqueName": "me@example.test"
+    },
+    "System.ChangedDate": "2026-09-25T10:00:00Z",
+    "System.IterationPath": "Backoffice\\Sprint 12",
+    "System.Tags": "export",
+    "Microsoft.VSTS.Common.Priority": 2,
+    "System.Description": "<p>The CSV writer doesn't escape <code>&amp;</code>.</p>"
+   }
+  }
+ ]
+}

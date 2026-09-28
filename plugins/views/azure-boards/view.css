@@ -1,0 +1,30 @@
+body { display: flex; flex-direction: column; overflow: hidden; }
+.spacer { flex: 1; }
+#refresh { padding: 2px 8px; }
+#error { margin: 6px 12px; }
+#filter { margin: 6px 12px; }
+main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); }
+#list { list-style: none; margin: 0; padding: 6px; overflow: auto; border-right: 1px solid var(--bg2); font: 12.5px var(--mono); }
+.wi { display: flex; gap: 10px; align-items: center; padding: 3px 8px; border-radius: 6px; white-space: nowrap; cursor: default; }
+.wi.cursor { background: var(--bg2); }
+body.td-keys .wi.cursor { box-shadow: inset 2px 0 var(--orange); }
+.wi .id { flex: none; width: 56px; color: var(--grey); }
+.wi .type { flex: none; width: 76px; overflow: hidden; text-overflow: ellipsis; }
+.wi .title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.wi .state { flex: none; color: var(--grey); font-size: 11.5px; }
+.Bug { color: var(--red); } .Task { color: var(--yellow); } .User.Story, .Product.Backlog.Item { color: var(--blue); }
+.Feature { color: var(--purple); } .Epic { color: var(--orange); }
+#detail { padding: 14px 18px; overflow: auto; }
+#detail h2 { margin: 0 0 6px; font: 600 15px var(--mono); }
+#detail dl { display: grid; grid-template-columns: 90px 1fr; gap: 3px 10px; margin: 8px 0 12px; font-size: 13px; }
+#detail dt { color: var(--grey); } #detail dd { margin: 0; }
+#detail pre { white-space: pre-wrap; word-break: break-word; font: 13px/1.5 var(--sans); background: var(--bg1); }
+.comment { margin: 10px 0; }
+.comment .by { color: var(--aqua); font: 12px var(--mono); }
+.empty { padding: 20px; color: var(--grey); line-height: 1.6; }
+/* A narrow window: the details below the list */
+@media (max-width: 640px) {
+  main { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(0, 1.4fr); }
+  #list { border-right: 0; border-bottom: 1px solid var(--bg2); }
+  .wi .type { width: auto; max-width: 90px; }
+}
