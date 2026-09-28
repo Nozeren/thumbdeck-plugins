@@ -1,0 +1,35 @@
+<!doctype html>
+<html>
+<head>
+  <style>
+    body { display: flex; align-items: center; gap: 10px; padding: 0 4px; font: 13px var(--mono); }
+    #clock { font-weight: 700; }
+    #clock.running { color: var(--green); }
+  </style>
+</head>
+<body>
+  <span id="clock">--:--</span><span class="td-muted" id="what"></span>
+  <script type="module">
+    import { clock, left, save, state } from "./timer.js";
+    const td = window.thumbdeck;
+
+    // The panel is always there, so it's the one that notices the end
+    async function tick() {
+      const s = await state();
+      const ms = left(s);
+      document.getElementById("clock").textContent = clock(ms);
+      document.getElementById("clock").classList.toggle("running", !!s.endsAt);
+      document.getElementById("what").textContent = s.endsAt ? "focusing" : "stopped";
+      td.ui.status(s.endsAt ? clock(ms) : null);
+      if (s.endsAt && ms === 0) {
+        const minutes = (await td.settings.get()).minutes;
+        await save({ endsAt: null, left: minutes * 60_000, history: [...s.history, { at: Date.now(), minutes }] });
+        td.ui.notify("Focus session done", "Time for a break");
+        td.ui.say("Pomodoro: focus session done");
+      }
+    }
+    setInterval(tick, 1000);
+    tick();
+  </script>
+</body>
+</html>

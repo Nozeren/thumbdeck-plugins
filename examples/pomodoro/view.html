@@ -1,0 +1,58 @@
+<!doctype html>
+<html>
+<head>
+  <style>
+    body { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; }
+    #clock { font: 700 64px var(--mono); }
+    #clock.running { color: var(--green); }
+    ul { list-style: none; padding: 0; margin: 0; }
+  </style>
+</head>
+<body>
+  <div id="clock">--:--</div>
+  <div class="td-toolbar" style="border: 0">
+    <button id="start" class="primary">Start (s)</button>
+    <button id="reset">Reset (x)</button>
+    <button id="history">History (H)</button>
+  </div>
+  <p class="td-muted" id="today"></p>
+  <script type="module">
+    import { clock, left, save, state } from "./timer.js";
+    const td = window.thumbdeck;
+    const $ = (id) => document.getElementById(id);
+
+    async function draw() {
+      const s = await state();
+      $("clock").textContent = clock(left(s));
+      $("clock").classList.toggle("running", !!s.endsAt);
+      $("start").textContent = s.endsAt ? "Stop (s)" : "Start (s)";
+      const today = s.history.filter((h) => new Date(h.at).toDateString() === new Date().toDateString());
+      $("today").textContent = `${today.length} focus session${today.length === 1 ? "" : "s"} today`;
+    }
+
+    async function toggle() {
+      const s = await state();
+      if (s.endsAt) await save({ ...s, left: left(s), endsAt: null });
+      else await save({ ...s, endsAt: Date.now() + s.left });
+      draw();
+    }
+
+    async function reset() {
+      const s = await state();
+      await save({ ...s, endsAt: null, left: (await td.settings.get()).minutes * 60_000 });
+      draw();
+    }
+
+    td.on("key", ({ action }) => {
+      if (action === "start") toggle();
+      else if (action === "reset") reset();
+      else if (action === "history") td.ui.openPage("history");
+    });
+    $("start").onclick = toggle;
+    $("reset").onclick = reset;
+    $("history").onclick = () => td.ui.openPage("history");
+    setInterval(draw, 1000);
+    draw();
+  </script>
+</body>
+</html>

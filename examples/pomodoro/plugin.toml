@@ -1,0 +1,47 @@
+# A focus timer: a view in the Plugins pane, a panel on the right, a full-window page. Shows
+# [view], [[panel]], [[page]], [[settings]], storage shared between frames, and notifications.
+id = "pomodoro"
+name = "Pomodoro"
+version = "0.1.0"
+api = 1
+description = "A focus timer: start it from its view, see it tick in a panel"
+
+[view]
+name = "Pomodoro"
+page = "view.html"
+status = true
+
+[[panel]]
+id = "timer"
+name = "Focus"
+page = "panel.html"
+scope = "app"
+height = 2
+
+[[page]]
+id = "history"
+page = "history.html"
+
+[[settings]]
+key = "minutes"
+label = "Focus length (minutes)"
+type = "number"
+min = 1
+default = 25
+
+[keys.view]
+name = "POMODORO"
+surface = "view"
+bindings = [
+  { keys = ["s"], action = "start", does = "start / stop" },
+  { keys = ["x"], action = "reset", does = "reset" },
+  { keys = ["H"], action = "history", does = "the history, over the whole window" },
+]
+
+[keys.history]
+name = "HISTORY"
+surface = "page:history"
+bindings = [
+  { keys = ["j", "ArrowDown"], action = "down", does = "scroll down" },
+  { keys = ["k", "ArrowUp"], action = "up", does = "scroll up" },
+]

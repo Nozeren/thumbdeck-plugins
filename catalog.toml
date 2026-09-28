@@ -1,0 +1,86 @@
+# The official plugins: thumbdeck's first start offers them (the recommended ones ticked), and
+# Settings › Plugins › Add a plugin lists them. `source` is what installs one.
+
+[[plugin]]
+id = "git"
+name = "Git"
+description = "The repo at a glance: changes and their diffs, the branch, commits, branches and stashes (read-only)"
+source = "https://github.com/Nozeren/thumbdeck-plugins#plugins/git"
+recommended = true
+
+[[plugin]]
+id = "logs"
+name = "Logs"
+description = "The project's log files: levels, search, errors, live tail, optional sections"
+source = "https://github.com/Nozeren/thumbdeck-plugins#plugins/logs"
+recommended = true
+
+[[plugin]]
+id = "agents"
+name = "Agents"
+description = "Claude Code sessions in this project, their subagents, and the subagents and skills it defines"
+source = "https://github.com/Nozeren/thumbdeck-plugins#plugins/agents"
+recommended = true
+
+[[plugin]]
+id = "prs"
+name = "Pull requests"
+description = "The repo's open PRs that concern you: to review again, to review, reviewed, yours"
+source = "https://github.com/Nozeren/thumbdeck-plugins#plugins/prs"
+recommended = true
+
+[[plugin]]
+id = "python"
+name = "Python"
+description = "venv, pip, pytest"
+source = "https://github.com/Nozeren/thumbdeck-plugins#plugins/python"
+recommended = true
+
+[[plugin]]
+id = "django"
+name = "Django"
+description = "manage.py commands"
+source = "https://github.com/Nozeren/thumbdeck-plugins#plugins/django"
+recommended = true
+
+[[plugin]]
+id = "npm"
+name = "npm"
+description = "package.json scripts"
+source = "https://github.com/Nozeren/thumbdeck-plugins#plugins/npm"
+recommended = true
+
+[[plugin]]
+id = "make"
+name = "make"
+description = "Makefile targets"
+source = "https://github.com/Nozeren/thumbdeck-plugins#plugins/make"
+recommended = true
+
+[[plugin]]
+id = "cargo"
+name = "Cargo"
+description = "cargo run, build, test"
+source = "https://github.com/Nozeren/thumbdeck-plugins#plugins/cargo"
+recommended = true
+
+[[plugin]]
+id = "go"
+name = "Go"
+description = "go run, go test"
+source = "https://github.com/Nozeren/thumbdeck-plugins#plugins/go"
+recommended = true
+
+[[plugin]]
+id = "gradle"
+name = "Gradle"
+description = "gradlew build, install, test"
+source = "https://github.com/Nozeren/thumbdeck-plugins#plugins/gradle"
+recommended = true
+
+[[plugin]]
+id = "compose"
+name = "Compose"
+description = "docker compose up, down, logs, ps"
+source = "https://github.com/Nozeren/thumbdeck-plugins#plugins/compose"
+recommended = true
