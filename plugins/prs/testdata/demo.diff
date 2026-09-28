@@ -1,0 +1,64 @@
+diff --git a/src/checkout.py b/src/checkout.py
+index 3b18e51..a9c2f04 100644
+--- a/src/checkout.py
++++ b/src/checkout.py
+@@ -1,14 +1,18 @@
+ from decimal import Decimal
++from .discounts import best_discount
+ 
+ TAX_RATE = Decimal("0.24")
+ 
+ 
+-def total(cart):
+-    """Sum of the cart, with tax."""
+-    subtotal = sum(item.price * item.qty for item in cart.items)
+-    return subtotal * (1 + TAX_RATE)
++def total(cart, customer=None):
++    """Sum of the cart after the best discount, with tax."""
++    subtotal = sum(item.price * item.quantity for item in cart.items)
++    discount = best_discount(cart, customer) if customer else Decimal(0)
++    return (subtotal - discount) * (1 + TAX_RATE)
+ 
+ 
+ def is_empty(cart):
+     return not cart.items
++
++
++def item_count(cart):
++    return sum(item.quantity for item in cart.items)
+diff --git a/src/discounts.py b/src/discounts.py
+new file mode 100644
+index 0000000..5d1e7aa
+--- /dev/null
++++ b/src/discounts.py
+@@ -0,0 +1,12 @@
++from decimal import Decimal
++
++
++def best_discount(cart, customer):
++    """The biggest discount the customer can get on this cart."""
++    offers = [Decimal(0)]
++    if customer.is_member:
++        offers.append(cart.subtotal * Decimal("0.10"))
++    if len(cart.items) >= 5:
++        offers.append(Decimal("5.00"))
++    return max(offers)
++
+diff --git a/features/checkout.feature b/features/checkout.feature
+index 71c0d2e..0f4a8b1 100644
+--- a/features/checkout.feature
++++ b/features/checkout.feature
+@@ -3,7 +3,13 @@ Feature: Checkout
+   Scenario: Total with tax
+     Given a cart with 2 books at 10.00
+     When I check out
+-    Then the total is 24.80
++    Then the total is 24.80 including tax
++
++  Scenario: Members get 10% off
++    Given a member with a cart with 2 books at 10.00
++    When I check out
++    Then the total is 22.32 including tax
+ 
+   Scenario: Empty cart
+     Given an empty cart

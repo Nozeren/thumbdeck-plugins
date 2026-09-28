@@ -1,0 +1,36 @@
+body { display: flex; flex-direction: column; font: 12.5px var(--mono); overflow: hidden; }
+.spacer { flex: 1; }
+.dim { color: var(--grey); }
+.red { color: var(--red); }
+.yellow { color: var(--yellow); }
+.tool { padding: 2px 8px; border: 0; background: none; border-radius: 6px; color: var(--grey); font: 12px var(--mono); }
+.tool:hover { background: var(--bg2); color: var(--fg); }
+#error { margin: 6px 12px; }
+
+.rows { list-style: none; margin: 0; padding: 6px; overflow: auto; flex: 0 1 auto; max-height: 45%; min-height: 60px; }
+.row { display: flex; gap: 10px; align-items: center; padding: 3px 8px; border-radius: 6px; white-space: nowrap; cursor: default; }
+.row.cursor { background: var(--bg2); }
+body.td-keys .row.cursor { box-shadow: inset 2px 0 var(--orange); }
+.bell { flex: none; width: 18px; }
+.cat { flex: none; width: 76px; }
+.author { flex: none; width: 150px; color: var(--grey); overflow: hidden; text-overflow: ellipsis; }
+.num { flex: none; width: 56px; font-weight: 600; }
+.title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.title.draft { color: var(--grey); }
+.re-review { color: var(--red); } .review { color: var(--yellow); } .reviewed { color: var(--purple); } .mine { color: var(--green); }
+.num.review { color: var(--aqua); }
+.empty { padding: 10px; color: var(--grey); }
+
+.details { flex: 1; min-height: 0; overflow: auto; padding: 10px 16px; border-top: 1px solid var(--bg2); }
+.big { display: block; font-size: 13.5px; margin-bottom: 6px; }
+.details dl { display: grid; grid-template-columns: 90px 1fr; gap: 3px 10px; margin: 6px 0; }
+.details dt { color: var(--grey); } .details dd { margin: 0; }
+.checks.SUCCESS { color: var(--green); } .checks.FAILURE, .checks.ERROR { color: var(--red); } .checks.PENDING { color: var(--yellow); }
+.flags { display: flex; gap: 14px; margin: 6px 0 10px; }
+.flags:empty { display: none; }
+.reviewer { padding: 2px 0 2px 12px; }
+.state.APPROVED { color: var(--green); } .state.CHANGES_REQUESTED { color: var(--red); }
+.state.COMMENTED { color: var(--aqua); } .state.PENDING { color: var(--yellow); }
+.url { margin-top: 10px; word-break: break-all; }
+.link { padding: 0; border: 0; background: none; color: var(--orange); font: inherit; }
+.link:hover { text-decoration: underline; }

@@ -1,0 +1,20 @@
+{"data":{"repository":{"pullRequests":{"nodes":[
+{"number":1,"title":"Mine","isDraft":true,"url":"https://github.com/acme/app/pull/1","updatedAt":"2026-09-20T10:00:00Z","mergeable":"CONFLICTING",
+ "author":{"login":"me_corp"},"labels":{"nodes":[{"name":"bug"}]},
+ "commits":{"nodes":[{"commit":{"statusCheckRollup":{"state":"FAILURE"}}}]},
+ "reviewRequests":{"nodes":[{"requestedReviewer":{"login":"ann_corp"}},{"requestedReviewer":{"name":"qa-team"}}]},
+ "reviews":{"nodes":[{"author":{"login":"copilot-pull-request-reviewer"},"state":"COMMENTED"},{"author":{"login":"bob_corp"},"state":"COMMENTED"},{"author":{"login":"bob_corp"},"state":"APPROVED"}]},
+ "comments":{"totalCount":3,"nodes":[{"author":{"login":"bob_corp"},"updatedAt":"2026-09-21T10:00:00Z"}]}},
+{"number":2,"title":"Asked, reviewed before","isDraft":false,"url":"https://github.com/acme/app/pull/2","updatedAt":"2026-09-22T10:00:00Z","mergeable":"MERGEABLE",
+ "author":{"login":"ann_corp"},"labels":{"nodes":[]},"commits":{"nodes":[{"commit":{"statusCheckRollup":null}}]},
+ "reviewRequests":{"nodes":[{"requestedReviewer":{"login":"me_corp"}}]},
+ "reviews":{"nodes":[{"author":{"login":"me_corp"},"state":"CHANGES_REQUESTED"}]},"comments":{"totalCount":0,"nodes":[]}},
+{"number":3,"title":"Asked","isDraft":false,"url":"https://github.com/acme/app/pull/3","updatedAt":"2026-09-23T10:00:00Z","mergeable":"UNKNOWN",
+ "author":null,"labels":{"nodes":[]},"commits":{"nodes":[]},
+ "reviewRequests":{"nodes":[{"requestedReviewer":{"login":"me_corp"}}]},"reviews":{"nodes":[]},"comments":{"totalCount":0,"nodes":[]}},
+{"number":4,"title":"Reviewed","isDraft":false,"url":"https://github.com/acme/app/pull/4","updatedAt":"2026-09-24T10:00:00Z","mergeable":"MERGEABLE",
+ "author":{"login":"bob_corp"},"labels":{"nodes":[]},"commits":{"nodes":[]},"reviewRequests":{"nodes":[]},
+ "reviews":{"nodes":[{"author":{"login":"me_corp"},"state":"APPROVED"}]},"comments":{"totalCount":0,"nodes":[]}},
+{"number":5,"title":"Not mine","isDraft":false,"url":"https://github.com/acme/app/pull/5","updatedAt":"2026-09-25T10:00:00Z","mergeable":"MERGEABLE",
+ "author":{"login":"bob_corp"},"labels":{"nodes":[]},"commits":{"nodes":[]},"reviewRequests":{"nodes":[]},"reviews":{"nodes":[]},"comments":{"totalCount":0,"nodes":[]}}
+]}}}}

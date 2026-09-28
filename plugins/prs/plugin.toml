@@ -1,0 +1,61 @@
+id = "prs"
+name = "Pull requests"
+version = "1.0.0"
+api = 1
+description = "The repo's open PRs that concern you: to review again, to review, reviewed, yours"
+homepage = "https://github.com/Nozeren/thumbdeck-plugins/tree/main/plugins/prs"
+
+[[tab]]
+id = "prs"
+name = "Pull requests"
+page = "tab.html"
+
+[[tab.setup]]
+key = "repo"
+label = "Repo"
+type = "text"
+default = ""
+help = "owner/name. Empty: the project's git remote (origin). demo: sample PRs."
+
+[[tab.setup]]
+key = "stale_days"
+label = "Stale after (days, 0: never)"
+type = "number"
+min = 0
+default = 7
+
+[[tab.setup]]
+key = "refresh_minutes"
+label = "Refresh every (minutes)"
+type = "number"
+min = 1
+default = 5
+
+[[tab.setup]]
+key = "bots"
+label = "Reviewers to leave out (bots)"
+type = "list"
+default = ["copilot-pull-request-reviewer"]
+
+[[tab.setup]]
+key = "trim_suffix"
+label = "Cut from the end of user names"
+type = "text"
+default = ""
+help = "e.g. _company: ann_company shows as ann"
+
+[keys.prs]
+name = "PULL REQUESTS"
+surface = "tab:prs"
+bindings = [
+  { keys = ["j", "ArrowDown"], action = "down", does = "down" },
+  { keys = ["k", "ArrowUp"], action = "up", does = "up" },
+  { keys = ["g"], action = "first", does = "first" },
+  { keys = ["G"], action = "last", does = "last" },
+  { keys = ["l", "Enter"], action = "open", does = "review its changes" },
+  { keys = ["v"], action = "review", does = "review its changes" },
+  { keys = ["o"], action = "outside", does = "open in the browser (marks its 🔔 read)" },
+  { keys = ["d", "PageDown"], action = "page-down", does = "scroll the details down" },
+  { keys = ["u", "PageUp"], action = "page-up", does = "scroll the details up" },
+  { keys = ["r"], action = "refresh", does = "refresh now" },
+]
