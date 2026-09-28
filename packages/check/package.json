@@ -1,0 +1,12 @@
+{
+  "name": "@thumbdeck/check",
+  "version": "1.0.0",
+  "description": "Check thumbdeck plugins like thumbdeck does when it loads them, without thumbdeck (for CI)",
+  "type": "module",
+  "exports": "./index.js",
+  "bin": { "thumbdeck-check": "bin/thumbdeck-check.js" },
+  "files": ["index.js", "bin"],
+  "dependencies": { "smol-toml": "^1.9.0" },
+  "license": "MIT",
+  "repository": { "type": "git", "url": "https://github.com/Nozeren/thumbdeck-plugins", "directory": "packages/check" }
+}

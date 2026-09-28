@@ -1,0 +1,39 @@
+<!doctype html>
+<html>
+<head><meta charset="utf-8"></head>
+<body>
+  <div class="td-toolbar"><strong id="title"></strong> <span class="td-muted" id="note"></span></div>
+  <ul class="td-list" id="list"></ul>
+  <script type="module">
+    // window.thumbdeck is there before this runs (types: npm install @thumbdeck/plugin)
+    const td = window.thumbdeck;
+    let items = [];
+    let cursor = 0;
+
+    async function load() {
+      const setup = await td.setup.get();
+      document.getElementById("title").textContent = `${setup.greeting}, ${td.context.project.name}`;
+      // Files in the project folder, and a question for the backend
+      items = await td.fs.list(".", { pattern: "*" });
+      const { count } = await td.backend.call("count", { items: items.length });
+      document.getElementById("note").textContent = `${count} things here`;
+      render();
+    }
+
+    function render() {
+      document.getElementById("list").innerHTML = items
+        .map((e, i) => `<li aria-selected="${i === cursor}">${td.escape(e.name)}${e.dir ? "/" : ""}</li>`)
+        .join("");
+    }
+
+    td.on("key", ({ action }) => {
+      if (action === "down") cursor = Math.min(items.length - 1, cursor + 1);
+      else if (action === "up") cursor = Math.max(0, cursor - 1);
+      else if (action === "refresh") return load();
+      render();
+    });
+    td.on("setup", load);
+    load();
+  </script>
+</body>
+</html>

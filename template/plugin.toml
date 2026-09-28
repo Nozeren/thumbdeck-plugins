@@ -1,0 +1,43 @@
+# A plugin: this file says what it is and what it adds. Everything below [detect] is optional:
+# keep what you need. The whole format is SPEC.md; GUIDE.md walks through writing one.
+id = "my-plugin"                # lowercase letters, digits and -; also its folder's name
+name = "My plugin"
+version = "0.1.0"               # release it with a tag v0.1.0
+api = 1
+description = "What it does, in one line"
+
+# When it applies to a project (no [detect]: every project)
+[detect]
+files = ["package.json"]
+
+# A Toolkit button
+[[action]]
+name = "hello"
+command = "echo hello from {project}"
+
+# A tab (turned on per project with the tab bar's +)
+[[tab]]
+id = "main"
+name = "My plugin"
+page = "tab.html"
+
+# A field of the tab's setup form (S in the tab)
+[[tab.setup]]
+key = "greeting"
+label = "Greeting"
+type = "text"
+default = "Hello"
+
+# Its keys while the tab has the keyboard: thumbdeck sends the page the action
+[keys.main]
+name = "MY PLUGIN"
+surface = "tab:main"
+bindings = [
+  { keys = ["j", "ArrowDown"], action = "down", does = "down" },
+  { keys = ["k", "ArrowUp"], action = "up", does = "up" },
+  { keys = ["r"], action = "refresh", does = "look again" },
+]
+
+# A program for work a page can't do well (delete this and backend.js if you don't need one)
+[backend]
+command = "node backend.js"

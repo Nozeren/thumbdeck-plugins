@@ -193,8 +193,8 @@ declare namespace Thumbdeck {
     run(command: string, o?: { label?: string; cwd?: string }): Promise<Run>;
 
     /** Type a command into a window of the project's tmux session; resolves with
-     *  thumbdeck's short message */
-    tmux(command: string, o: { window: string }): Promise<string>;
+     *  thumbdeck's short message. show: also switch the terminal attached to it to that window. */
+    tmux(command: string, o: { window: string; show?: boolean }): Promise<string>;
 
     ui: {
       /** A short message in the status line */

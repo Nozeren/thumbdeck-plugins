@@ -1,0 +1,19 @@
+# The smallest plugin: a manifest only. When a project has a Makefile, two Toolkit buttons.
+id = "hello"
+name = "Hello"
+version = "0.1.0"
+api = 1
+description = "Two Toolkit buttons for projects with a Makefile"
+
+[detect]
+files = ["Makefile"]
+
+[[action]]
+name = "say hello"
+command = "echo Hello from {project}"
+description = "Prints a greeting (runs in thumbdeck, output in a tab)"
+
+[[action]]
+name = "clean"
+command = "make clean"
+confirm = true
