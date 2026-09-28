@@ -17,9 +17,10 @@ thumbdeck, **Settings** (`,`) **› Plugins › Add a plugin** lists the ones yo
 | [prs](plugins/tabs/prs) | a tab: the open pull requests that concern you (with the GitHub CLI) |
 | [env](plugins/tabs/env) | a tab: the project's `.env` against its example: missing, empty, placeholder (values hidden) |
 | [notes](plugins/tabs/notes) | a tab: a scratchpad and checklist for each project, kept out of the repository |
-| [calendar](plugins/views/calendar) | a view: your calendars' coming events, what's next, reminders (iCal links) |
+| [calendar](plugins/views/calendar) | a view: your calendars' coming events and the month, what's next, reminders (iCal links) |
 | [azure-boards](plugins/views/azure-boards) | a view: your Azure DevOps work items, details, branch names (a token, read-only) |
 | [ports](plugins/views/ports) | a view: what's listening on which port and its project; stopping it after asking |
+| [clipboard](plugins/views/clipboard) | a view: what you copied, searchable, copied again with one key; pinned items |
 | [dev-utils](plugins/views/dev-utils) | a view: JWT, JSON, base64, timestamps and URLs decoded; UUIDs |
 | [python](plugins/toolkits/python), [django](plugins/toolkits/django) | Toolkit buttons: venv, pip, pytest; manage.py |
 | [npm](plugins/toolkits/npm), [make](plugins/toolkits/make) | Toolkit buttons: package.json scripts; Makefile targets |
