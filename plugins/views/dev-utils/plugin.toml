@@ -1,6 +1,6 @@
 id = "dev-utils"
 name = "Dev utils"
-version = "1.0.0"
+version = "1.0.1"
 api = 1
 description = "Paste a JWT, JSON, base64, a timestamp, a date or a URL: what it says, decoded; and a UUID or the time now"
 homepage = "https://github.com/Nozeren/thumbdeck-plugins/tree/main/plugins/views/dev-utils"

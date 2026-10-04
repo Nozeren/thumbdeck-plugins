@@ -1,6 +1,6 @@
 id = "calendar"
 name = "Calendar"
-version = "1.1.0"
+version = "1.1.1"
 api = 1
 description = "Your calendars' coming events, what's next, and reminders (from iCal links, read-only)"
 homepage = "https://github.com/Nozeren/thumbdeck-plugins/tree/main/plugins/views/calendar"

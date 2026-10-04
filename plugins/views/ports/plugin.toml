@@ -1,6 +1,6 @@
 id = "ports"
 name = "Ports"
-version = "1.0.0"
+version = "1.0.1"
 api = 1
 description = "What's listening on which port, which project it's from, and stopping it (after asking)"
 homepage = "https://github.com/Nozeren/thumbdeck-plugins/tree/main/plugins/views/ports"

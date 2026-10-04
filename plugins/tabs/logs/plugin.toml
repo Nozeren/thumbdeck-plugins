@@ -1,6 +1,6 @@
 id = "logs"
 name = "Logs"
-version = "1.0.0"
+version = "1.1.0"
 api = 1
 description = "The project's log files: levels, search, errors, live tail, optional sections"
 homepage = "https://github.com/Nozeren/thumbdeck-plugins/tree/main/plugins/tabs/logs"

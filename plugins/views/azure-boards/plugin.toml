@@ -1,6 +1,6 @@
 id = "azure-boards"
 name = "Azure Boards"
-version = "1.0.0"
+version = "1.0.1"
 api = 1
 description = "Your Azure DevOps work items: what's assigned to you, their details, branch names (with a token, read-only)"
 homepage = "https://github.com/Nozeren/thumbdeck-plugins/tree/main/plugins/views/azure-boards"

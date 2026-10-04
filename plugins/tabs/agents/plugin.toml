@@ -1,6 +1,6 @@
 id = "agents"
 name = "Agents"
-version = "1.0.0"
+version = "1.0.1"
 api = 1
 description = "Claude Code sessions in this project, their subagents, and the subagents and skills it defines"
 homepage = "https://github.com/Nozeren/thumbdeck-plugins/tree/main/plugins/tabs/agents"
