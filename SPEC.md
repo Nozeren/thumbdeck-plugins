@@ -218,7 +218,8 @@ card is for where the project stands: a few lines, no scrolling. Cards belong to
 `shown` / `hidden` events.
 
 Cards don't take the keyboard. `h` / `j` / `k` / `l` (and `g` / `G`, the arrows) move between
-cards and can't be bound by one; the card under the cursor gets its own other keys, from a
+cards and `x` hides one in this project (you bring it back from the Overview's hidden list), so a
+card can't bind them; the card under the cursor gets its own other keys, from a
 `[keys.<name>]` with `surface = "card:<id>"`, as `key` events. Enter shows the `opens` tab
 unless the card binds Enter itself. A click in a card puts the cursor on it.
 

@@ -20,8 +20,8 @@ export const RULES = {
 };
 
 /** Keys thumbdeck keeps even while a plugin has the keyboard */
-/** Keys a card can't bind: they move between the Overview's cards */
-export const CARD_MOVES = ["h", "j", "k", "l", "g", "G", "ArrowLeft", "ArrowDown", "ArrowUp", "ArrowRight"];
+/** Keys a card can't bind: they move between the Overview's cards, and x hides one */
+export const CARD_KEYS = ["h", "j", "k", "l", "g", "G", "ArrowLeft", "ArrowDown", "ArrowUp", "ArrowRight", "x"];
 export const RESERVED = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "z", "Ctrl+p", "Ctrl+h", "Ctrl+j", "Ctrl+k", "Ctrl+l", "Ctrl+b"];
 
 export const ICONS = ["django", "python", "android", "node", "tauri", "rust", "go", "nvim", "folder"];
@@ -257,8 +257,8 @@ export function checkManifest(text, folder) {
       : ({ tab: tabs, panel: panels, card: cards, page: pages }[kind] ?? []).some((x) => x.id === id);
     if (!exists) out.push(`keys.${name}: surface "${map.surface}" isn't one of the plugin's (tab:<id>, panel:<id>, card:<id>, page:<id> or view)`);
     if (kind === "card") {
-      for (const k of list(map.bindings).flatMap((b) => list(b.keys)).filter((k) => CARD_MOVES.includes(k))) {
-        out.push(`keys.${name}: on a card, ${k} is thumbdeck's (it moves between the Overview's cards)`);
+      for (const k of list(map.bindings).flatMap((b) => list(b.keys)).filter((k) => CARD_KEYS.includes(k))) {
+        out.push(`keys.${name}: on a card, ${k} is thumbdeck's (h/j/k/l/g/G move between the Overview's cards, x hides one)`);
       }
     }
   }

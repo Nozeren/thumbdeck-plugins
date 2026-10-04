@@ -3,6 +3,9 @@
 /** Open checklist items ("- [ ] …", "* [ ] …") */
 export const openItems = (text) => (text.match(/^\s*[-*+] \[ \]/gm) ?? []).length;
 
+/** The open checklist items' text, in order ("- [ ] fix login" -> "fix login") */
+export const openList = (text) => [...text.matchAll(/^\s*[-*+] \[ \] ?(.*)$/gm)].map((m) => m[1].trim());
+
 /** Ticks or unticks the checklist item on a line (0-based); other lines stay as they are */
 export function toggle(text, line) {
   const lines = text.split("\n");

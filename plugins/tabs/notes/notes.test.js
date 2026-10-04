@@ -1,12 +1,18 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { lineAt, openItems, toggle } from "./notes.js";
+import { lineAt, openItems, openList, toggle } from "./notes.js";
 
 const text = "# Shop\n- [ ] fix login\n- [x] ship it\n  * [ ] nested\nplain";
 
 test("open checklist items", () => {
   assert.equal(openItems(text), 2);
   assert.equal(openItems(""), 0);
+});
+
+test("the open items' text", () => {
+  assert.deepEqual(openList(text), ["fix login", "nested"]);
+  assert.deepEqual(openList("- [ ]\n"), [""]);
+  assert.deepEqual(openList(""), []);
 });
 
 test("ticking and unticking", () => {

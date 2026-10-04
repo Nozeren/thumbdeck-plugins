@@ -1,6 +1,6 @@
 id = "notes"
 name = "Notes"
-version = "1.0.0"
+version = "1.1.0"
 api = 1
 description = "A notes tab for each project: a scratchpad and checklist kept by thumbdeck, not in the repository"
 homepage = "https://github.com/Nozeren/thumbdeck-plugins/tree/main/plugins/tabs/notes"
@@ -9,6 +9,13 @@ homepage = "https://github.com/Nozeren/thumbdeck-plugins/tree/main/plugins/tabs/
 id = "notes"
 name = "Notes"
 page = "tab.html"
+
+# A card in the project's Overview: the open checklist items
+[[card]]
+id = "notes"
+name = "Notes"
+page = "card.html"
+opens = "notes"
 
 [keys.notes]
 name = "NOTES"
