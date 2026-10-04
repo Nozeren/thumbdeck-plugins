@@ -5,7 +5,7 @@ table { table-layout: fixed; }
 th:nth-child(1) { width: 64px; } th:nth-child(2) { width: 130px; } th:nth-child(3) { width: 150px; } th:nth-child(4) { width: 110px; }
 td { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 tr.cursor td { background: var(--bg2); }
-body.td-keys tr.cursor td:first-child { box-shadow: inset 2px 0 var(--orange); }
+body.td-keys tr.cursor td:first-child { box-shadow: inset 2px 0 var(--cursor, var(--orange)); }
 .port { color: var(--orange); font-weight: 600; }
 .known { color: var(--grey); }
 .project { color: var(--aqua); }

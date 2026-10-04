@@ -35,10 +35,10 @@ declare namespace Thumbdeck {
       dataFolder: string;
     };
     /** What kind of frame this is */
-    surface: "tab" | "panel" | "page" | "view";
-    /** The tab, panel or page id from plugin.toml */
+    surface: "tab" | "panel" | "card" | "page" | "view";
+    /** The tab, panel, card or page id from plugin.toml */
     id: string;
-    /** Fixed for tabs and project panels; null for app-wide frames */
+    /** Fixed for tabs, cards and project panels; null for app-wide frames */
     project: Project | null;
     /** A page's data, from ui.openPage */
     data?: unknown;

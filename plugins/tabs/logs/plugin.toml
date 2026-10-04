@@ -70,7 +70,7 @@ bindings = [
   { keys = ["d", "Ctrl+d"], action = "page-down", does = "half a page down" },
   { keys = ["u", "Ctrl+u"], action = "page-up", does = "half a page up" },
   { keys = ["Ctrl+f", "PageDown"], action = "full-down", does = "a page down" },
-  { keys = ["Ctrl+b", "PageUp"], action = "full-up", does = "a page up" },
+  { keys = ["PageUp"], action = "full-up", does = "a page up" },
   { keys = ["e", "E"], action = "error", does = "next / previous ERROR" },
   { keys = ["/"], action = "search", does = "search" },
   { keys = ["n", "N"], action = "match", does = "next / previous match" },

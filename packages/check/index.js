@@ -20,7 +20,9 @@ export const RULES = {
 };
 
 /** Keys thumbdeck keeps even while a plugin has the keyboard */
-export const RESERVED = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "z", "Ctrl+p"];
+/** Keys a card can't bind: they move between the Overview's cards */
+export const CARD_MOVES = ["h", "j", "k", "l", "g", "G", "ArrowLeft", "ArrowDown", "ArrowUp", "ArrowRight"];
+export const RESERVED = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "z", "Ctrl+p", "Ctrl+h", "Ctrl+j", "Ctrl+k", "Ctrl+l", "Ctrl+b"];
 
 export const ICONS = ["django", "python", "android", "node", "tauri", "rust", "go", "nvim", "folder"];
 const FIELD_TYPES = ["text", "number", "bool", "choice", "list", "folder", "file", "folders", "files", "json", "secret"];
@@ -28,7 +30,7 @@ const FIELD_TYPES = ["text", "number", "bool", "choice", "list", "folder", "file
 // ------------------------------------------------------------ the keys each table may have
 const CONDITIONS = ["files", "all_files", "not_files", "json", "contains", "any", "git_remote", "path"];
 const TABLES = {
-  top: ["id", "name", "version", "api", "description", "homepage", "icon", "detect", "vars", "action", "generate", "tab", "panel", "page", "view", "settings", "backend", "keys"],
+  top: ["id", "name", "version", "api", "description", "homepage", "icon", "detect", "vars", "action", "generate", "tab", "panel", "card", "page", "view", "settings", "backend", "keys"],
   detect: [...CONDITIONS, "icon", "priority", "requires"],
   conditions: CONDITIONS,
   json: ["file", "key", "value"],
@@ -38,6 +40,7 @@ const TABLES = {
   source: ["json", "keys", "values", "file", "regex", "command", "split"],
   tab: ["id", "name", "description", "page", "setup", "setup_page"],
   panel: ["id", "name", "page", "scope", "height"],
+  card: ["id", "name", "page", "height", "opens"],
   page: ["id", "page"],
   view: ["name", "page", "status"],
   field: ["key", "label", "type", "default", "help", "multiline", "min", "max", "choices"],
@@ -47,7 +50,7 @@ const TABLES = {
 };
 const REQUIRED = {
   top: ["id", "name", "version", "api"], json: ["file", "key"], contains: ["file", "text"], action: ["name", "command"],
-  generate: ["source", "action"], tab: ["id", "name", "page"], panel: ["id", "name", "page"], page: ["id", "page"],
+  generate: ["source", "action"], tab: ["id", "name", "page"], panel: ["id", "name", "page"], card: ["id", "name", "page"], page: ["id", "page"],
   view: ["name", "page"], field: ["key", "label", "type"], backend: ["command"], keymap: ["name", "surface", "bindings"],
   binding: ["keys", "action", "does"],
 };
@@ -151,7 +154,7 @@ export function keymapProblems(map, name) {
     for (const k of keys) {
       if (seen.includes(k)) out.push(`keys.${name}: ${k} is bound twice`);
       seen.push(k);
-      if (RESERVED.includes(k)) out.push(`keys.${name}: ${k} is thumbdeck's (1–9 show tabs, z is wide, Ctrl+p the Plugins pane)`);
+      if (RESERVED.includes(k)) out.push(`keys.${name}: ${k} is thumbdeck's (1–9 show tabs, z is wide, Ctrl+p the Plugins pane, Ctrl+h/j/k/l move between panes, Ctrl+b then n / p the next / previous tab)`);
       if (RULES[k] && RULES[k] !== b.action) out.push(`keys.${name}: ${k} runs ${b.action} here, but ${k} means ${RULES[k]} everywhere`);
     }
   }
@@ -221,9 +224,11 @@ export function checkManifest(text, folder) {
   };
   const tabs = list(m.tab).filter((t, i) => shape(t, "tab", `tab[${i}]`, out));
   const panels = list(m.panel).filter((p, i) => shape(p, "panel", `panel[${i}]`, out));
+  const cards = list(m.card).filter((c, i) => shape(c, "card", `card[${i}]`, out));
   const pages = list(m.page).filter((p, i) => shape(p, "page", `page[${i}]`, out));
   ids("tab", tabs);
   ids("panel", panels);
+  ids("card", cards);
   ids("page", pages);
   for (const t of tabs) {
     if (!String(t.name ?? "").trim()) out.push(`tab ${t.id} has no name`);
@@ -233,6 +238,10 @@ export function checkManifest(text, folder) {
   for (const p of panels) {
     if (p.scope !== undefined && p.scope !== "project" && p.scope !== "app") out.push(`panel ${p.id}: scope is "project" or "app", not "${p.scope}"`);
     if (p.height !== undefined && !(Number.isInteger(p.height) && p.height >= 0) && p.height !== "auto") out.push(`panel ${p.id}: height is "auto" or a number of lines`);
+  }
+  for (const c of cards) {
+    if (c.height !== undefined && !(Number.isInteger(c.height) && c.height >= 0) && c.height !== "auto") out.push(`card ${c.id}: height is "auto" or a number of lines`);
+    if (c.opens !== undefined && !tabs.some((t) => t.id === c.opens)) out.push(`card ${c.id}: opens "${c.opens}", which isn't one of the plugin's tabs`);
   }
   if (m.view !== undefined && shape(m.view, "view", "view", out) && m.view.page !== undefined) checkFile(folder, m.view.page, "the view's page", out);
   checkFields(m.settings, "settings", [], out);
@@ -245,8 +254,13 @@ export function checkManifest(text, folder) {
     const [kind, id] = String(map.surface ?? "").split(":");
     const exists = id === undefined
       ? map.surface === "view" && m.view !== undefined
-      : ({ tab: tabs, panel: panels, page: pages }[kind] ?? []).some((x) => x.id === id);
-    if (!exists) out.push(`keys.${name}: surface "${map.surface}" isn't one of the plugin's (tab:<id>, panel:<id>, page:<id> or view)`);
+      : ({ tab: tabs, panel: panels, card: cards, page: pages }[kind] ?? []).some((x) => x.id === id);
+    if (!exists) out.push(`keys.${name}: surface "${map.surface}" isn't one of the plugin's (tab:<id>, panel:<id>, card:<id>, page:<id> or view)`);
+    if (kind === "card") {
+      for (const k of list(map.bindings).flatMap((b) => list(b.keys)).filter((k) => CARD_MOVES.includes(k))) {
+        out.push(`keys.${name}: on a card, ${k} is thumbdeck's (it moves between the Overview's cards)`);
+      }
+    }
   }
   return out;
 }

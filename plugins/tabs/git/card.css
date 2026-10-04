@@ -1,0 +1,14 @@
+html, body { height: auto; }
+body { padding: 0 2px 2px; font: 12px var(--mono); overflow: hidden; }
+.line { display: flex; gap: 8px; align-items: baseline; min-width: 0; white-space: nowrap; line-height: 1.6; }
+.head { margin-bottom: 2px; }
+.branch { color: var(--green); }
+.track { color: var(--yellow); }
+.red { color: var(--red); }
+.dim { color: var(--grey); }
+.grow { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.state { flex: none; width: 12px; text-align: center; font-weight: 600; }
+.sM { color: var(--blue); } .sA, .sN { color: var(--green); } .sD { color: var(--red); }
+.sR, .sC { color: var(--purple); } .sU { color: var(--orange); }
+.hash { flex: none; color: var(--yellow); }
+.when { flex: none; color: var(--grey); font-size: 11px; }

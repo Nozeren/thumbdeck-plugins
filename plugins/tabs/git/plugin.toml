@@ -1,6 +1,6 @@
 id = "git"
 name = "Git"
-version = "1.0.0"
+version = "1.1.0"
 api = 1
 description = "The repo at a glance: changes and their diffs, the branch, commits, branches and stashes (read-only)"
 homepage = "https://github.com/Nozeren/thumbdeck-plugins/tree/main/plugins/tabs/git"
@@ -20,6 +20,33 @@ label = "Recent commits to list"
 type = "number"
 min = 1
 default = 100
+
+# Cards in the project's Overview
+[[card]]
+id = "changes"
+name = "Changes"
+page = "card.html"
+
+[[card]]
+id = "commits"
+name = "Recent commits"
+page = "card.html"
+opens = "git"
+
+[keys.changes]
+name = "CHANGES"
+surface = "card:changes"
+bindings = [
+  { keys = ["Enter", "v"], action = "review", does = "review the uncommitted changes" },
+  { keys = ["r"], action = "refresh", does = "look again" },
+]
+
+[keys.commits]
+name = "COMMITS"
+surface = "card:commits"
+bindings = [
+  { keys = ["r"], action = "refresh", does = "look again" },
+]
 
 [keys.git]
 name = "GIT"

@@ -4,7 +4,7 @@ main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1
 #list { list-style: none; margin: 0; padding: 6px; overflow: auto; border-right: 1px solid var(--bg2); font: 12.5px var(--mono); }
 .item { display: flex; gap: 8px; align-items: center; padding: 3px 8px; border-radius: 6px; white-space: nowrap; cursor: default; }
 .item.cursor { background: var(--bg2); }
-body.td-keys .item.cursor { box-shadow: inset 2px 0 var(--orange); }
+body.td-keys .item.cursor { box-shadow: inset 2px 0 var(--cursor, var(--orange)); }
 .pin { flex: none; width: 1em; color: var(--orange); }
 .text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .kind { flex: none; }

@@ -54,4 +54,13 @@ test("fields, surfaces and keys", () => {
   }
 });
 
+test("cards", () => {
+  assert.deepEqual(check(`${MINIMAL}[[tab]]\nid = "t"\nname = "T"\npage = "tab.html"\n[[card]]\nid = "c"\nname = "C"\npage = "tab.html"\nopens = "t"\n`), []);
+  const p = check(`${MINIMAL}[[card]]\nid = "c"\nname = "C"\npage = "tab.html"\nopens = "nowhere"\nheight = "tall"\n`
+    + `[keys.c]\nname = "C"\nsurface = "card:c"\nbindings = [{ keys = ["l", "Enter"], action = "open", does = "x" }]\n`);
+  for (const want of ["height is", "opens \"nowhere\"", "on a card, l is thumbdeck's"]) {
+    assert.ok(p.some((x) => x.includes(want)), `${want}: ${JSON.stringify(p)}`);
+  }
+});
+
 test.after(() => rmSync(dir, { recursive: true }));

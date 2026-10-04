@@ -546,7 +546,7 @@
           text-align: left; font: 12.5px var(--mono); color: var(--fg); }
   .file .fname { flex: 1; }
   .file.cursor { background: var(--bg2); }
-  .viewer.active .file.cursor { outline: 1px solid var(--orange); }
+  .viewer.active .file.cursor { outline: 1px solid var(--cursor, var(--orange)); }
   .dot { color: var(--green); } .dot.err { color: var(--red); }
   .empty { padding: 8px; }
   .preview { padding: 10px 14px; overflow: auto; }
@@ -560,7 +560,7 @@
   .row.static { position: static; }
   .row:hover { background: var(--bg1); }
   .row.cursor { background: var(--bg2); }
-  .viewer.active .row.cursor { box-shadow: inset 2px 0 var(--orange); }
+  .viewer.active .row.cursor { box-shadow: inset 2px 0 var(--cursor, var(--orange)); }
   .text { overflow: hidden; text-overflow: ellipsis; }
   .caret { width: 12px; padding: 0; border: 0; background: none; color: var(--grey); font: 12px var(--mono); }
 

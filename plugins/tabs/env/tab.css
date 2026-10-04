@@ -5,7 +5,7 @@ table { table-layout: fixed; }
 th:nth-child(1) { width: 38%; } th:nth-child(2) { width: 100px; }
 td { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 tr.cursor td { background: var(--bg2); }
-body.td-keys tr.cursor td:first-child { box-shadow: inset 2px 0 var(--orange); }
+body.td-keys tr.cursor td:first-child { box-shadow: inset 2px 0 var(--cursor, var(--orange)); }
 .key { color: var(--fg); }
 .value { color: var(--grey); }
 .value.shown { color: var(--aqua); white-space: pre-wrap; }

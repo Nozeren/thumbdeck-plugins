@@ -118,11 +118,12 @@ The rest of the manifest says what the plugin adds. Every section is optional:
 | `[[action]]`, `[[generate]]`, `[vars]` | Toolkit buttons | project |
 | `[[tab]]` | a tab in the center, turned on per project | project |
 | `[[panel]]` | a panel on the right, under Running and Toolkit | project or app |
+| `[[card]]` | a card in a project's Overview (the center's first tab) | project |
 | `[[page]]` | a full-window page, opened by one of the plugin's frames | either |
 | `[view]` | an entry in the Plugins pane that opens in the center | app |
 | `[[settings]]` | the plugin's settings, drawn by thumbdeck in Settings › Plugins | app |
 | `[backend]` | a program the pages (and thumbdeck) can call | app |
-| `[keys]` | the keys of its tabs, panels, pages and view | — |
+| `[keys]` | the keys of its tabs, panels, cards, pages and view | — |
 
 **Project scope** means it belongs to one project: it only shows for projects the plugin's
 `[detect]` matches (every project when there's no `[detect]`), and a tab's frame always knows
@@ -199,6 +200,28 @@ Panels sit on the right, under Running and Toolkit, in the order of the plugins 
 take the keyboard; a click in one (a button of its own, or `thumbdeck.ui.openPage`) is how it
 leads to more.
 
+### Cards
+
+```toml
+[[card]]
+id = "changes"
+name = "Changes"
+page = "card.html"
+height = "auto"           # "auto" (the page's height) or a number of lines
+opens = "git"             # optional: the plugin's tab Enter shows, when the card's keys don't bind Enter
+```
+
+Each project's center opens on its **Overview**: thumbdeck's own Last runs card, then the
+cards of the plugins that apply to the project (their `[detect]`), in the plugins' order. A
+card is for where the project stands: a few lines, no scrolling. Cards belong to their project
+(`thumbdeck.context.project`), like tabs; they're loaded while the Overview shows and get the
+`shown` / `hidden` events.
+
+Cards don't take the keyboard. `h` / `j` / `k` / `l` (and `g` / `G`, the arrows) move between
+cards and can't be bound by one; the card under the cursor gets its own other keys, from a
+`[keys.<name>]` with `surface = "card:<id>"`, as `key` events. Enter shows the `opens` tab
+unless the card binds Enter itself. A click in a card puts the cursor on it.
+
 ### Pages
 
 ```toml
@@ -233,8 +256,8 @@ managed in **Settings › Plugins**.
   tabs doesn't reload it. thumbdeck may unload frames that haven't been shown for a while;
   keep anything that matters in [storage](#storage).
 - Tab frames belong to one project each: selecting another project shows that project's frame.
-  A project-scope panel loads again for the newly selected project; app-scope frames (views,
-  app panels) stay and get the `project` event.
+  A project-scope panel or a card loads again for the newly selected project; app-scope frames
+  (views, app panels) stay and get the `project` event.
 - A frame learns it's hidden or shown through the `hidden` / `shown` events; stop polling
   while hidden.
 
@@ -534,7 +557,7 @@ when the plugin loads, draws `?` help and the status line from them, and sends t
 ```toml
 [keys.files]                     # a keymap; the first one of a surface is its starting one
 name = "LOGS"                    # shown in the status line while it has the keyboard
-surface = "tab:logs"             # tab:<id>, panel:<id>, page:<id> or view
+surface = "tab:logs"             # tab:<id>, panel:<id>, card:<id>, page:<id> or view
 bindings = [
   { keys = ["j", "ArrowDown"], action = "down", does = "down" },
   { keys = ["k", "ArrowUp"], action = "up", does = "up" },
@@ -572,8 +595,9 @@ run these actions (a plugin that breaks one isn't loaded, and the check says whi
 | `u` | page-up | | `?` | help |
 | `l` | open | | `Tab` / `Shift+Tab` | next-list / previous-list |
 
-**thumbdeck keeps** `1`–`9` (tabs), `z` (wide) and `Ctrl+p` (the Plugins pane) even while a
-plugin has the keyboard.
+**thumbdeck keeps** `1`–`9` (tabs), `z` (wide), `Ctrl+p` (the Plugins pane), `Ctrl+h/j/k/l`
+(moving between panes) and `Ctrl+b` (then `n` / `p`: the next / previous tab, as in tmux) even
+while a plugin has the keyboard.
 `?` always shows help and `S` always opens the setup; a plugin doesn't need to bind them.
 `q` / `Escape` give the keyboard back unless the plugin binds them (to close something of its
 own first).
@@ -596,8 +620,15 @@ fitting in if that look changes.
 --bg-dim --bg0 --bg1 --bg2 --bg3      /* backgrounds, darkest to lightest */
 --fg --grey --grey-dim                /* text */
 --red --orange --yellow --green --aqua --blue --purple
+--focus                               /* the border of whatever has the keyboard */
+--cursor --cursor-bg                  /* the mark on the item the keys act on, and its background */
+--running                             /* something still running (done: --green, failed: --red) */
 --mono --sans                         /* fonts */
 ```
+
+Mark your cursor with `--cursor` (`box-shadow: inset 2px 0 var(--cursor)`, while `body` has
+`td-keys`), so every list in thumbdeck looks the same. Write `var(--cursor, var(--orange))` to
+keep working in older versions of thumbdeck.
 
 The kit styles `body`, headings, links, `button`, `input`, `select`, `textarea`, `table`,
 `pre` and `code` without any classes, and adds:

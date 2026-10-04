@@ -10,7 +10,7 @@ body { display: flex; flex-direction: column; font: 12.5px var(--mono); overflow
 .rows { list-style: none; margin: 0; padding: 6px; overflow: auto; flex: 0 1 auto; max-height: 45%; min-height: 60px; }
 .row { display: flex; gap: 10px; align-items: center; padding: 3px 8px; border-radius: 6px; white-space: nowrap; cursor: default; }
 .row.cursor { background: var(--bg2); }
-body.td-keys .row.cursor { box-shadow: inset 2px 0 var(--orange); }
+body.td-keys .row.cursor { box-shadow: inset 2px 0 var(--cursor, var(--orange)); }
 .bell { flex: none; width: 18px; }
 .cat { flex: none; width: 76px; }
 .author { flex: none; width: 150px; color: var(--grey); overflow: hidden; text-overflow: ellipsis; }

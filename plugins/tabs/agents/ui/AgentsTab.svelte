@@ -404,7 +404,7 @@
   .row .title { flex: 1; }
   .row.sub { padding-left: 28px; color: var(--grey); }
   .row.cursor { background: var(--bg2); }
-  .agents.active .row.cursor { box-shadow: inset 2px 0 var(--orange); }
+  .agents.active .row.cursor { box-shadow: inset 2px 0 var(--cursor, var(--orange)); }
   .meta { flex: none; color: var(--grey); font-size: 11.5px; }
   .kind { color: var(--purple); }
   .st { flex: none; width: 12px; text-align: center; color: var(--grey); }
@@ -416,7 +416,7 @@
   .entries { flex: 1; min-height: 0; overflow: auto; padding: 6px 0; }
   .entry { display: grid; grid-template-columns: 56px 1fr; gap: 8px; padding: 4px 12px; cursor: default; }
   .entry.cursor { background: var(--bg1); }
-  .agents.active .entry.cursor { box-shadow: inset 2px 0 var(--orange); }
+  .agents.active .entry.cursor { box-shadow: inset 2px 0 var(--cursor, var(--orange)); }
   .who { color: var(--grey); text-align: right; font-size: 11px; padding-top: 1px; }
   .entry.prompt .who { color: var(--aqua); }
   .entry.prompt .text { color: var(--aqua); }
