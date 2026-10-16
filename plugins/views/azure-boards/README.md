@@ -42,7 +42,7 @@ Your Azure DevOps work items in thumbdeck: to see them, change them and be told 
   on the day you added it, and taken off again if you corrected it down. A bar shows how much of
   a working day that is, and turns green once the day is full. Each week also has a total. Beside
   the calendar are the selected day's work items and its week's, each with its hours. A click on
-  one opens it. `h` / `l` move a day, `j` / `k` a week, `d` / `u` a month, `g` goes to today and
+  one opens its page. `h` / `l` move a day, `j` / `k` a week, `d` / `u` a month, `g` goes to today and
   `w` goes back to the list. Only your own changes count. The **Hours in a working day** setting
   is 8 by default. If your organization logs hours in a field of its own, put that field's
   reference name in the **Hours field** setting. It can be a number field, or a text field holding
@@ -55,6 +55,26 @@ Your Azure DevOps work items in thumbdeck: to see them, change them and be told 
   counts on its own day (a day you forgot, logged later, lands on that day), and one you change
   or take out is corrected on its day. With the `demo` organization, that setting (in Days)
   shows a sample work log.
+- **Logging time**, when the Hours field is a work log: a work item's page shows its work log
+  as a table (day, activity, hours, the total) instead of its raw JSON. `L` (or Log time) asks
+  the day (today, or the calendar's selected day when you came from there), the hours and the
+  activity (one already in your organization's work logs, or one you type); `L` again, or a
+  row's Change and ✕, changes or removes an entry (removing asks first). New entries are
+  written like the ones there: add the keys they have to the setting, e.g. `Custom.WorkLogData
+  | date: startDate | amount: daysSpent | end: endDate | id: _id | activity: activityType` (the
+  end gets the date, the id the highest one + 1); the date in the same form as theirs, the
+  amount in the field's unit (in days: the hours ÷ the hours in a working day); an edited
+  entry keeps its other keys. Only that field is written, back as it was kept (quotes as
+  `&quot;` if they were), and refused if the work item changed meanwhile. It needs Work Items:
+  Read & write.
+- **Any work item, here**: one clicked in the calendar, Related work, a `#123` link or a search
+  opens its page in the view (only `o` / Open opens Azure DevOps), even one that isn't in your
+  list (closed, someone else's), and it can be changed there as yours can. `Esc` / `q` go back
+  where you came from (the calendar, the search, the list), the cursor where it was.
+- **Search**: `F` (or the Search button) asks for a number (that work item) or words: the work
+  items whose title has all of them, anyone's, in any state, in the **Only these projects**
+  setting's projects (all if it's empty), the most recently changed first, up to 50. `Enter` or
+  a click opens one; `/` still filters the list.
 - **How many are open**, next to its name in the Plugins pane.
 - **Notifications** (it looks every 5 minutes): a work item assigned to you, a state changed on
   yours, new comments on yours; not your own changes. What it saw last is remembered, so what

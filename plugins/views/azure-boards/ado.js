@@ -16,6 +16,20 @@ export function wiql(s) {
   return `SELECT [System.Id] FROM WorkItems WHERE ${where.join(" AND ")} ORDER BY [System.ChangedDate] DESC`;
 }
 
+/** The WIQL for a search, as Azure DevOps' own: a number, that work item; words, the work items
+ *  whose title has all of them (any state, anyone's), in the projects (none: all), the most
+ *  recently changed first. null: nothing to search */
+export function searchWiql(typed, projects = []) {
+  const t = String(typed ?? "").trim().replace(/^#/, "");
+  if (/^\d+$/.test(t)) return `SELECT [System.Id] FROM WorkItems WHERE [System.Id] = ${Number(t)}`;
+  const words = t.split(/\s+/).filter(Boolean);
+  if (!words.length) return null;
+  const where = words.map((w) => `[System.Title] CONTAINS ${quote(w)}`);
+  const only = projects.filter(Boolean);
+  if (only.length) where.push(`[System.TeamProject] IN (${only.map(quote).join(", ")})`);
+  return `SELECT [System.Id] FROM WorkItems WHERE ${where.join(" AND ")} ORDER BY [System.ChangedDate] DESC`;
+}
+
 /** The organization's URL: "contoso", "dev.azure.com/contoso", an old "contoso.visualstudio.com",
  *  with or without https:// and a project or page after it, all work */
 export function orgUrl(org) {
@@ -236,8 +250,8 @@ export function artifact(uri, name, org, project) {
 
 /** A work item (from $expand=all) as its page shows it: the fields, the rich text (as HTML,
  *  Markdown rendered), its links. types: ref (lowercase) -> { name, type } (/_apis/wit/fields);
- *  custom: the Fields setting (fieldSettings) */
-export function page(w, org, { types = new Map(), custom = new Map() } = {}) {
+ *  custom: the Fields setting (fieldSettings); skip: fields it leaves out (shown otherwise: the work log) */
+export function page(w, org, { types = new Map(), custom = new Map(), skip = [] } = {}) {
   const f = w.fields ?? {};
   const has = (k) => f[k] != null && f[k] !== "";
   const rels = w.relations ?? [];
@@ -246,8 +260,9 @@ export function page(w, org, { types = new Map(), custom = new Map() } = {}) {
   // Every field it shows: where, as what, called what
   const known = new Map([...RICH.map(([k, l]) => [k.toLowerCase(), { label: l, where: "main" }]), ...PLANNING.map(([k, l]) => [k.toLowerCase(), { label: l, where: "planning" }])]);
   const shown = [];
+  const skipped = new Set(skip.map((k) => String(k).toLowerCase()));
   for (const k of Object.keys(f)) {
-    if (!has(k)) continue;
+    if (!has(k) || skipped.has(k.toLowerCase())) continue;
     const c = custom.get(k.toLowerCase());
     const builtIn = known.get(k.toLowerCase());
     if (!c && !builtIn && !ownField(k)) continue;

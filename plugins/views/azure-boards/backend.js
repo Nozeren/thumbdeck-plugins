@@ -9,9 +9,11 @@ import { readFileSync } from "node:fs";
 // this repository.
 import { serve } from "../../../packages/backend/index.js";
 import {
-  auth, changes, commentHtml, current, fieldSettings, gather, history, ids, isMe, item, orgUrl, page, patch, problem, snapshot, text, wiql, within,
+  auth, changes, commentHtml, current, fieldSettings, gather, history, ids, isMe, item, orgUrl, page, patch, problem, searchWiql, snapshot, text, wiql, within,
 } from "./ado.js";
-import { HOURS_FIELD, entries as logEntries, fieldUse, hoursSetting, hoursWiql, logged, loggedLog, notHours, notLog } from "./hours.js";
+import {
+  HOURS_FIELD, activitiesIn, applyLog, entries as logEntries, fieldUse, hoursSetting, hoursWiql, logRows, logValue, logged, loggedLog, notHours, notLog,
+} from "./hours.js";
 import { richHtml } from "./markdown.js";
 
 const demoFile = (f) => JSON.parse(readFileSync(new URL(`./testdata/${f}`, import.meta.url), "utf8"));
@@ -36,6 +38,8 @@ const iterationsOf = new Map(); // project -> the team's iterations
 let types = null; // the organization's fields: ref (lowercase) -> { name, type } (once a start)
 const logs = new Map(); // id -> { rev, how, scale, entries: [{ at, hours }] }: what you logged on it, at that revision (how: the Hours field setting)
 const MAX_LOGGED = 400; // work items looked into for the hours, the most recently changed
+const activities = new Set(); // the activities in the work logs read (for a new entry's)
+const MAX_FOUND = 50; // a search's
 
 const isDemo = () => settings.organization.trim() === "demo";
 
@@ -232,6 +236,7 @@ function schedule(tb) {
 function start() {
   me = "";
   logs.clear();
+  activities.clear();
   types = null;
   iterationsOf.clear();
   demo = isDemo()
@@ -300,11 +305,29 @@ function demoLog() {
   }
 }
 
-const known = (id) => {
+/** A work item: the list's, or (one that isn't in it: closed, someone else's…) asked for by id */
+async function known(id) {
   const it = items.find((i) => i.id === id);
-  if (!it) throw new Error(`no work item ${id}: look again (r)`);
-  return it;
-};
+  if (it) return it;
+  const [w] = await workItems([Number(id)]);
+  if (!w) throw new Error(`There's no work item ${id}, or the token can't see it`);
+  return item(w, settings.organization.trim(), isMe(w.fields?.["System.AssignedTo"]?.uniqueName, me));
+}
+
+/** The work log setting ({ field, log }), or why it isn't one */
+function workLog() {
+  const s = hoursSetting(settings.hours_field);
+  if (s.problem) throw new Error(s.problem);
+  if (!s.log) throw new Error("The Hours field isn't a work log: set it in Settings › Plugins › Azure Boards (e.g. Custom.WorkLogData | date: startDate | amount: daysSpent)");
+  return s;
+}
+
+/** A work log's entries, and its activities remembered */
+function readLog(v, log) {
+  const list = logEntries(v);
+  for (const a of activitiesIn(list ?? [], log)) activities.add(a);
+  return list;
+}
 
 serve({
   async initialize(info, tb) {
@@ -320,7 +343,7 @@ serve({
     load(tb);
     schedule(tb);
   },
-  list: () => ({ org: settings.organization.trim().toLowerCase(), items, error, note, warning: fieldSettings(settings.fields).problems.join(" · "), updated, branchPrefix: settings.branch_prefix, me, sprints, sprintOnly }),
+  list: () => ({ org: settings.organization.trim().toLowerCase(), orgUrl: settings.organization.trim() ? orgUrl(settings.organization) : "", items, error, note, warning: fieldSettings(settings.fields).problems.join(" · "), updated, branchPrefix: settings.branch_prefix, me, sprints, sprintOnly }),
   async refresh(_p, tb) {
     await load(tb);
     return { error };
@@ -370,6 +393,7 @@ serve({
       // The first value says if the field holds hours (a work log: the first with entries, or
       // the first value if none is a JSON list), before any history is read
       const values = found.map((w) => w.fields?.[field]).filter((v) => v != null && String(v).trim() !== "");
+      if (log) for (const v of values) readLog(v, log);
       const why = !values.length ? ""
         : log ? notLog(values.find((v) => logEntries(v)?.length) ?? (values.some((v) => logEntries(v)) ? "[]" : values[0]), field, log)
         : notHours(values[0], field);
@@ -393,8 +417,21 @@ serve({
   async detail({ id }) {
     const org = settings.organization.trim();
     const w = isDemo() ? demo.items.find((x) => x.id === id) : await ado(`/_apis/wit/workitems/${id}?$expand=all&api-version=7.1`);
-    if (!w) throw new Error(`no work item ${id}`);
-    const p = page(w, org, { types: await fieldTypes(), custom: fieldSettings(settings.fields).fields });
+    if (!w) throw new Error(`There's no work item ${id}, or the token can't see it`);
+    const { field, log } = hoursSetting(settings.hours_field);
+    const p = page(w, org, { types: await fieldTypes(), custom: fieldSettings(settings.fields).fields, skip: log ? [field] : [] });
+    await whoAmI();
+    p.item = item(w, org, isMe(w.fields?.["System.AssignedTo"]?.uniqueName, me)); // for one that isn't in the list
+    if (log) {
+      // The work log as a table (its raw JSON isn't for reading)
+      const list = readLog(w.fields?.[field], log);
+      const scale = hoursIn();
+      const rows = list ? logRows(list, log, scale) : [];
+      p.worklog = {
+        field, rows, total: Math.round(rows.reduce((n, r) => n + r.hours, 0) * 100) / 100, activity: !!log.activity, activities: [...activities].sort(),
+        error: list ? "" : notLog(w.fields?.[field], field, log),
+      };
+    }
     const all = new Map(items.map((i) => [i.id, i]));
     const missing = [...new Set(p.related.map((r) => r.id))].filter((x) => !all.has(x));
     if (missing.length) {
@@ -422,7 +459,7 @@ serve({
   /** What a field can be changed to: state (the type's states), iteration (the team's), assignee
    *  (you and the people in the list) */
   async options({ id, field }) {
-    const it = known(id);
+    const it = await known(id);
     if (field === "state") {
       if (isDemo()) return ["New", "Active", "Resolved", "Closed"].map((name) => ({ value: name, label: name }));
       const states = (await ado(`/${encodeURIComponent(it.project)}/_apis/wit/workitemtypes/${encodeURIComponent(it.type)}/states?api-version=7.1`)).value ?? [];
@@ -444,7 +481,7 @@ serve({
   },
   /** Changes a work item: { id, set: { state | assignee | title | tags | priority | iteration } } */
   async change({ id, set }, tb) {
-    const it = known(id);
+    const it = await known(id);
     const ops = patch(set, it.rev);
     if (isDemo()) changeDemo(id, set);
     else await ado(`/_apis/wit/workitems/${id}?api-version=7.1`, { method: "PATCH", body: JSON.stringify(ops), headers: { "Content-Type": "application/json-patch+json" } }, { writing: true });
@@ -453,7 +490,7 @@ serve({
   },
   /** Adds a comment (what was typed, as plain text) */
   async comment({ id, text: typed }, tb) {
-    const it = known(id);
+    const it = await known(id);
     if (!String(typed ?? "").trim()) throw new Error("an empty comment");
     if (isDemo()) {
       (demo.comments[id] ??= []).push({ text: commentHtml(typed, "demo"), createdBy: { displayName: "Me", uniqueName: DEMO_ME }, createdDate: new Date().toISOString() });
@@ -462,6 +499,56 @@ serve({
       await ado(`/${encodeURIComponent(it.project)}/_apis/wit/workItems/${id}/comments?api-version=7.1-preview.4`,
         { method: "POST", body: JSON.stringify({ text: commentHtml(typed, settings.organization) }) }, { writing: true });
     }
+    await load(tb);
+    return { error };
+  },
+  /** A search, as Azure DevOps' own: a number, that work item; words, the work items whose
+   *  title has them all, any state, anyone's, in the projects of the settings (up to 50, the
+   *  most recently changed first). { items, error } */
+  async search({ text: typed }) {
+    const org = settings.organization.trim();
+    try {
+      const q = searchWiql(typed, settings.projects ?? []);
+      if (!q) return { items: [], error: "" };
+      let found;
+      if (isDemo()) {
+        const t = String(typed).trim().replace(/^#/, "");
+        const words = t.toLowerCase().split(/\s+/).filter(Boolean);
+        const projects = (settings.projects ?? []).filter(Boolean);
+        found = demo.items.filter((w) => (/^\d+$/.test(t) ? w.id === Number(t)
+          : words.every((x) => String(w.fields["System.Title"]).toLowerCase().includes(x)) && (!projects.length || projects.includes(w.fields["System.TeamProject"]))))
+          .sort((a, b) => (b.fields["System.ChangedDate"] > a.fields["System.ChangedDate"] ? 1 : -1)).slice(0, MAX_FOUND);
+      } else {
+        const want = ids(await ado(`/_apis/wit/wiql?$top=${MAX_FOUND}&api-version=7.1`, { method: "POST", body: JSON.stringify({ query: q }) })).slice(0, MAX_FOUND);
+        const got = want.length ? await workItems(want) : [];
+        found = want.map((x) => got.find((w) => w.id === x)).filter(Boolean); // the query's order
+      }
+      await whoAmI();
+      return { items: found.map((w) => item(w, org, isMe(w.fields?.["System.AssignedTo"]?.uniqueName, me))), error: "" };
+    } catch (e) {
+      return { items: [], error: e.message };
+    }
+  },
+  /** Logs time in a work item's work log (the Hours field setting's): { id, change: { add: { day,
+   *  hours, activity } } | { change: n, to, was } | { remove: n, was } } (hours.js applyLog). Its
+   *  list read now, changed, and written back whole, in the form it was read; refused if the work
+   *  item changed meanwhile. Only that field */
+  async logTime({ id, change: what }, tb) {
+    const { field, log } = workLog();
+    const w = isDemo() ? demo.items.find((x) => x.id === id) : await ado(`/_apis/wit/workitems/${id}?fields=${encodeURIComponent(field)},System.Rev&api-version=7.1`);
+    if (!w) throw new Error(`There's no work item ${id}, or the token can't see it`);
+    const raw = w.fields?.[field];
+    const list = readLog(raw, log);
+    if (list === null) throw new Error(notLog(raw, field, log));
+    const next = applyLog(list, what ?? {}, log, hoursIn());
+    const html = String((await fieldTypes()).get(field.toLowerCase())?.type ?? "").toLowerCase() === "html";
+    const value = logValue(raw, next, { html });
+    if (isDemo()) changeDemo(id, {}, { fields: { [field]: value } });
+    else {
+      const ops = [{ op: "test", path: "/rev", value: w.rev }, { op: "add", path: `/fields/${field}`, value }];
+      await ado(`/_apis/wit/workitems/${id}?api-version=7.1`, { method: "PATCH", body: JSON.stringify(ops), headers: { "Content-Type": "application/json-patch+json" } }, { writing: true });
+    }
+    logs.delete(id); // the calendar reads it again
     await load(tb);
     return { error };
   },
@@ -478,18 +565,18 @@ serve({
 });
 
 /** A change to the sample work items, in memory, as Azure DevOps would make it */
-function changeDemo(id, set, { comments: more = 0 } = {}) {
+function changeDemo(id, set, { comments: more = 0, fields = {} } = {}) {
   const w = demo.items.find((x) => x.id === id);
   const f = w.fields;
   const now = new Date().toISOString();
   const changed = { "System.ChangedDate": { oldValue: f["System.ChangedDate"], newValue: now } };
-  for (const op of patch(set, null)) {
+  for (const op of [...patch(set, null), ...Object.entries(fields).map(([k, value]) => ({ path: `/fields/${k}`, value }))]) {
     const key = op.path.replace("/fields/", "");
     const was = f[key];
     f[key] = key === "System.AssignedTo" ? (op.value ? { displayName: op.value === DEMO_ME ? "Me" : op.value, uniqueName: op.value } : undefined) : op.value;
     changed[key] = { oldValue: was, newValue: f[key] };
   }
-  if (Object.keys(set).length) {
+  if (Object.keys(set).length || Object.keys(fields).length) {
     const list = (demo.updates[id] ??= []);
     list.push({ rev: list.length + 1, revisedBy: { displayName: "Me", uniqueName: DEMO_ME }, revisedDate: "9999-01-01T00:00:00Z", fields: changed });
   }

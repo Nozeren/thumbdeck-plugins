@@ -7,6 +7,7 @@
 <body>
   <header class="td-toolbar"><strong>Azure Boards</strong> <span class="td-muted" id="summary"></span>
     <span class="spacer"></span><span class="td-muted" id="updated"></span>
+    <button id="search-button" title="Search work items: a number, or words in their title (F)">Search <kbd>F</kbd></button>
     <button id="hours-toggle" title="The hours you logged, day by day (w)">Hours <kbd>w</kbd></button>
     <button id="sprint" title="Only the current sprint's (i)">Sprint <kbd>i</kbd></button>
     <button id="refresh" title="Look again (r)">↻ <kbd>r</kbd></button></header>
@@ -24,6 +25,7 @@
     <section id="detail"></section>
   </main>
   <section id="hours" hidden></section>
+  <section id="search" hidden></section>
   <script type="module" src="view.js"></script>
 </body>
 </html>

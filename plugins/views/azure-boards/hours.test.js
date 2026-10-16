@@ -1,6 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { amount, byDay, dayKey, entries, entryDay, fieldUse, hoursSetting, hoursText, hoursWiql, logged, loggedLog, notHours, notLog, weeks } from "./hours.js";
+import {
+  activitiesIn, amount, applyLog, byDay, dateLike, dayKey, entries, entryDay, fieldUse, hoursSetting, hoursText, hoursWiql, logRows, logValue, logged, loggedLog, notHours, notLog, weeks,
+} from "./hours.js";
 
 test("the query: changed by you ever, with hours, since a day, in the projects", () => {
   assert.equal(hoursWiql({ since: "2026-09-28" }),
@@ -211,4 +213,70 @@ test("a work log entry's day: a date or midnight as it is; a time of day where y
   assert.equal(entryDay("2026-10-15T23:30:00"), "2026-10-15T12:00:00", "no zone: already local");
   assert.equal(entryDay("not a date"), "");
   assert.equal(entryDay(""), "");
+});
+
+// Logging time from a work item's page: one org's real work log (values changed), as an html field keeps it
+const REAL = '[{&quot;_id&quot;:1,&quot;activityType&quot;:&quot;Coding&quot;,&quot;startDate&quot;:&quot;2026-10-01T00:00:00.000Z&quot;,&quot;endDate&quot;:&quot;2026-10-01T00:00:00.000Z&quot;,&quot;daysSpent&quot;:0.5},'
+  + '{&quot;_id&quot;:2,&quot;activityType&quot;:&quot;Testing&quot;,&quot;startDate&quot;:&quot;2026-10-02T00:00:00.000Z&quot;,&quot;endDate&quot;:&quot;2026-10-02T00:00:00.000Z&quot;,&quot;daysSpent&quot;:0.25}]';
+const FULL = hoursSetting("Custom.WorkLogData | date: startDate | amount: daysSpent | end: endDate | id: _id | activity: activityType").log;
+
+test("the setting's keys for a new entry: end, id, activity", () => {
+  assert.deepEqual(FULL, { date: "startDate", amount: "daysSpent", end: "endDate", id: "_id", activity: "activityType" });
+  assert.match(hoursSetting("Custom.WorkLogData | date: startDate | amount: daysSpent | user: x").problem, /"user: x" isn't/);
+});
+
+test("a new entry is written like the ones there: _id 3, endDate its startDate, the same date form, 4h is 0.5 days", () => {
+  const list = applyLog(entries(REAL), { add: { day: "2026-10-15", hours: 4, activity: "Review" } }, FULL, 8);
+  assert.equal(list.length, 3);
+  assert.deepEqual(list[2], { _id: 3, activityType: "Review", startDate: "2026-10-15T00:00:00.000Z", endDate: "2026-10-15T00:00:00.000Z", daysSpent: 0.5 });
+  assert.deepEqual(Object.keys(list[2]), ["_id", "activityType", "startDate", "endDate", "daysSpent"], "their keys' order");
+  assert.deepEqual(list.slice(0, 2), entries(REAL), "the others as they were");
+  // In hours, a field without ids or ends: only what the setting names
+  const plain = applyLog([], { add: { day: "2026-10-15", hours: 1.5 } }, { date: "day", amount: "hours" });
+  assert.deepEqual(plain, [{ day: "2026-10-15T00:00:00.000Z", hours: 1.5 }]);
+  assert.throws(() => applyLog([], { add: { day: "15.10.2026", hours: 1 } }, FULL, 8), /YYYY-MM-DD/);
+  assert.throws(() => applyLog([], { add: { day: "2026-10-15", hours: 0 } }, FULL, 8), /over 0/);
+});
+
+test("a date written as theirs are", () => {
+  assert.equal(dateLike("2026-10-01T00:00:00.000Z", "2026-10-15"), "2026-10-15T00:00:00.000Z");
+  assert.equal(dateLike("2026-10-01T00:00:00Z", "2026-10-15"), "2026-10-15T00:00:00Z");
+  assert.equal(dateLike("2026-10-01", "2026-10-15"), "2026-10-15");
+  assert.equal(dateLike(undefined, "2026-10-15"), "2026-10-15T00:00:00.000Z");
+  const noon = dateLike("2026-10-01T09:30:00.000Z", "2026-10-15");
+  assert.equal(entryDay(noon), "2026-10-15T12:00:00", "a time of day: that day's noon where you are");
+});
+
+test("an edited entry keeps its other keys; a removal; the entry must still be the one", () => {
+  const list = entries(REAL);
+  const rows = logRows(list, FULL, 8);
+  assert.deepEqual(rows.map((r) => [r.n, r.day, r.activity, r.hours]), [[1, "2026-10-02", "Testing", 2], [0, "2026-10-01", "Coding", 4]], "newest day first, in hours");
+  const was = rows.find((r) => r.n === 1).key;
+  const edited = applyLog([...list.slice(0, 1), { ...list[1], ticket: "X-1" }], { change: 1, to: { day: "2026-10-03", hours: 6, activity: "Coding" } }, FULL, 8);
+  assert.deepEqual(edited[1], { _id: 2, activityType: "Coding", startDate: "2026-10-03T00:00:00.000Z", endDate: "2026-10-03T00:00:00.000Z", daysSpent: 0.75, ticket: "X-1" });
+  assert.deepEqual(applyLog(list, { change: 1, to: { hours: 1 }, was }, FULL, 8)[1], { ...list[1], daysSpent: 0.125 }, "only what changed");
+  assert.deepEqual(applyLog(list, { remove: 0, was: rows.find((r) => r.n === 0).key }, FULL, 8), [list[1]]);
+  assert.throws(() => applyLog(list, { remove: 0, was }, FULL, 8), /changed it meanwhile/);
+  assert.throws(() => applyLog(list, { remove: 5 }, FULL, 8), /isn't there/);
+  assert.deepEqual(activitiesIn(list, FULL), ["Coding", "Testing"]);
+});
+
+test("the value written back as it was read: escaped (&quot;), in its tags", () => {
+  const list = applyLog(entries(REAL), { add: { day: "2026-10-15", hours: 4, activity: "Review" } }, FULL, 8);
+  const back = logValue(REAL, list);
+  assert.ok(back.startsWith("[{&quot;_id&quot;:1,&quot;activityType&quot;:&quot;Coding&quot;"), back.slice(0, 60));
+  assert.ok(!back.includes('"'), "no bare quotes");
+  assert.deepEqual(entries(back), list);
+  assert.equal(logValue(REAL, entries(REAL)), REAL, "unchanged: the same text");
+  assert.equal(logValue('[{"a":1}]', [{ a: 2 }]), '[{"a":2}]', "not escaped: not escaped");
+  assert.equal(logValue(`<div>${REAL}</div>`, []), "<div>[]</div>");
+  assert.equal(logValue("", [{ a: "x&y" }], { html: true }), "[{&quot;a&quot;:&quot;x&amp;y&quot;}]", "empty in an html field: escaped");
+  assert.equal(logValue("", [{ a: 1 }]), '[{"a":1}]');
+});
+
+test("time logged from the page counts in the calendar, on its day", () => {
+  const before = REAL;
+  const after = logValue(REAL, applyLog(entries(REAL), { add: { day: "2026-10-15", hours: 4, activity: "Review" } }, FULL, 8));
+  const u = { revisedBy: { uniqueName: "me@x.test" }, fields: { "Custom.WorkLogData": { oldValue: before, newValue: after } } };
+  assert.deepEqual(loggedLog([u], "me@x.test", "Custom.WorkLogData", FULL, 8), [{ at: "2026-10-15T12:00:00", hours: 4 }]);
 });

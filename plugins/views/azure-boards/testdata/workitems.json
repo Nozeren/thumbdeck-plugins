@@ -303,6 +303,35 @@
      }
     }
    ]
+  },
+  {
+   "id": 4120,
+   "fields": {
+    "System.Id": 4120,
+    "System.Title": "Review the copy of the sign-in error page",
+    "System.State": "Closed",
+    "System.WorkItemType": "Task",
+    "System.TeamProject": "Shop",
+    "System.AssignedTo": {
+     "displayName": "Ann",
+     "uniqueName": "ann@example.test"
+    },
+    "System.ChangedDate": "2026-10-07T15:00:00Z",
+    "System.IterationPath": "Shop\\Sprint 41",
+    "System.Tags": "auth",
+    "Microsoft.VSTS.Common.Priority": 3,
+    "System.Parent": 4100,
+    "System.Description": "<p>The words on the page a customer sees when their identity provider refuses them.</p>"
+   },
+   "relations": [
+    {
+     "rel": "System.LinkTypes.Hierarchy-Reverse",
+     "url": "https://dev.azure.com/contoso/_apis/wit/workItems/4100",
+     "attributes": {
+      "name": "Parent"
+     }
+    }
+   ]
   }
  ]
 }

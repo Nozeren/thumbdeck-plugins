@@ -1,7 +1,9 @@
 // The Azure Boards view: your work items as a tree (what's under each, yours or not, and what
 // they're under), the highlighted one's page beside them, laid out as Azure DevOps does, and
-// the changes you make to them (state, assignee, a comment…); and the hours you logged, day by
-// day (w: a calendar). The backend asks Azure DevOps (backend.js); this shows what it has.
+// the changes you make to them (state, assignee, a comment, time in a work log…); the hours you
+// logged, day by day (w: a calendar); a search (F). Any other work item (one in the calendar, a
+// search, Related work, a #123 link) opens its page here too, and Esc goes back. The backend asks
+// Azure DevOps (backend.js); this shows what it has.
 import { branchName, isMe, rows, sprintOnly } from "./ado.js";
 import { byDay, dayKey, hoursText, weeks } from "./hours.js";
 import { safe } from "./rich.js";
@@ -24,6 +26,8 @@ let showing = null; // the id the details show (to keep where they're scrolled)
 const visible = () => (data.sprintOnly ? sprintOnly(data.items) : data.items);
 const shown = () => rows(visible(), { collapsed, words });
 const current = () => shown()[cursor]?.it;
+/** The work item whose page shows: the list's highlighted one, or the one opened on its own */
+const showingItem = () => (mode === "page" ? pageItem() : mode === "list" ? current() : null);
 const STATES = [[/^(new|to do|proposed|open|design|approved)$/i, "proposed"], [/^(resolved|in review|testing)$/i, "resolved"],
   [/^(closed|done|completed)$/i, "done"], [/^removed$/i, "removed"]];
 const stateClass = (s) => STATES.find(([re]) => re.test(s))?.[1] ?? "doing";
@@ -51,7 +55,7 @@ async function load() {
 }
 
 function render() {
-  lookingAt(mode === "hours" ? null : current());
+  lookingAt(showingItem());
   const list = shown();
   const all = visible();
   const mine = all.filter((i) => i.mine).length;
@@ -117,7 +121,7 @@ function eventText(e) {
  *  history, what's new since you last looked marked), a comment to write; its properties
  *  beside them, each changed with a click */
 function detail() {
-  const it = current();
+  const it = showingItem();
   const box = $("detail");
   if (!it) {
     showing = null;
@@ -181,6 +185,7 @@ function detail() {
       : `<li class="event${isNew(x) ? " new" : ""}"><span class="who">${esc(x.by)}</span> ${eventText(x)} <span class="td-muted when">· ${esc(ago(x.at))}</span></li>`);
     main = (p.rich.length ? p.rich.map((r) => section(esc(r.label), `<div class="text" data-field="${esc(r.label)}">${slot(r.html)}</div>`)).join("")
       : section("Description", `<p class="td-muted">No description.</p>`))
+      + (p.worklog ? workLogSection(p.worklog, section) : "")
       + section(`Activity <span class="td-muted">${p.comments.length ? `${p.comments.length} comment${p.comments.length > 1 ? "s" : ""}` : ""}</span>`, `<ol class="activity">
         ${folded ? `<li class="more"><button data-unfold="${it.id}">Show ${folded} earlier</button></li>` : ""}
         ${activity.map((x, n) => (n < folded ? "" : (n === firstNew ? `<li class="divider"><span>New since you last looked</span></li>` : "") + entry(x))).join("")}
@@ -190,8 +195,9 @@ function detail() {
   }
 
   const typing = document.activeElement?.id === "compose" ? [$("compose").selectionStart, $("compose").selectionEnd] : null;
+  const leaving = mode === "page" ? `<button class="back" data-back title="Back (Esc)">‹ ${esc(backName())} ${kbd("Esc")}</button>` : "";
   box.innerHTML = `<header class="head"><i class="bar ${esc(it.type)}"></i>
-      <div class="top"><span class="kind"><span class="type ${esc(it.type)}">${esc(it.type.toUpperCase())}</span> ${it.id}</span>
+      <div class="top">${leaving}<span class="kind"><span class="type ${esc(it.type)}">${esc(it.type.toUpperCase())}</span> ${it.id}</span>
         ${editable("state", `<i class="dot ${stateClass(it.state)}"></i>${esc(it.state)}`, "state", "Change the state (s)")} ${kbd("s")}
         <span class="spacer"></span>
         <button data-edit="outside" title="Open it in Azure DevOps (o)">Open ↗ ${kbd("o")}</button><button data-edit="copy-ref" title="${esc(`Copy “${reference(it)}” (Y)`)}">Copy ${kbd("Y")}</button></div>
@@ -220,6 +226,20 @@ function detail() {
         if (showing === it.id) detail();
       });
   }
+}
+
+/** The work log (the Hours field setting's) as a table: day, activity, hours, the total; each
+ *  entry changed or removed with a click, time logged with L */
+function workLogSection(wl, section) {
+  const day = (k) => (k ? new Date(`${k}T12:00:00`).toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short", year: "numeric" }) : "—");
+  const body = wl.error ? `<p class="td-error">${esc(wl.error)}</p>`
+    : (wl.rows.length ? `<table class="worklog"><thead><tr><th>Day</th>${wl.activity ? "<th>Activity</th>" : ""}<th class="h">Hours</th><th></th></tr></thead><tbody>
+        ${wl.rows.map((r) => `<tr><td>${esc(day(r.day))}</td>${wl.activity ? `<td>${esc(r.activity)}</td>` : ""}<td class="h">${hoursText(r.hours)}</td>
+          <td class="do"><button data-log-change="${r.n}" title="Change it">Change</button><button data-log-remove="${r.n}" title="Remove it">✕</button></td></tr>`).join("")}</tbody>
+        <tfoot><tr><td${wl.activity ? ' colspan="2"' : ""}>Total</td><td class="h">${hoursText(wl.total)}</td><td></td></tr></tfoot></table>`
+      : `<p class="td-muted">No time logged on it yet.</p>`)
+      + `<p><button data-edit="log" title="Log time on it (L)">Log time ${kbd("L")}</button></p>`;
+  return section(`Work log <span class="td-muted">${hoursText(wl.total)}</span>`, body, "worklog-section");
 }
 
 // A long text (over about 10 lines; a bit over isn't worth it) shows its start, and "Show all";
@@ -464,7 +484,76 @@ const edits = {
     const to = choices && (await ask({ label: `Move ${it.type} ${it.id} (now ${it.iteration}) to…`, choices: choices.filter((c) => c.value !== it.iteration) }));
     if (to) await change(it, { iteration: to }, `moved to ${to.split("\\").pop()}`);
   },
+  /** Time in its work log: a new entry, or one of them changed or removed */
+  async log(it) {
+    const wl = workLogOf(it);
+    if (!wl) return;
+    if (!wl.rows.length) return logEntry(it, wl);
+    const choices = [{ value: "new", label: "Log time", note: `a new entry (${logDay()})` },
+      ...wl.rows.flatMap((r) => [{ value: `change ${r.n}`, label: `Change ${entryText(r)}` }, { value: `remove ${r.n}`, label: `Remove ${entryText(r)}` }])];
+    const to = await ask({ label: `The work log of ${it.type} ${it.id}`, choices });
+    if (!to) return;
+    const [what, n] = to.split(" ");
+    if (what === "new") return logEntry(it, wl);
+    const row = wl.rows.find((r) => r.n === Number(n));
+    return what === "change" ? logEntry(it, wl, row) : removeEntry(it, row);
+  },
 };
+
+// Logging time (a work log Hours field): the day, the hours, the activity; written by the backend
+/** The work log on its page, or why there's none (said) */
+function workLogOf(it) {
+  const d = details.get(it.id);
+  if (!d || d.error) return td.ui.say(d?.error || "its page is still loading", { error: true }), null;
+  if (!d.worklog) return td.ui.say("The Hours field isn't a work log: set it in Settings › Plugins › Azure Boards (e.g. Custom.WorkLogData | date: startDate | amount: daysSpent)", { error: true }), null;
+  if (d.worklog.error) return td.ui.say(d.worklog.error, { error: true }), null;
+  return d.worklog;
+}
+const entryText = (r) => [r.day, r.activity, hoursText(r.hours)].filter(Boolean).join(" · ");
+/** The day a new entry is for: the calendar's selected day if its page was opened from there, or today */
+const logDay = () => (mode === "page" && opened?.day) || dayKey(new Date());
+
+/** A new entry (row: none), or a change to one: asks its day, hours and activity */
+async function logEntry(it, wl, row = null) {
+  const doing = row ? `Change ${entryText(row)} on ${it.type} ${it.id}` : `Log time on ${it.type} ${it.id}`;
+  const day = (await ask({ label: `${doing}: the day (YYYY-MM-DD)`, value: row?.day || logDay() }))?.trim();
+  if (!day) return;
+  if (!/^\d{4}-\d\d-\d\d$/.test(day) || Number.isNaN(Date.parse(day))) return td.ui.say("the day: YYYY-MM-DD, e.g. 2026-10-15", { error: true });
+  const typed = (await ask({ label: `${doing}: the hours on ${day}`, value: row ? String(row.hours) : "" }))?.trim();
+  if (!typed) return;
+  const hours = Number(typed.replace(",", "."));
+  if (!Number.isFinite(hours) || hours <= 0) return td.ui.say("the hours: a number over 0, e.g. 1.5", { error: true });
+  let activity = row?.activity ?? "";
+  if (wl.activity) {
+    const known = [...new Set([...(row?.activity ? [row.activity] : []), ...wl.activities])];
+    const picked = await ask({ label: `${doing}: the activity`, value: activity, choices: known.map((a) => ({ value: a, label: a })), free: true,
+      hint: "↑↓ pick · or type one · Enter · Esc: cancel" });
+    if (picked === null) return;
+    activity = picked.trim();
+  }
+  const to = { day, hours, activity };
+  await writeLog(it, row ? { change: row.n, to, was: row.key } : { add: to }, `${row ? "changed" : "logged"} ${hoursText(hours)} on ${day}`);
+}
+
+async function removeEntry(it, row) {
+  if (!row) return;
+  const sure = await ask({ label: `Remove ${entryText(row)} from the work log of ${it.type} ${it.id}?`, choices: [{ value: "yes", label: "Remove it" }, { value: "no", label: "Keep it" }] });
+  if (sure === "yes") await writeLog(it, { remove: row.n, was: row.key }, `removed ${entryText(row)}`);
+}
+
+/** The change written (backend.js logTime); its page and the calendar follow */
+async function writeLog(it, what, said) {
+  try {
+    const { error } = await td.backend.call("logTime", { id: it.id, change: what });
+    if (error) throw new Error(error);
+    td.ui.say(`${it.type} ${it.id}: ${said}`);
+  } catch (e) {
+    td.ui.say(e.message, { error: true });
+  }
+  fresh.delete(it.id);
+  logged.since = ""; // the calendar's numbers asked again
+  await load();
+}
 
 /** Only the current sprint's, or every iteration's */
 async function toggleSprint() {
@@ -475,7 +564,7 @@ async function toggleSprint() {
 
 // The hours calendar: a month, the hours you logged on each day (hours.js), the highlighted
 // day's work items and its week's beside it
-let mode = "list"; // or "hours" (kept)
+let mode = "list"; // or "hours" (kept); "page": one work item's page, "search": a search's results
 let day = new Date(); // the highlighted day
 let logged = { since: "", entries: [], perDay: 8, note: "", error: "" }; // backend.js hours
 let loggedDays = new Map();
@@ -483,15 +572,141 @@ let hoursAsked = ""; // the since asked for (a newer answer wins)
 const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
 
-function setMode(to) {
+/** Shows the list, the calendar, a page or a search. Going to the list or the calendar yourself
+ *  (w, not back): where you came from is forgotten */
+function setMode(to, { back = false } = {}) {
+  if (!back && (to === "list" || to === "hours")) cameFrom.length = 0;
   mode = to;
-  td.storage.set("mode", mode).catch(() => {});
+  if (mode === "list" || mode === "hours") td.storage.set("mode", mode).catch(() => {});
   $("hours").hidden = mode !== "hours";
-  document.querySelector("main").hidden = mode === "hours";
+  $("search").hidden = mode !== "search";
+  document.querySelector("main").hidden = mode !== "list" && mode !== "page";
+  document.querySelector("main").classList.toggle("page", mode === "page");
   $("hours-toggle").classList.toggle("on", mode === "hours");
   $("hours-toggle").title = mode === "hours" ? "Back to the work items (w)" : "The hours you logged, day by day (w)";
+  td.keys.use(mode === "page" ? "page" : mode === "search" ? "search" : "view");
   render();
   if (mode === "hours") loadHours();
+  if (mode === "search") renderSearch();
+}
+
+// A work item's page on its own (one that isn't in the list, or opened from the calendar or a
+// search), and where you came from: Esc goes back there, the cursor where it was
+let opened = null; // { id, stub (what's known of it before its page comes), day (the calendar's, opened from there) }
+const cameFrom = []; // [{ mode, opened }]
+/** What's known of a work item before its page comes (the list's, the calendar's, a search's, a related one's) */
+function stub(id) {
+  const known = data.items.find((i) => i.id === id) ?? found.items.find((i) => i.id === id) ?? logged.entries.find((e) => e.id === id)
+    ?? [...details.values()].flatMap((d) => d.related ?? []).find((r) => r.id === id) ?? {};
+  return { id, type: known.type ?? "", title: known.title || "…", state: known.state ?? "", assignedTo: known.assignedTo ?? "", iteration: known.iteration ?? "",
+    priority: known.priority ?? null, tags: known.tags ?? [], project: known.project ?? "", url: known.url ?? "", changed: known.changed ?? "" };
+}
+/** The opened work item: as its page has it, else the list's, else what was known */
+const pageItem = () => opened && (details.get(opened.id)?.item ?? data.items.find((i) => i.id === opened.id) ?? opened.stub);
+const backName = () => ({ list: "Work items", hours: "Hours", search: "Search", page: "Back" })[cameFrom.at(-1)?.mode] ?? "Work items";
+
+/** Opens a work item's page: in the list, there (from the list); else on its own */
+function openItem(id) {
+  if (!Number.isInteger(id)) return;
+  if (mode === "list" && select(id)) return;
+  cameFrom.push({ mode, opened });
+  opened = { id, stub: stub(id), day: mode === "hours" ? dayKey(day) : mode === "page" ? opened?.day ?? null : null };
+  setMode("page");
+  $("detail").scrollTop = 0;
+}
+
+/** Back where you came from (the calendar, the search, the list, the page before) */
+function goBack() {
+  const to = cameFrom.pop() ?? { mode: "list", opened: null };
+  opened = to.opened;
+  setMode(to.mode, { back: true });
+}
+
+// A search, as Azure DevOps' own (F): a number opens that work item; words list the work items
+// whose title has them all, anyone's, in any state
+let found = { typed: "", items: [], error: "", asking: false };
+let foundAt = 0;
+
+async function search() {
+  if (!$("ask").hidden) return;
+  const typed = (await ask({ label: "Search work items: a number, or words in their title", value: found.typed, hint: "Enter: search · Esc: cancel" }))?.trim();
+  if (!typed) return;
+  if (/^#?\d+$/.test(typed)) return openItem(Number(typed.replace("#", "")));
+  if (mode !== "search") cameFrom.push({ mode, opened });
+  found = { typed, items: [], error: "", asking: true };
+  foundAt = 0;
+  setMode("search");
+  const got = await td.backend.call("search", { text: typed }).catch((e) => ({ items: [], error: e.message }));
+  if (found.typed !== typed) return;
+  found = { typed, ...got, asking: false };
+  renderSearch();
+}
+
+function renderSearch() {
+  if (mode !== "search") return;
+  const f = found;
+  foundAt = Math.max(0, Math.min(foundAt, f.items.length - 1));
+  $("search").innerHTML = `<header class="search-head"><button class="back" data-back title="Back (Esc)">‹ ${esc(backName())} ${kbd("Esc")}</button>
+      <h2>“${esc(f.typed)}”</h2><span class="td-muted">${f.asking ? "Asking Azure DevOps…" : `${f.items.length}${f.items.length >= 50 ? " (the 50 most recently changed)" : ""} found`}</span>
+      <span class="spacer"></span><button data-edit="search" title="Another search (F)">Search ${kbd("F")}</button></header>
+    ${f.error ? `<p class="td-error">${esc(f.error)}</p>` : ""}
+    <table class="found"><tbody>${f.items.map((i, n) => `<tr class="${n === foundAt ? "cursor" : ""}" data-found="${n}" title="${esc(`${i.type} ${i.id} · ${i.state}\n${i.title}`)}">
+      <td class="type ${esc(i.type)}"><span class="mark">${mark(i.type)}</span> ${esc(i.type)}</td><td class="id">${i.id}</td><td class="title">${esc(i.title)}</td>
+      <td class="state"><i class="dot ${stateClass(i.state)}"></i>${esc(i.state)}</td><td class="who">${esc(i.assignedTo || "Unassigned")}</td></tr>`).join("")}</tbody></table>
+    ${!f.asking && !f.error && !f.items.length ? `<p class="td-muted">No work item's title has all of these words.</p>` : ""}
+    <p class="td-muted keys">${kbd("j")}${kbd("k")} move · ${kbd("Enter")} its page · ${kbd("o")} in Azure DevOps · ${kbd("F")} search again · ${kbd("Esc")} back</p>`;
+  $("search").querySelector(".cursor")?.scrollIntoView({ block: "nearest" });
+}
+
+/** What a key does on the search's results */
+function actSearch(action) {
+  const it = found.items[foundAt];
+  const to = (n) => ((foundAt = Math.max(0, Math.min(found.items.length - 1, n))), renderSearch());
+  switch (action) {
+    case "down": return to(foundAt + 1);
+    case "up": return to(foundAt - 1);
+    case "first": return to(0);
+    case "last": return to(found.items.length - 1);
+    case "open": return it && openItem(it.id);
+    case "outside": return it && td.ui.openUrl(it.url);
+    case "search": return search();
+    case "refresh": {
+      const typed = found.typed;
+      found = { ...found, asking: true };
+      renderSearch();
+      return td.backend.call("search", { text: typed }).catch((e) => ({ items: [], error: e.message }))
+        .then((got) => found.typed === typed && ((found = { typed, ...got, asking: false }), renderSearch()));
+    }
+    case "hours": return setMode("hours");
+    case "leave": return goBack();
+  }
+}
+
+/** What a key does on a work item's page of its own */
+function actPage(action) {
+  const it = pageItem();
+  const box = $("detail");
+  switch (action) {
+    case "down": return box.scrollBy({ top: 60 });
+    case "up": return box.scrollBy({ top: -60 });
+    case "first": return box.scrollTo({ top: 0 });
+    case "last": return box.scrollTo({ top: box.scrollHeight });
+    case "page-down": return box.scrollBy({ top: box.clientHeight * 0.8 });
+    case "page-up": return box.scrollBy({ top: -box.clientHeight * 0.8 });
+    case "outside": return it?.url && td.ui.openUrl(it.url);
+    case "copy-branch": return it && copy(branchName(it, data.branchPrefix), "the branch name");
+    case "copy-ref": return it && copy(reference(it), `${it.type} ${it.id}`);
+    case "fold": return foldText();
+    case "search": return search();
+    case "hours": return setMode("hours");
+    case "leave": return goBack();
+    case "state": case "assign": case "comment": case "title": case "tags": case "priority": case "iteration": case "log":
+      return it && $("ask").hidden && (details.get(it.id)?.item || action === "comment" || action === "log" ? edits[action](it) : td.ui.say("its page is still loading", { error: true }));
+    case "refresh":
+      if (it) fresh.delete(it.id);
+      td.ui.say("looking again…");
+      return detail();
+  }
 }
 
 /** Asks for the hours of the highlighted day's month (and the days around it) */
@@ -593,7 +808,7 @@ function renderHours() {
       ${loading ? `<p class="td-muted">…</p>` : list(picked?.items ?? []) || `<p class="td-muted">${day > today ? "Not yet." : "Nothing logged."}</p>`}
       <h3>Its week <span class="td-muted">${hoursText(weekTotal)}</span></h3>
       ${loading ? "" : list(weekList) || `<p class="td-muted">Nothing logged.</p>`}
-      <p class="td-muted note">What you added to a work item's completed work, counted on the day you added it. A click: its page (or Azure DevOps).</p>
+      <p class="td-muted note">What you added to a work item's completed work, counted on the day you added it (in a work log: on its entry's day). A click: its page.</p>
     </aside>`;
 }
 
@@ -610,6 +825,7 @@ function actHours(action) {
     case "page-down": return moveMonth(1);
     case "page-up": return moveMonth(-1);
     case "hours": return setMode("list");
+    case "search": return search();
     case "refresh":
       td.ui.say("looking again…");
       logged.since = "";
@@ -687,7 +903,10 @@ td.on("key", ({ action }) => act(action));
 /** What a key or a button does */
 function act(action) {
   if (mode === "hours") return actHours(action);
+  if (mode === "search") return actSearch(action);
+  if (mode === "page") return actPage(action);
   if (action === "hours") return setMode("hours");
+  if (action === "search") return search();
   const row = shown()[cursor];
   const it = row?.it;
   switch (action) {
@@ -710,7 +929,7 @@ function act(action) {
     case "filter": return startFilter();
     case "fold": return foldText();
     case "sprint": return toggleSprint();
-    case "state": case "assign": case "comment": case "title": case "tags": case "priority": case "iteration":
+    case "state": case "assign": case "comment": case "title": case "tags": case "priority": case "iteration": case "log":
       return it && $("ask").hidden && edits[action](it);
     case "refresh":
       fresh.clear();
@@ -724,7 +943,7 @@ document.addEventListener("keydown", (e) => {
   if (e.target.id !== "compose") return;
   if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
     e.preventDefault();
-    if (current()) sendComment(current());
+    if (showingItem()) sendComment(showingItem());
   } else if (e.key === "Escape") {
     e.target.blur();
     td.keys.take();
@@ -737,6 +956,7 @@ td.backend.on("updated", () => {
 });
 document.addEventListener("click", (e) => {
   if (e.target.closest("#refresh")) return td.backend.call("refresh").then(load);
+  if (e.target.closest("#search-button")) return search();
   if (e.target.closest("#sprint")) return toggleSprint();
   if (e.target.closest("#hours-toggle")) return setMode(mode === "hours" ? "list" : "hours");
   const month = e.target.closest("[data-month]");
@@ -747,7 +967,22 @@ document.addEventListener("click", (e) => {
     const [y, m, d] = cell.dataset.day.split("-").map(Number);
     return moveDay(new Date(y, m - 1, d));
   }
-  if (e.target.closest("#compose-send")) return current() && sendComment(current());
+  if (e.target.closest("#compose-send")) return showingItem() && sendComment(showingItem());
+  if (e.target.closest("[data-back]")) return goBack();
+  const logChange = e.target.closest("[data-log-change], [data-log-remove]");
+  if (logChange) {
+    const it = showingItem();
+    const wl = it && workLogOf(it);
+    const n = Number(logChange.dataset.logChange ?? logChange.dataset.logRemove);
+    const row = wl?.rows.find((r) => r.n === n);
+    if (!row || !$("ask").hidden) return;
+    return logChange.dataset.logChange != null ? logEntry(it, wl, row) : removeEntry(it, row);
+  }
+  const result = e.target.closest("[data-found]");
+  if (result) {
+    foundAt = Number(result.dataset.found);
+    return openItem(found.items[foundAt]?.id);
+  }
   const folding = e.target.closest("[data-fold]");
   if (folding) return foldText(folding.dataset.fold);
   const earlier = e.target.closest("[data-unfold]");
@@ -758,13 +993,14 @@ document.addEventListener("click", (e) => {
   const button = e.target.closest("[data-edit]");
   if (button) return act(button.dataset.edit);
   const link = e.target.closest("[data-href]");
-  if (link) return td.ui.openUrl(link.dataset.href);
-  const go = e.target.closest("[data-goto]");
-  if (go) {
-    const id = Number(go.dataset.goto);
-    if (mode === "hours" && data.items.some((i) => i.id === id)) setMode("list");
-    return select(id) || td.ui.openUrl(go.dataset.url);
+  if (link) {
+    // A link to a work item (#123): its page, here
+    const href = String(link.dataset.href);
+    const wi = !!data.orgUrl && href.toLowerCase().startsWith(`${data.orgUrl.toLowerCase()}/`) && href.match(/\/_workitems\/edit\/(\d+)(?:[/?#]|$)/i);
+    return wi ? openItem(Number(wi[1])) : td.ui.openUrl(link.dataset.href);
   }
+  const go = e.target.closest("[data-goto]");
+  if (go) return openItem(Number(go.dataset.goto));
   const t = e.target.closest("[data-toggle]");
   if (t && !words) return toggle(Number(t.dataset.toggle));
   const row = e.target.closest("[data-n]");

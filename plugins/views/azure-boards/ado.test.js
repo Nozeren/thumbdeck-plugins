@@ -2,8 +2,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
-  artifact, auth, branchName, changes, childIds, commentHtml, current, fieldSettings, gather, history, ids, item, orgUrl, page, patch, problem, rows, snapshot,
-  sprintOnly, text, wiql, within,
+  artifact, auth, branchName, changes, childIds, commentHtml, current, fieldSettings, gather, history, ids, item, orgUrl, page, patch, problem, rows, searchWiql, snapshot, sprintOnly, text, wiql, within,
 } from "./ado.js";
 
 const testdata = (f) => JSON.parse(readFileSync(new URL(`./testdata/${f}`, import.meta.url), "utf8"));
@@ -211,4 +210,19 @@ test("a work item's history, as what happened", () => {
   const [e] = history([{ rev: 2, revisedBy: { displayName: "Dana <dana@x>", uniqueName: "dana@x" }, revisedDate: "2026-10-01T10:00:00Z",
     relations: { removed: [{ rel: "System.LinkTypes.Hierarchy-Reverse", url: "https://x/_apis/wit/workItems/7" }] } }]);
   assert.deepEqual(e, { at: "2026-10-01T10:00:00Z", by: "Dana", byId: "dana@x", kind: "parent", from: 7, to: "" }, "no ChangedDate: when it was revised");
+});
+
+test("a search: a number, that work item; words, all of them in the title, in the projects", () => {
+  assert.equal(searchWiql("4211"), "SELECT [System.Id] FROM WorkItems WHERE [System.Id] = 4211");
+  assert.equal(searchWiql(" #4211 ", ["Shop"]), "SELECT [System.Id] FROM WorkItems WHERE [System.Id] = 4211", "a number: in any project");
+  assert.equal(searchWiql("login  sso"), "SELECT [System.Id] FROM WorkItems WHERE [System.Title] CONTAINS 'login' AND [System.Title] CONTAINS 'sso' ORDER BY [System.ChangedDate] DESC");
+  assert.equal(searchWiql("customer's page", ["Shop", "O'Brien"]),
+    "SELECT [System.Id] FROM WorkItems WHERE [System.Title] CONTAINS 'customer''s' AND [System.Title] CONTAINS 'page' AND [System.TeamProject] IN ('Shop', 'O''Brien') ORDER BY [System.ChangedDate] DESC");
+  assert.equal(searchWiql("   "), null);
+});
+
+test("a page leaves out the fields it shows otherwise (a work log)", () => {
+  const w = { id: 1, fields: { "System.Title": "x", "Custom.WorkLogData": "[{&quot;a&quot;:1}]", "Custom.Other": "y" } };
+  assert.deepEqual(page(w, "contoso").other.map((f) => f.ref), ["Custom.Other", "Custom.WorkLogData"]);
+  assert.deepEqual(page(w, "contoso", { skip: ["custom.worklogdata"] }).other.map((f) => f.ref), ["Custom.Other"]);
 });
