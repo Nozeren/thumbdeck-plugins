@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { amount, byDay, dayKey, entries, fieldUse, hoursSetting, hoursText, hoursWiql, logged, loggedLog, notHours, notLog, weeks } from "./hours.js";
+import { amount, byDay, dayKey, entries, entryDay, fieldUse, hoursSetting, hoursText, hoursWiql, logged, loggedLog, notHours, notLog, weeks } from "./hours.js";
 
 test("the query: changed by you ever, with hours, since a day, in the projects", () => {
   assert.equal(hoursWiql({ since: "2026-09-28" }),
@@ -199,4 +199,16 @@ test("a work log's first value: its keys checked, not whether it's a number", ()
   assert.match(notLog(v, "Custom.WorkLogData", { date: "start", amount: "daysSpent" }), /^The entries in the Hours field Custom\.WorkLogData have no "start" \(e\.g\. \{"_id":1,/);
   assert.match(notLog(v, "Custom.WorkLogData", { date: "start", amount: "days" }), /have no "start" or "days"/);
   assert.match(notLog("4", "Custom.WorkLogData", LOG), /doesn't hold a JSON list of entries \(e\.g\. 4\)/);
+});
+
+test("a work log entry's day: a date or midnight as it is; a time of day where you are", () => {
+  assert.equal(entryDay("2026-10-15"), "2026-10-15T12:00:00");
+  assert.equal(entryDay("2026-10-15T00:00:00.000Z"), "2026-10-15T12:00:00");
+  assert.equal(entryDay("2026-10-15T00:00:00+00:00"), "2026-10-15T12:00:00");
+  assert.equal(entryDay("2026-10-15T00:00"), "2026-10-15T12:00:00");
+  const late = "2026-10-15T23:30:00Z";
+  assert.equal(entryDay(late), `${dayKey(new Date(late))}T12:00:00`, "the day it is here");
+  assert.equal(entryDay("2026-10-15T23:30:00"), "2026-10-15T12:00:00", "no zone: already local");
+  assert.equal(entryDay("not a date"), "");
+  assert.equal(entryDay(""), "");
 });

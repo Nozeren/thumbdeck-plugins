@@ -106,10 +106,11 @@ export function entries(v) {
 /** An entry as text that's the same for the same entry, whatever its keys' order */
 const key = (e) => JSON.stringify(e && typeof e === "object" && !Array.isArray(e) ? Object.fromEntries(Object.entries(e).sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))) : e);
 
-/** An entry's day, as a moment on that day where you are: its date's YYYY-MM-DD (a day kept as
- *  midnight UTC is that day everywhere), at noon. None: "" */
-function entryDay(v) {
-  const m = String(v ?? "").match(/^(\d{4}-\d\d-\d\d)/);
+/** An entry's day, as a moment on that day where you are, at noon. A date alone, or a day kept
+ *  as midnight (UTC or not): that date, everywhere. A time of day: the day it is where you are
+ *  (23:30 UTC is the next day east of UTC). None: "" */
+export function entryDay(v) {
+  const m = String(v ?? "").trim().match(/^(\d{4}-\d\d-\d\d)(?:[T ]00:00(?::00(?:\.0+)?)?(?:Z|[+-]00:?00)?)?$/i);
   if (m) return `${m[1]}T12:00:00`;
   const d = new Date(v);
   return Number.isNaN(d.getTime()) ? "" : `${dayKey(d)}T12:00:00`;
