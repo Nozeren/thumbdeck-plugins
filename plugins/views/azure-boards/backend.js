@@ -11,7 +11,7 @@ import { serve } from "../../../packages/backend/index.js";
 import {
   auth, changes, commentHtml, current, fieldSettings, gather, history, ids, isMe, item, orgUrl, page, patch, problem, snapshot, text, wiql, within,
 } from "./ado.js";
-import { HOURS_FIELD, fieldUse, hoursWiql, logged } from "./hours.js";
+import { HOURS_FIELD, fieldUse, hoursWiql, logged, notHours } from "./hours.js";
 import { richHtml } from "./markdown.js";
 
 const demoFile = (f) => JSON.parse(readFileSync(new URL(`./testdata/${f}`, import.meta.url), "utf8"));
@@ -326,7 +326,7 @@ serve({
         const known = await fieldTypes();
         const f = known.get(field.toLowerCase());
         if (known.size && !f) throw new Error(`There's no field ${field} in your organization: check the Hours field setting (its reference name, e.g. Custom.HoursSpent)`);
-        if (f && !fieldUse(f.type)) throw new Error(`The Hours field ${field} (${f.name}) is a ${f.type} field: hours need a number field, or a text one with the number in it`);
+        if (f && !fieldUse(f.type)) throw new Error(`The Hours field ${field} (${f.name}) is a ${f.type} field: hours need a number field, or a text one with just the number in it`);
         compare = !f || fieldUse(f.type) === "number";
       }
       let found;
@@ -339,6 +339,10 @@ serve({
         if (all.length > MAX_LOGGED) note = `Only the ${MAX_LOGGED} most recently changed work items are counted: older days may miss some hours`;
         found = await workItems(all.slice(0, MAX_LOGGED));
       }
+      // The first value says if the field holds hours, before any history is read
+      const first = found.map((w) => w.fields?.[field]).find((v) => v != null && String(v).trim() !== "");
+      const why = first === undefined ? "" : notHours(first, field);
+      if (why) throw new Error(why);
       const stale = (k, w) => !k || k.rev !== w.rev || k.field !== field || k.scale !== scale;
       await each(found.filter((w) => stale(logs.get(w.id), w)), async (w) => {
         logs.set(w.id, { rev: w.rev, field, scale, entries: logged(await updates(w.id), me, field, scale) });

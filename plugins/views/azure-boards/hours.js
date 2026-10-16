@@ -8,7 +8,7 @@ export const HOURS_FIELD = "Microsoft.VSTS.Scheduling.CompletedWork";
 const quote = (s) => `'${String(s).replace(/'/g, "''")}'`;
 const same = (who, me) => !!who && !!me && String(who).toLowerCase() === String(me).toLowerCase();
 
-/** How a field's type (/_apis/wit/fields) can hold hours: "number", "text" (a number in it), or
+/** How a field's type (/_apis/wit/fields) can hold hours: "number", "text" (a number as it), or
  *  null (it can't: a date, a person…) */
 export function fieldUse(type) {
   const t = String(type ?? "").toLowerCase();
@@ -26,11 +26,24 @@ export function hoursWiql({ field = HOURS_FIELD, since, projects = [], compare =
   return `SELECT [System.Id] FROM WorkItems WHERE ${where.join(" AND ")} ORDER BY [System.ChangedDate] DESC`;
 }
 
-/** A field's value as a number: a number, or the first one in its text (or HTML); none: 0 */
+/** A field's value as text: its tags and entities gone, trimmed */
+const plain = (v) => decode(String(v ?? "").replace(/<[^>]*>/g, " ")).replace(/\s+/g, " ").trim();
+
+/** A field's value as a number: a number, or text (or HTML) that is one and nothing else ("4",
+ *  "2.5", "2,5"); empty: 0. Anything else (JSON, words around it…): null, it holds no hours */
 export function amount(v) {
   if (typeof v === "number") return Number.isFinite(v) ? v : 0;
-  const m = decode(String(v ?? "").replace(/<[^>]*>/g, " ")).match(/-?\d+(?:[.,]\d+)?/);
-  return m ? Number(m[0].replace(",", ".")) : 0;
+  const t = plain(v);
+  if (!t) return 0;
+  return /^-?\d+(?:[.,]\d+)?$/.test(t) ? Number(t.replace(",", ".")) : null;
+}
+
+/** Why a field's value can't be hours ("" if it can): for the first work item with one, before
+ *  any history is read (a field of JSON would count its first number on every work item) */
+export function notHours(v, field) {
+  if (amount(v) !== null) return "";
+  const t = plain(v);
+  return `The Hours field ${field} doesn't hold a number (e.g. ${t.length > 40 ? `${t.slice(0, 40)}…` : t}): use a number field, or leave it empty for Completed Work`;
 }
 
 /** What you logged on a work item, from its revisions (backend.js updates): [{ at, hours }].
@@ -41,7 +54,10 @@ export function logged(updates, me, field = HOURS_FIELD, scale = 1) {
     const f = u.fields ?? {};
     const c = f[field];
     if (!c || !same(u.revisedBy?.uniqueName, me)) continue;
-    const hours = round((amount(c.newValue) - amount(c.oldValue)) * scale);
+    const to = amount(c.newValue);
+    const from = amount(c.oldValue);
+    if (to === null || from === null) continue; // a change that isn't hours
+    const hours = round((to - from) * scale);
     const at = f["System.ChangedDate"]?.newValue;
     if (hours && at) out.push({ at, hours });
   }

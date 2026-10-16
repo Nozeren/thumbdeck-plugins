@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { amount, byDay, dayKey, fieldUse, hoursText, hoursWiql, logged, weeks } from "./hours.js";
+import { amount, byDay, dayKey, fieldUse, hoursText, hoursWiql, logged, notHours, weeks } from "./hours.js";
 
 test("the query: changed by you ever, with hours, since a day, in the projects", () => {
   assert.equal(hoursWiql({ since: "2026-09-28" }),
@@ -70,14 +70,31 @@ test("which fields can hold hours", () => {
   assert.equal(fieldUse(undefined), null);
 });
 
-test("a value as a number: a number, or the one in its text or HTML", () => {
+test("a value as a number: a number, or text (or HTML) that is one and nothing else", () => {
   assert.equal(amount(2.5), 2.5);
   assert.equal(amount("3"), 3);
-  assert.equal(amount("<div>1,5&nbsp;h</div>"), 1.5);
-  assert.equal(amount("about&#32;4.25 hours"), 4.25);
-  assert.equal(amount("none"), 0);
+  assert.equal(amount("2,5"), 2.5);
+  assert.equal(amount(" 2.5 "), 2.5);
+  assert.equal(amount("<div>4</div>"), 4);
+  assert.equal(amount("<div>1,5&nbsp;</div>"), 1.5);
+  assert.equal(amount(""), 0);
+  assert.equal(amount("<div>&nbsp;</div>"), 0);
   assert.equal(amount(undefined), 0);
   assert.equal(amount(NaN), 0);
+  assert.equal(amount("none"), null);
+  assert.equal(amount("about 4.25 hours"), null);
+  assert.equal(amount("1.5 h"), null);
+});
+
+test("a JSON value is refused, not its first number", () => {
+  const log = '[{"_id":1,"activityType":"Coding","startDate":"2026-10-01T09:00:00Z","daysSpent":0.5}]';
+  assert.equal(amount(log), null);
+  assert.equal(notHours(log, "Custom.WorkLog"),
+    'The Hours field Custom.WorkLog doesn\'t hold a number (e.g. [{"_id":1,"activityType":"Coding","start…): use a number field, or leave it empty for Completed Work');
+  assert.equal(notHours("<div>4</div>", "Custom.Hours"), "");
+  assert.equal(notHours(2.5, "Custom.Hours"), "");
+  const f = (from, to) => ({ revisedBy: { uniqueName: "me@x.test" }, fields: { "System.ChangedDate": { newValue: "2026-10-01T09:00:00Z" }, "Custom.WorkLog": { oldValue: from, newValue: to } } });
+  assert.deepEqual(logged([f(undefined, log)], "me@x.test", "Custom.WorkLog"), [], "no 1h from its _id");
 });
 
 test("logged in days: a working day's hours each", () => {
