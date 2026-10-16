@@ -23,6 +23,10 @@ const current = () => shown()[cursor]?.it;
 const STATES = [[/^(new|to do|proposed|open|design|approved)$/i, "proposed"], [/^(resolved|in review|testing)$/i, "resolved"],
   [/^(closed|done|completed)$/i, "done"], [/^removed$/i, "removed"]];
 const stateClass = (s) => STATES.find(([re]) => re.test(s))?.[1] ?? "doing";
+// A work item type's mark in the list (its colour: view.css)
+const MARKS = [[/^epic$/i, "▲"], [/^feature$/i, "◆"], [/^(user story|product backlog item|requirement)$/i, "■"], [/^bug$/i, "●"],
+  [/^task$/i, "▪"], [/^(issue|impediment)$/i, "◇"]];
+const mark = (type) => MARKS.find(([re]) => re.test(type))?.[1] ?? "•";
 /** A field's value in words */
 const valueText = (v) => (typeof v === "string" && /^\d{4}-\d\d-\d\dT/.test(v) ? new Date(v).toLocaleDateString() : v === true ? "Yes" : v === false ? "No" : String(v ?? ""));
 const bytes = (n) => (n == null ? "" : n < 1024 ? `${n} B` : n < 1048576 ? `${Math.round(n / 1024)} KB` : `${(n / 1048576).toFixed(1)} MB`);
@@ -51,10 +55,11 @@ function render() {
   $("error").hidden = !data.error;
   $("error").textContent = data.error;
   $("list").innerHTML = list.length
-    ? list.map(({ it: i, depth, kids, open }, n) => `<li class="wi${n === cursor ? " cursor" : ""}${i.mine ? "" : " other"}" data-n="${n}">
-        <span class="twig" style="padding-left:${depth * 14}px">${kids ? `<span class="toggle" data-toggle="${i.id}">${open ? "▾" : "▸"}</span>` : ""}</span>
-        <span class="id">${i.id}</span><span class="type ${esc(i.type)}">${esc(i.type)}</span><span class="title">${esc(i.title)}</span>
-        ${i.mine ? "" : `<span class="who">${esc(i.assignedTo || "unassigned")}</span>`}<span class="state">${esc(i.state)}</span></li>`).join("")
+    ? list.map(({ it: i, depth, kids, open }, n) => `<li class="wi${n === cursor ? " cursor" : ""}${i.mine ? "" : " other"}" data-n="${n}"
+        title="${esc(`${i.type} ${i.id} · ${i.state} · ${i.assignedTo || "unassigned"}\n${i.title}`)}">
+        <span class="twig" style="padding-left:${depth * 12}px">${kids ? `<span class="toggle" data-toggle="${i.id}">${open ? "▾" : "▸"}</span>` : ""}</span>
+        <span class="mark ${esc(i.type)}">${mark(i.type)}</span><span class="id">${i.id}</span><span class="title">${esc(i.title)}</span>
+        <i class="dot ${stateClass(i.state)}"></i></li>`).join("")
     : `<li class="empty">${data.error ? "" : data.updated ? "Nothing here: all done." : "Asking Azure DevOps…"}</li>`;
   $("list").querySelector(".cursor")?.scrollIntoView({ block: "nearest" });
   detail();
