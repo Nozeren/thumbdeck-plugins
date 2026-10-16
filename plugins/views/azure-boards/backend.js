@@ -11,7 +11,7 @@ import { serve } from "../../../packages/backend/index.js";
 import {
   auth, changes, commentHtml, current, fieldSettings, gather, history, ids, isMe, item, orgUrl, page, patch, problem, snapshot, text, wiql, within,
 } from "./ado.js";
-import { HOURS_FIELD, hoursWiql, logged } from "./hours.js";
+import { HOURS_FIELD, fieldUse, hoursWiql, logged } from "./hours.js";
 import { richHtml } from "./markdown.js";
 
 const demoFile = (f) => JSON.parse(readFileSync(new URL(`./testdata/${f}`, import.meta.url), "utf8"));
@@ -20,7 +20,7 @@ let demo = null; // { items, comments, iterations, fields, updates }: the sample
 let settings = {
   organization: "", token: "", show: "assigned", projects: [], hidden_states: ["Closed", "Done", "Removed"], refresh_minutes: 5,
   branch_prefix: "feature/", team: "", notify_assigned: true, notify_state: true, notify_comments: true, fields: [],
-  hours_field: "", hours_per_day: 8,
+  hours_field: "", hours_unit: "hours", hours_per_day: 8,
 };
 // How many it shows: yours (the most recently changed), and with what's under and above them
 const MAX_MINE = 1000;
@@ -34,7 +34,7 @@ let sprints = {}; // project -> its current iteration's path (null: none)
 let sprintOnly = false; // only the current sprint's (kept in storage)
 const iterationsOf = new Map(); // project -> the team's iterations
 let types = null; // the organization's fields: ref (lowercase) -> { name, type } (once a start)
-const logs = new Map(); // id -> { rev, field, entries: [{ at, hours }] }: what you logged on it, at that revision
+const logs = new Map(); // id -> { rev, field, scale, entries: [{ at, hours }] }: what you logged on it, at that revision
 const MAX_LOGGED = 400; // work items looked into for the hours, the most recently changed
 
 const isDemo = () => settings.organization.trim() === "demo";
@@ -243,8 +243,13 @@ function start() {
   if (demo) demoHours();
 }
 
-/** The sample's logged hours: most working days of the last two months, on a few work items */
+/** The hours in one of the hours field's units: 1, or a working day's in days */
+const hoursIn = () => (settings.hours_unit === "days" ? Number(settings.hours_per_day) || 8 : 1);
+
+/** The sample's logged hours: most working days of the last two months, on a few work items (in
+ *  the unit of the settings, as an organization would keep them) */
 function demoHours() {
+  const unit = hoursIn();
   const on = [4175, 4211, 3990, 4202];
   let seed = 7;
   const random = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
@@ -262,12 +267,12 @@ function demoHours() {
       day.setHours(day.getHours() + Math.ceil(hours));
       (demo.updates[id] ??= []).push({
         rev: 100 + (demo.updates[id]?.length ?? 0), revisedBy: { displayName: "Me", uniqueName: DEMO_ME }, revisedDate: "9999-01-01T00:00:00Z",
-        fields: { "System.ChangedDate": { newValue: day.toISOString() }, [HOURS_FIELD]: { oldValue: was || undefined, newValue: was + hours } },
+        fields: { "System.ChangedDate": { newValue: day.toISOString() }, [HOURS_FIELD]: { oldValue: was ? was / unit : undefined, newValue: (was + hours) / unit } },
       });
       left -= hours;
     }
   }
-  for (const w of demo.items) if (done.has(w.id)) w.fields[HOURS_FIELD] = done.get(w.id);
+  for (const w of demo.items) if (done.has(w.id)) w.fields[HOURS_FIELD] = done.get(w.id) / unit;
 }
 
 const known = (id) => {
@@ -314,16 +319,29 @@ serve({
       if (!org || (!isDemo() && !settings.token.trim())) throw new Error("Set your organization and a token in Settings (,) › Plugins › Azure Boards");
       await whoAmI();
       if (!me) throw new Error("Azure DevOps didn't say who you are, so your hours can't be told from others'");
+      const scale = hoursIn();
+      // A field of the organization's own: a number, or text with one (which can't be compared with 0)
+      let compare = true;
+      if (field.toLowerCase() !== HOURS_FIELD.toLowerCase()) {
+        const known = await fieldTypes();
+        const f = known.get(field.toLowerCase());
+        if (known.size && !f) throw new Error(`There's no field ${field} in your organization: check the Hours field setting (its reference name, e.g. Custom.HoursSpent)`);
+        if (f && !fieldUse(f.type)) throw new Error(`The Hours field ${field} (${f.name}) is a ${f.type} field: hours need a number field, or a text one with the number in it`);
+        compare = !f || fieldUse(f.type) === "number";
+      }
       let found;
       let note = "";
       if (isDemo()) found = demo.items;
       else {
-        const all = ids(await ado("/_apis/wit/wiql?api-version=7.1", { method: "POST", body: JSON.stringify({ query: hoursWiql({ field, since, projects: settings.projects ?? [] }) }) }));
+        const ask = (compare) => ado("/_apis/wit/wiql?api-version=7.1", { method: "POST", body: JSON.stringify({ query: hoursWiql({ field, since, projects: settings.projects ?? [], compare }) }) });
+        // A type it couldn't know (the fields unread): a text field's refusal (TF212023), asked again without the comparison
+        const all = ids(await ask(compare).catch((e) => (compare && /TF212023/.test(e.message) ? ask(false) : Promise.reject(e))));
         if (all.length > MAX_LOGGED) note = `Only the ${MAX_LOGGED} most recently changed work items are counted: older days may miss some hours`;
         found = await workItems(all.slice(0, MAX_LOGGED));
       }
-      await each(found.filter((w) => logs.get(w.id)?.rev !== w.rev || logs.get(w.id)?.field !== field), async (w) => {
-        logs.set(w.id, { rev: w.rev, field, entries: logged(await updates(w.id), me, field) });
+      const stale = (k, w) => !k || k.rev !== w.rev || k.field !== field || k.scale !== scale;
+      await each(found.filter((w) => stale(logs.get(w.id), w)), async (w) => {
+        logs.set(w.id, { rev: w.rev, field, scale, entries: logged(await updates(w.id), me, field, scale) });
       });
       const entries = found.flatMap((w) => {
         const it = item(w, org);

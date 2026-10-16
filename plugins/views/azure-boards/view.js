@@ -532,12 +532,17 @@ function renderHours() {
   const inMonth = all.flat().filter((d) => d.getMonth() === month);
   const total = inMonth.reduce((n, d) => n + hoursOn(d), 0);
   const workedDays = inMonth.filter((d) => hoursOn(d) > 0).length;
+  // A day's work items in it, when it's tall enough (view.css)
+  const mini = (d) => {
+    const items = loading ? [] : loggedDays.get(dayKey(d))?.items ?? [];
+    return items.length ? `<ul class="mini">${items.map((i) => `<li title="${esc(`${i.type} ${i.id} · ${hoursText(i.hours)}\n${i.title}`)}"><span class="mark ${esc(i.type)}">${mark(i.type)}</span><span class="id">${i.id}</span><span class="title">${esc(i.title)}</span><b>${hoursText(i.hours)}</b></li>`).join("")}</ul>` : "";
+  };
   const cell = (d) => {
     const h = hoursOn(d);
     const cls = ["cell", d.getMonth() !== month && "out", !working(d) && "weekend", +d === +today && "today", d > today && "future",
       +d === +startOfDay(day) && "cursor", h >= per ? "full" : h > 0 ? "short" : ""].filter(Boolean).join(" ");
     return `<div class="${cls}" data-day="${dayKey(d)}" title="${esc(`${d.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })}: ${hoursText(h)}`)}">
-      <span class="n">${d.getDate()}</span>${h ? `<span class="h">${hoursText(h)}</span>` : ""}
+      <span class="n">${d.getDate()}</span>${mini(d)}${h ? `<span class="h">${hoursText(h)}</span>` : ""}
       <i class="fill" style="width:${Math.min(100, (h / per) * 100)}%"></i></div>`;
   };
   const week = (w) => {
@@ -578,7 +583,7 @@ function renderHours() {
       </header>
       ${logged.error && !loading ? `<p class="td-error">${esc(logged.error)}</p>` : ""}
       ${logged.note && !loading ? `<p class="td-muted">${esc(logged.note)}</p>` : ""}
-      <div class="grid">${[...DAY_NAMES, "Week"].map((n) => `<div class="name">${n}</div>`).join("")}
+      <div class="grid" style="grid-template-rows: auto repeat(${all.length}, minmax(58px, 1fr))">${[...DAY_NAMES, "Week"].map((n) => `<div class="name">${n}</div>`).join("")}
         ${all.map((w) => w.map(cell).join("") + week(w)).join("")}</div>
       <p class="td-muted keys">${kbd("h")}${kbd("l")} day · ${kbd("j")}${kbd("k")} week · ${kbd("d")}${kbd("u")} month · ${kbd("w")} back to the work items</p>
     </div>

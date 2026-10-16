@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { markdown, plainLines, richHtml } from "./markdown.js";
+import { decode, markdown, plainLines, richHtml } from "./markdown.js";
 
 test("blocks", () => {
   assert.equal(markdown("# One\n\nSome *text*\nand more  \nend"), "<h1>One</h1>\n<p>Some <em>text</em><br>and more<br>end</p>", "a line break is kept");
@@ -37,4 +37,17 @@ test("Markdown in Azure DevOps' HTML", () => {
   assert.equal(richHtml("<div>Just a line</div>"), "<div>Just a line</div>", "no Markdown in it: as it is");
   assert.equal(richHtml("plain\ntext"), "<p>plain<br>text</p>", "plain text: its lines");
   assert.equal(richHtml("<p>**x**</p>", { format: "Markdown" }), "<p>&lt;p&gt;<strong>x</strong>&lt;/p&gt;</p>", "the field says Markdown");
+});
+
+test("an HTML field without tags: its entities as characters, escaped once", () => {
+  assert.equal(richHtml("[{&quot;a&quot;:1}]"), '<p>[{&quot;a&quot;:1}]</p>', "not &amp;quot;");
+  assert.equal(richHtml("Tom &amp; Jerry &lt;3 &#39;x&#39; &#x2014;"), "<p>Tom &amp; Jerry &lt;3 'x' —</p>");
+  assert.equal(richHtml("&lt;script&gt;alert(1)&lt;/script&gt;"), "<p>&lt;script&gt;alert(1)&lt;/script&gt;</p>", "still text, never a tag");
+  assert.equal(richHtml("a &amp;quot; b"), "<p>a &amp;quot; b</p>", "decoded once only");
+  assert.equal(richHtml("**[{&quot;a&quot;:1}]**", { format: "markdown" }), "<p><strong>[{&amp;quot;a&amp;quot;:1}]</strong></p>", "a Markdown field is kept as typed");
+});
+
+test("entities", () => {
+  assert.equal(decode("&amp;lt; &nbsp;&#65;&#x42;&bogus; &#0;"), "&lt;  AB&bogus; &#0;");
+  assert.equal(plainLines("<div>&quot;a&quot; &amp;amp;</div>"), '"a" &amp;');
 });

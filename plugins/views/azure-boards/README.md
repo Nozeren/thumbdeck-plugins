@@ -45,7 +45,9 @@ Your Azure DevOps work items in thumbdeck: to see them, change them and be told 
   one opens it. `h` / `l` move a day, `j` / `k` a week, `d` / `u` a month, `g` goes to today and
   `w` goes back to the list. Only your own changes count. The **Hours in a working day** setting
   is 8 by default. If your organization logs hours in a field of its own, put that field's
-  reference name in the **Hours field** setting.
+  reference name in the **Hours field** setting. It can be a number field, or a text field with
+  the number in it. If your organization logs Completed Work in days (0.5 for half a day), set
+  **Hours field is in** to Days: each day then counts as a working day's hours.
 - **How many are open**, next to its name in the Plugins pane.
 - **Notifications** (it looks every 5 minutes): a work item assigned to you, a state changed on
   yours, new comments on yours; not your own changes. What it saw last is remembered, so what

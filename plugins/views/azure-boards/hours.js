@@ -1,27 +1,47 @@
 // The hours you logged, day by day: what you added to a work item's completed work (its
 // history says when, and by whom), counted on the day you added it; a correction down, taken
-// off that day. For the calendar (view.js), and what the backend asks Azure DevOps for.
+// off that day; in days (Settings), a day's worth of hours each. For the calendar (view.js),
+// and what the backend asks Azure DevOps for.
+import { decode } from "./markdown.js";
 
 export const HOURS_FIELD = "Microsoft.VSTS.Scheduling.CompletedWork";
 const quote = (s) => `'${String(s).replace(/'/g, "''")}'`;
 const same = (who, me) => !!who && !!me && String(who).toLowerCase() === String(me).toLowerCase();
 
-/** The query for the work items you may have logged hours on since a day (YYYY-MM-DD) */
-export function hoursWiql({ field = HOURS_FIELD, since, projects = [] }) {
-  const where = [`[System.ChangedBy] EVER @Me`, `[${field}] > 0`, `[System.ChangedDate] >= ${quote(since)}`];
+/** How a field's type (/_apis/wit/fields) can hold hours: "number", "text" (a number in it), or
+ *  null (it can't: a date, a person…) */
+export function fieldUse(type) {
+  const t = String(type ?? "").toLowerCase();
+  if (["integer", "double", "picklistinteger", "picklistdouble"].includes(t)) return "number";
+  if (["string", "plaintext", "html", "pickliststring"].includes(t)) return "text";
+  return null;
+}
+
+/** The query for the work items you may have logged hours on since a day (YYYY-MM-DD).
+ *  compare: only the ones with some (a number field; Azure DevOps can't compare text with 0) */
+export function hoursWiql({ field = HOURS_FIELD, since, projects = [], compare = true }) {
+  const where = [`[System.ChangedBy] EVER @Me`, compare && `[${field}] > 0`, `[System.ChangedDate] >= ${quote(since)}`].filter(Boolean);
   const only = projects.filter(Boolean);
   if (only.length) where.push(`[System.TeamProject] IN (${only.map(quote).join(", ")})`);
   return `SELECT [System.Id] FROM WorkItems WHERE ${where.join(" AND ")} ORDER BY [System.ChangedDate] DESC`;
 }
 
-/** What you logged on a work item, from its revisions (backend.js updates): [{ at, hours }] */
-export function logged(updates, me, field = HOURS_FIELD) {
+/** A field's value as a number: a number, or the first one in its text (or HTML); none: 0 */
+export function amount(v) {
+  if (typeof v === "number") return Number.isFinite(v) ? v : 0;
+  const m = decode(String(v ?? "").replace(/<[^>]*>/g, " ")).match(/-?\d+(?:[.,]\d+)?/);
+  return m ? Number(m[0].replace(",", ".")) : 0;
+}
+
+/** What you logged on a work item, from its revisions (backend.js updates): [{ at, hours }].
+ *  scale: the hours in one of the field's units (in days: the hours in a working day) */
+export function logged(updates, me, field = HOURS_FIELD, scale = 1) {
   const out = [];
   for (const u of updates ?? []) {
     const f = u.fields ?? {};
     const c = f[field];
     if (!c || !same(u.revisedBy?.uniqueName, me)) continue;
-    const hours = (Number(c.newValue) || 0) - (Number(c.oldValue) || 0);
+    const hours = round((amount(c.newValue) - amount(c.oldValue)) * scale);
     const at = f["System.ChangedDate"]?.newValue;
     if (hours && at) out.push({ at, hours });
   }

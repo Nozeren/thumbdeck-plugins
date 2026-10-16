@@ -4,6 +4,14 @@
 // images, lists (nested, with tasks), quotes, tables, rules, and #123 for a work item. Raw HTML
 // in it is shown as text. What comes out is still made safe before it's shown (rich.js).
 
+/** HTML's entities as the characters they stand for (&amp;, &quot;, &#39;, &#x27;, &nbsp;…) */
+const NAMED = { amp: "&", lt: "<", gt: ">", quot: '"', apos: "'", nbsp: " " };
+export const decode = (s) => String(s).replace(/&(#x[\da-f]+|#\d+|[a-z]+);/gi, (all, e) => {
+  if (e[0] !== "#") return NAMED[e.toLowerCase()] ?? all;
+  const n = e[1] === "x" || e[1] === "X" ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10);
+  return n > 0 && n <= 0x10ffff ? String.fromCodePoint(n) : all;
+});
+
 const esc = (s) => String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 const FENCE = /^ {0,3}(`{3,}|~{3,})\s*([\w+#.-]*)/;
@@ -152,12 +160,11 @@ const MARKS = /^\s*(#{1,6}\s|[-*+]\s+\S|\d+[.)]\s+\S|>\s?|```|~~~|\|.*\|\s*$)|\*
 export function plainLines(html) {
   const tags = String(html).match(/<\/?([a-z][\w-]*)[^>]*>/gi) ?? [];
   if (!tags.every((t) => PLAIN_TAGS.test(t.replace(/^<\/?|[\s>].*$/gs, "")))) return null;
-  return String(html)
+  return decode(String(html)
     .replace(/<br\s*\/?>/gi, "\n")
     .replace(/<(div|p)[^>]*>/gi, "\n")
     .replace(/<[^>]+>/g, "")
-    .replace(/&nbsp;/g, " ").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, "&")
-    .replace(/^\n/, "");
+    .replace(/^\n/, ""));
 }
 
 /** Rich text from Azure DevOps as HTML: Markdown (the field says so, or it's plain text, or
@@ -165,7 +172,8 @@ export function plainLines(html) {
 export function richHtml(value, { format = "", workItem } = {}) {
   const v = String(value ?? "");
   if (String(format).toLowerCase() === "markdown") return markdown(v, { workItem });
-  if (!/<\/?[a-z][^>]*>/i.test(v)) return markdown(v, { workItem }); // plain text
+  // Plain text: an HTML field without tags still has its entities (&quot;…): as characters, once
+  if (!/<\/?[a-z][^>]*>/i.test(v)) return markdown(decode(v), { workItem });
   const lines = plainLines(v);
   return lines !== null && MARKS.test(lines) ? markdown(lines, { workItem }) : v;
 }

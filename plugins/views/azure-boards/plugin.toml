@@ -1,6 +1,6 @@
 id = "azure-boards"
 name = "Azure Boards"
-version = "1.8.0"
+version = "1.8.1"
 api = 1
 description = "Your Azure DevOps work items as a tree, with what's under and above them: their pages as in Azure DevOps, changes (state, assignee, comments…), notifications, the current sprint, the hours you logged by day"
 homepage = "https://github.com/Nozeren/thumbdeck-plugins/tree/main/plugins/views/azure-boards"
@@ -106,6 +106,17 @@ label = "Hours field"
 type = "text"
 default = ""
 help = "The field your hours are logged in. Empty: Completed Work (Microsoft.VSTS.Scheduling.CompletedWork). Your organization's own: its reference name, e.g. Custom.HoursSpent"
+
+[[settings]]
+key = "hours_unit"
+label = "Hours field is in"
+type = "choice"
+choices = [
+  { value = "hours", label = "Hours" },
+  { value = "days", label = "Days (0.5: half a day)" },
+]
+default = "hours"
+help = "Days: each one counts as a working day's hours (Hours in a working day)."
 
 [[settings]]
 key = "refresh_minutes"

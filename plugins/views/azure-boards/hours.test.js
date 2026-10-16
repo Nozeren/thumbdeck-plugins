@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { byDay, dayKey, hoursText, hoursWiql, logged, weeks } from "./hours.js";
+import { amount, byDay, dayKey, fieldUse, hoursText, hoursWiql, logged, weeks } from "./hours.js";
 
 test("the query: changed by you ever, with hours, since a day, in the projects", () => {
   assert.equal(hoursWiql({ since: "2026-09-28" }),
@@ -51,4 +51,42 @@ test("a month's weeks start on Monday, and cover it", () => {
   assert.equal(feb.length, 4);
   assert.equal(dayKey(feb[0][0]), "2027-02-01");
   assert.ok(weeks(2026, 7).length === 6, "August 2026 needs six");
+});
+
+test("a text field's query: no comparison with 0 (Azure DevOps refuses it: TF212023)", () => {
+  const q = hoursWiql({ field: "Custom.Hours", since: "2026-09-28", compare: false });
+  assert.equal(q, "SELECT [System.Id] FROM WorkItems WHERE [System.ChangedBy] EVER @Me AND [System.ChangedDate] >= '2026-09-28' ORDER BY [System.ChangedDate] DESC");
+});
+
+test("which fields can hold hours", () => {
+  assert.equal(fieldUse("double"), "number");
+  assert.equal(fieldUse("integer"), "number");
+  assert.equal(fieldUse("picklistDouble"), "number");
+  assert.equal(fieldUse("html"), "text");
+  assert.equal(fieldUse("plainText"), "text");
+  assert.equal(fieldUse("string"), "text");
+  assert.equal(fieldUse("dateTime"), null);
+  assert.equal(fieldUse("identity"), null);
+  assert.equal(fieldUse(undefined), null);
+});
+
+test("a value as a number: a number, or the one in its text or HTML", () => {
+  assert.equal(amount(2.5), 2.5);
+  assert.equal(amount("3"), 3);
+  assert.equal(amount("<div>1,5&nbsp;h</div>"), 1.5);
+  assert.equal(amount("about&#32;4.25 hours"), 4.25);
+  assert.equal(amount("none"), 0);
+  assert.equal(amount(undefined), 0);
+  assert.equal(amount(NaN), 0);
+});
+
+test("logged in days: a working day's hours each", () => {
+  const updates = [rev("me@x.test", "2026-10-01T09:00:00Z", undefined, 0.5), rev("me@x.test", "2026-10-02T09:00:00Z", 0.5, 1.25)];
+  assert.deepEqual(logged(updates, "me@x.test", undefined, 8), [{ at: "2026-10-01T09:00:00Z", hours: 4 }, { at: "2026-10-02T09:00:00Z", hours: 6 }]);
+  assert.deepEqual(logged(updates, "me@x.test", undefined, 7.5).map((e) => e.hours), [3.75, 5.63], "rounded to 2 places");
+});
+
+test("logged in a text field", () => {
+  const f = (from, to) => ({ revisedBy: { uniqueName: "me@x.test" }, fields: { "System.ChangedDate": { newValue: "2026-10-01T09:00:00Z" }, "Custom.Hours": { oldValue: from, newValue: to } } });
+  assert.deepEqual(logged([f(undefined, "<div>2</div>"), f("<div>2</div>", "<div>3.5</div>")], "me@x.test", "Custom.Hours").map((e) => e.hours), [2, 1.5]);
 });
