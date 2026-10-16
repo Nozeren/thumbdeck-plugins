@@ -95,7 +95,7 @@ recommended = false
 [[plugin]]
 id = "azure-boards"
 name = "Azure Boards"
-description = "Your Azure DevOps work items: what's assigned to you, details, branch names (with a token, read-only)"
+description = "Your Azure DevOps work items as a tree: their pages, changes (state, assignee, comments…), notifications, the current sprint (with a token)"
 source = "https://github.com/Nozeren/thumbdeck-plugins#plugins/views/azure-boards"
 recommended = false
 

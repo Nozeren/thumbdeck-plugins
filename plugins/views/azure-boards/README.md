@@ -1,6 +1,6 @@
 # Azure Boards
 
-Your Azure DevOps work items in thumbdeck, read-only:
+Your Azure DevOps work items in thumbdeck: to see them, change them and be told what changed.
 
 - **Its view** in the Plugins pane (`Ctrl+p`): the work items assigned to you (or created by
   you, or that you follow), most recently changed first, as a tree: each under its parent, and

@@ -20,7 +20,11 @@ let settings = {
   organization: "", token: "", show: "assigned", projects: [], hidden_states: ["Closed", "Done", "Removed"], refresh_minutes: 5,
   branch_prefix: "feature/", team: "", notify_assigned: true, notify_state: true, notify_comments: true, fields: [],
 };
+// How many it shows: yours (the most recently changed), and with what's under and above them
+const MAX_MINE = 1000;
+const MAX_ALL = 3000;
 let items = [];
+let note = ""; // what it couldn't show, said at the top of the view
 let error = "";
 let updated = null;
 let me = ""; // your uniqueName (an email), for "not your own changes"
@@ -46,8 +50,11 @@ async function answer(url, init = {}, { writing = false } = {}) {
     signal: AbortSignal.timeout(30_000),
   });
   if (!res.ok) {
+    // Azure DevOps' own message (its JSON answers have one; "no such organization" is plain text),
+    // and whether it knows the organization (a refused token there says which tenant it's in)
     const message = await res.json().then((b) => b?.message ?? "", () => "");
-    throw new Error(problem(res.status >= 300 && res.status < 400 ? 401 : res.status, settings.organization, { writing, message }));
+    const known = res.headers.has("x-vss-resourcetenant");
+    throw new Error(problem(res.status, settings.organization, { writing, message, known }));
   }
   return res;
 }
@@ -112,8 +119,13 @@ async function look(tb) {
     if (!org) throw new Error("Set your organization and a token in Settings (,) › Plugins › Azure Boards");
     if (!isDemo() && !settings.token.trim()) throw new Error("Add a personal access token in Settings (,) › Plugins › Azure Boards");
     if (!me) me = isDemo() ? DEMO_ME : await ado("/_apis/connectionData").then((c) => c.authenticatedUser?.properties?.Account?.$value ?? "", () => "");
-    const list = await query(settings);
-    const found = (list.length ? await gather(list, workItems, { hidden: settings.hidden_states ?? [] }) : []).map(({ w, mine, above }) => item(w, org, mine, above));
+    const all = await query(settings);
+    const list = all.slice(0, MAX_MINE);
+    const found = (list.length ? await gather(list, workItems, { hidden: settings.hidden_states ?? [], limit: MAX_ALL }) : []).map(({ w, mine, above }) => item(w, org, mine, above));
+    note = [
+      all.length > list.length && `Showing the ${list.length} most recently changed of your ${all.length} work items: leave out more states or projects in Settings to see the rest`,
+      found.length >= MAX_ALL && `Some of the work items under and above yours aren't shown (over ${MAX_ALL})`,
+    ].filter(Boolean).join(" · ");
     // Each project's current sprint (a team that can't be read: none)
     const projects = [...new Set(found.filter((i) => !i.above).map((i) => i.project))];
     sprints = {};
@@ -131,7 +143,7 @@ async function look(tb) {
     // What the notifications watch: yours, and the ones assigned to you when the list shows others
     let watched = found.filter((i) => i.mine);
     if (settings.show !== "assigned" && !isDemo()) {
-      const assigned = (await query({ ...settings, show: "assigned" })).filter((id) => !found.some((i) => i.id === id));
+      const assigned = (await query({ ...settings, show: "assigned" })).slice(0, MAX_MINE).filter((id) => !found.some((i) => i.id === id));
       watched = watched.concat((assigned.length ? await workItems(assigned) : []).map((w) => item(w, org)));
     }
     await tell(tb, watched);
@@ -231,7 +243,7 @@ serve({
     load(tb);
     schedule(tb);
   },
-  list: () => ({ org: settings.organization.trim().toLowerCase(), items, error, warning: fieldSettings(settings.fields).problems.join(" · "), updated, branchPrefix: settings.branch_prefix, me, sprints, sprintOnly }),
+  list: () => ({ org: settings.organization.trim().toLowerCase(), items, error, note, warning: fieldSettings(settings.fields).problems.join(" · "), updated, branchPrefix: settings.branch_prefix, me, sprints, sprintOnly }),
   async refresh(_p, tb) {
     await load(tb);
     return { error };

@@ -20,9 +20,16 @@ test("organizations, tokens and answers", () => {
   assert.equal(orgUrl("contoso"), "https://dev.azure.com/contoso");
   assert.equal(orgUrl("https://dev.azure.com/contoso/"), "https://dev.azure.com/contoso");
   assert.equal(orgUrl("https://contoso.visualstudio.com"), "https://contoso.visualstudio.com");
+  assert.equal(orgUrl("dev.azure.com/contoso/Shop/_workitems?a=1"), "https://dev.azure.com/contoso", "no https://, a project and a page after it");
+  assert.equal(orgUrl("Contoso.VisualStudio.com/Shop"), "https://contoso.visualstudio.com");
+  assert.equal(orgUrl("contoso/Shop"), "https://dev.azure.com/contoso");
   assert.equal(auth(" abc "), `Basic ${Buffer.from(":abc").toString("base64")}`);
-  assert.match(problem(401, "x"), /refused the token/);
-  assert.match(problem(404, "x"), /no organization "x"/);
+  assert.match(problem(401, "x", { known: true }), /refused the token for "x": it may have expired/);
+  assert.match(problem(302, "dev.azure.com/x/Shop", { known: true }), /refused the token for "x"/, "a redirect to sign in: refused");
+  assert.match(problem(302, "x"), /refused the token, or there's no organization "x"/, "it didn't say the organization exists");
+  assert.match(problem(404, "x"), /no organization "x" \(dev\.azure\.com\/x\)/);
+  assert.equal(problem(404, "x", { message: "TF401232: Work item 9 does not exist." }), "Azure DevOps: TF401232: Work item 9 does not exist.", "not the organization");
+  assert.deepEqual(ids({ workItems: Array.from({ length: 250 }, (_, n) => ({ id: n })) }).length, 250, "all of them (asked for 200 at a time)");
   assert.deepEqual(ids(testdata("wiql.json")), [4211, 4198, 4175, 3990]);
   assert.match(problem(403, "x", { writing: true }), /Read & write/);
   assert.match(problem(400, "x", { writing: true, message: "TF26071: This work item has been changed by someone else" }), /changed it meanwhile/);

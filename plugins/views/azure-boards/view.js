@@ -65,8 +65,9 @@ function render() {
   $("error").textContent = data.error;
   $("sprint").classList.toggle("on", !!data.sprintOnly);
   $("sprint").title = data.sprintOnly ? "Showing the current sprint's: every iteration's (i)" : "Only the current sprint's (i)";
-  $("warning").hidden = !data.warning;
-  $("warning").textContent = data.warning ? `Fields setting: ${data.warning}` : "";
+  const warnings = [data.note, data.warning && `Fields setting: ${data.warning}`].filter(Boolean);
+  $("warning").hidden = !warnings.length;
+  $("warning").textContent = warnings.join(" · ");
   $("list").innerHTML = list.length
     ? list.map(({ it: i, depth, kids, open }, n) => `<li class="wi${n === cursor ? " cursor" : ""}${i.mine ? "" : " other"}${unseen(i) ? " unseen" : ""}" data-n="${n}"
         title="${esc(`${i.type} ${i.id} · ${i.state} · ${i.assignedTo || "unassigned"}\n${i.title}`)}">

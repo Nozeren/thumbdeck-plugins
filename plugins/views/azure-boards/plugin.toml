@@ -1,6 +1,6 @@
 id = "azure-boards"
 name = "Azure Boards"
-version = "1.7.1"
+version = "1.7.2"
 api = 1
 description = "Your Azure DevOps work items as a tree, with what's under and above them: their pages as in Azure DevOps, changes (state, assignee, comments…), notifications, the current sprint"
 homepage = "https://github.com/Nozeren/thumbdeck-plugins/tree/main/plugins/views/azure-boards"

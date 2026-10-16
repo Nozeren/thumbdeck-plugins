@@ -16,13 +16,19 @@ export function wiql(s) {
   return `SELECT [System.Id] FROM WorkItems WHERE ${where.join(" AND ")} ORDER BY [System.ChangedDate] DESC`;
 }
 
-/** The organization's URL: "contoso", "https://dev.azure.com/contoso" or an old
- *  "https://contoso.visualstudio.com" all work */
+/** The organization's URL: "contoso", "dev.azure.com/contoso", an old "contoso.visualstudio.com",
+ *  with or without https:// and a project or page after it, all work */
 export function orgUrl(org) {
-  const o = String(org).trim().replace(/\/+$/, "");
-  if (/^https?:\/\//.test(o)) return o;
-  return `https://dev.azure.com/${encodeURIComponent(o)}`;
+  const o = String(org).trim().replace(/^https?:\/\//i, "").replace(/[?#].*$/, "");
+  const dev = /^dev\.azure\.com\/([^/]+)/i.exec(o);
+  if (dev) return `https://dev.azure.com/${dev[1]}`;
+  const old = /^([\w-]+\.visualstudio\.com)\b/i.exec(o);
+  if (old) return `https://${old[1].toLowerCase()}`;
+  return `https://dev.azure.com/${encodeURIComponent(o.replace(/\/.*$/, ""))}`;
 }
+
+/** The organization's name, as Azure DevOps shows it (for messages) */
+export const orgName = (org) => decodeURIComponent(orgUrl(org).replace(/^https:\/\/(dev\.azure\.com\/)?/, "").replace(/\.visualstudio\.com$/, ""));
 
 /** The Authorization header for a personal access token */
 export const auth = (token) => `Basic ${Buffer.from(`:${String(token).trim()}`).toString("base64")}`;
@@ -321,12 +327,16 @@ function display(v, format) {
   return typeof v === "object" ? (value(v) ?? "") : v;
 }
 
-/** What an HTTP answer means, in words (writing: a change was asked; message: Azure DevOps' own) */
-export function problem(status, org, { writing = false, message = "" } = {}) {
-  if (writing && (status === 401 || status === 403 || status === 203)) return "Azure DevOps refused the change: the token needs Work Items: Read & write (Settings › Plugins › Azure Boards)";
-  if (status === 401 || status === 203) return "Azure DevOps refused the token: check it in Settings › Plugins › Azure Boards (it needs Work Items: Read)";
+/** What an HTTP answer means, in words. writing: a change was asked; message: Azure DevOps' own
+ *  (its JSON answers have one); known: it said the organization exists (X-VSS-ResourceTenant) */
+export function problem(status, org, { writing = false, message = "", known = false } = {}) {
+  const name = orgName(org);
+  const refused = status === 401 || status === 203 || (status >= 300 && status < 400);
+  if (writing && (refused || status === 403)) return "Azure DevOps refused the change: the token needs Work Items: Read & write (Settings › Plugins › Azure Boards)";
+  if (refused && known) return `Azure DevOps refused the token for "${name}": it may have expired, lack Work Items: Read, or be made for another organization (Settings › Plugins › Azure Boards)`;
+  if (refused) return `Azure DevOps refused the token, or there's no organization "${name}": check both in Settings › Plugins › Azure Boards`;
   if (writing && (status === 409 || /\brev\b|TF26071|TF237082/i.test(message))) return "Someone changed it meanwhile: look again (r) and redo it";
-  if (status === 404) return `There's no organization "${org}" (or the token can't see it)`;
+  if (status === 404 && !message) return `There's no organization "${name}" (dev.azure.com/${name}): check its name in Settings › Plugins › Azure Boards`;
   return message ? `Azure DevOps: ${message}` : `Azure DevOps answered ${status}`;
 }
 
@@ -408,5 +418,5 @@ export function sprintOnly(items) {
   return items.filter((i) => keep.has(i.id));
 }
 
-/** Ids in the answer of a WIQL query (the first 200: the API reads 200 at a time) */
-export const ids = (answer) => (answer?.workItems ?? []).map((w) => w.id).slice(0, 200);
+/** Ids in the answer of a WIQL query, in its order */
+export const ids = (answer) => (answer?.workItems ?? []).map((w) => w.id);
