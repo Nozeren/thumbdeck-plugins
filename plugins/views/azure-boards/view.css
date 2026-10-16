@@ -77,11 +77,15 @@ body.td-keys .wi.cursor { box-shadow: inset 2px 0 var(--cursor, var(--orange)); 
 .links .id { color: var(--grey); font: 12px var(--mono); }
 .links .state { color: var(--grey); font-size: 12px; }
 .links code { white-space: normal; overflow-wrap: anywhere; }
-/* Rich text (rich.js keeps only plain tags) */
-.rich { line-height: 1.5; overflow-wrap: anywhere; }
-.rich p, .rich ul, .rich ol, .rich pre, .rich blockquote, .rich table { margin: 0 0 8px; }
-.rich ul, .rich ol { padding-left: 20px; }
-#detail .rich :is(h1, h2, h3, h4, h5, h6) { margin: 10px 0 6px; padding: 0; font: 600 14px var(--sans); border: 0; text-transform: none; letter-spacing: 0; color: var(--fg); }
+/* Rich text (rich.js keeps only plain tags), tight: Azure DevOps' empty lines are one small gap */
+.rich { line-height: 1.45; overflow-wrap: anywhere; }
+.rich p, .rich ul, .rich ol, .rich pre, .rich blockquote, .rich table { margin: 0 0 5px; }
+.rich > :last-child, .rich li > :last-child { margin-bottom: 0; }
+.rich ul, .rich ol { padding-left: 18px; }
+.rich li + li { margin-top: 1px; }
+.rich li > ul, .rich li > ol { margin: 1px 0 0; }
+.rich .gap { height: 6px; }
+#detail .rich :is(h1, h2, h3, h4, h5, h6) { margin: 8px 0 3px; padding: 0; font: 600 14px var(--sans); border: 0; text-transform: none; letter-spacing: 0; color: var(--fg); }
 #detail .rich h1 { font-size: 16px; } #detail .rich h2 { font-size: 15px; }
 .rich pre, .rich code { font: 12px var(--mono); background: var(--bg1); border-radius: 4px; }
 .rich pre { padding: 8px; white-space: pre-wrap; }
@@ -107,6 +111,16 @@ body.td-keys .wi.cursor { box-shadow: inset 2px 0 var(--cursor, var(--orange)); 
 #ask .buttons p { flex: 1; margin: 0; font-size: 12px; }
 #ask .buttons button { padding: 3px 12px; }
 #ask-ok { background: var(--bg3); }
+/* A long text, folded: its start, fading out */
+.text.folded { max-height: 190px; overflow: hidden; -webkit-mask-image: linear-gradient(#000 65%, transparent); mask-image: linear-gradient(#000 65%, transparent); }
+button.fold { margin-top: 4px; padding: 1px 10px; font-size: 12px; }
+/* A key's badge, beside what it does */
+kbd { display: inline-block; min-width: 9px; padding: 0 4px; border: 1px solid var(--bg3); border-bottom-width: 2px; border-radius: 4px;
+  font: 10.5px/1.45 var(--mono); color: var(--grey); text-align: center; vertical-align: 1px; background: var(--bg1); }
+button kbd { margin-left: 4px; color: var(--fg); border-color: var(--grey-dim); background: var(--bg0); }
+h2 kbd { vertical-align: 3px; }
+.props dt { white-space: nowrap; }
+.props dt kbd { margin-left: 2px; }
 /* Changing it with the mouse: what a click changes */
 .editable { cursor: pointer; border-radius: 4px; }
 .editable:hover { background: var(--bg2); box-shadow: 0 0 0 3px var(--bg2); }

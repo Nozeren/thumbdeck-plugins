@@ -153,8 +153,9 @@
     "System.IterationPath": "Shop\\Sprint 43",
     "System.Tags": "",
     "Microsoft.VSTS.Common.Priority": 3,
-    "System.Description": "<p>The old runner goes away next month.</p>",
-    "System.Parent": 4198
+    "System.Description": "<div><br></div><div><br></div><div>The old runner goes away next month.</div><div><br></div><div><br></div><div><br></div><div>What has to move:</div><div><br></div><ol><li>Move <code>checkout/cart.test.js</code> and check it passes on the new runner</li><li>Move <code>checkout/coupon.test.js</code> and check it passes on the new runner</li><li>Move <code>checkout/payment.test.js</code> and check it passes on the new runner</li><li>Move <code>checkout/shipping.test.js</code> and check it passes on the new runner</li><li>Move <code>checkout/address.test.js</code> and check it passes on the new runner</li><li>Move <code>checkout/summary.test.js</code> and check it passes on the new runner</li><li>Move <code>checkout/receipt.test.js</code> and check it passes on the new runner</li><li>Move <code>checkout/refund.test.js</code> and check it passes on the new runner</li></ol><div><br></div><div><br></div><div>Watch out for the tests that use the <b>fake clock</b>:<br><br><br><br>they need the new runner's timers.</div><div><br></div><div><br></div><div><br></div><div><br></div><div>Done when CI runs only the new runner.</div><div><br></div><div><br></div>",
+    "System.Parent": 4198,
+    "Microsoft.VSTS.Common.AcceptanceCriteria": "<ul><li>All checkout tests on the new runner</li><li>The old runner's config deleted</li></ul>"
    },
    "relations": [
     {

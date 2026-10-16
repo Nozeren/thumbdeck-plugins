@@ -14,9 +14,10 @@ Your Azure DevOps work items in thumbdeck, read-only:
   looked"** where your last visit ended, and a box to write a comment. Beside them its
   **properties**, each changed with a click (state, assignee, iteration, priority, tags; a dot:
   changed since you looked), then planning, development, related work, links, attachments and
-  your organization's fields. `d` / `u` scroll it; `o` opens it in Azure DevOps, `y` copies a
-  branch name for it (`feature/4211-login-redirects-to-a-blank-page`), `Y` copies `#4211 its
-  title`, `/` filters.
+  your organization's fields. A long text shows its start and "Show all" (`f`: all of them); the fields you open
+  stay open. `d` / `u` scroll it; `o` opens it in Azure DevOps, `y` copies a
+  branch name for it (`feature/4211-login-redirects-to-a-blank-page`), `Y` (or Copy) copies `BUG 4211
+  Its title`, `/` filters.
 - **Markdown**: descriptions and comments kept as Markdown, or Markdown typed into Azure
   DevOps' editor, show formatted (headings, lists and tasks, tables, code, links, `#123` to a
   work item); a comment written here is Markdown too.

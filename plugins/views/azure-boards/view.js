@@ -80,6 +80,10 @@ function render() {
 
 // Fields on the page that change with a click (by reference name; the rest: in the properties)
 const EDITABLE = { "Microsoft.VSTS.Common.Priority": "priority" };
+/** A key's badge, beside what it does */
+const kbd = (key) => `<kbd>${esc(key)}</kbd>`;
+/** A work item as one line, for a commit or a message: "TASK 1234 Its title" */
+const reference = (it) => `${it.type.toUpperCase()} ${it.id} ${it.title}`;
 const lastPart = (path) => String(path ?? "").split("\\").pop();
 const since = (at, then) => !!then && Date.parse(at) > Date.parse(then);
 
@@ -137,14 +141,14 @@ function detail() {
   const tags = it.tags.map((t) => `<span class="td-badge">${esc(t)}</span>`).join(" ");
   const planning = (p?.planning ?? []).filter((f) => f.ref !== "Microsoft.VSTS.Common.Priority");
   const properties = `<dl class="fields props">
-      <dt>State</dt><dd>${editable("state", `<i class="dot ${stateClass(it.state)}"></i>${esc(it.state)}`, "state", "Change the state (s)")}${p?.reason ? ` <span class="td-muted">${esc(p.reason)}</span>` : ""}</dd>
-      <dt>Assigned</dt><dd>${editable("assign", esc(it.assignedTo || "Unassigned"), "assignee", "Assign it (a)")}</dd>
-      <dt>Iteration</dt><dd>${editable("iteration", esc(lastPart(it.iteration) || "—"), "iteration", `${esc(it.iteration)}: move it (m)`)}</dd>
+      <dt>State ${kbd("s")}</dt><dd>${editable("state", `<i class="dot ${stateClass(it.state)}"></i>${esc(it.state)}`, "state", "Change the state (s)")}${p?.reason ? ` <span class="td-muted">${esc(p.reason)}</span>` : ""}</dd>
+      <dt>Assigned ${kbd("a")}</dt><dd>${editable("assign", esc(it.assignedTo || "Unassigned"), "assignee", "Assign it (a)")}</dd>
+      <dt>Iteration ${kbd("m")}</dt><dd>${editable("iteration", esc(lastPart(it.iteration) || "—"), "iteration", `${esc(it.iteration)}: move it (m)`)}</dd>
       ${p?.area ? `<dt>Area</dt><dd${changed.has("area") ? ' class="changed"' : ""}>${esc(lastPart(p.area))}</dd>` : ""}
-      <dt>Priority</dt><dd>${editable("priority", esc(it.priority ?? "—"), "priority", "Change the priority (p)")}</dd>
-      <dt>Tags</dt><dd>${editable("tags", tags || `<span class="td-muted">+ add</span>`, "tags", "Edit the tags (t)")}</dd>
+      <dt>Priority ${kbd("p")}</dt><dd>${editable("priority", esc(it.priority ?? "—"), "priority", "Change the priority (p)")}</dd>
+      <dt>Tags ${kbd("t")}</dt><dd>${editable("tags", tags || `<span class="td-muted">+ add</span>`, "tags", "Edit the tags (t)")}</dd>
       ${fields(planning)}</dl>`;
-  const development = `<ul class="links"><li class="link" data-edit="copy-branch" title="Copy it (y)">⎇ <code>${esc(branchName(it, data.branchPrefix))}</code> <span class="td-muted">copy</span></li>
+  const development = `<ul class="links"><li class="link" data-edit="copy-branch" title="Copy it (y)">⎇ <code>${esc(branchName(it, data.branchPrefix))}</code> <span class="td-muted">copy</span> ${kbd("y")}</li>
     ${(p?.development ?? []).map((x) => `<li${x.url ? ` class="link" data-href="${esc(x.url)}"` : ""}><span class="td-muted">${esc(x.kind)}</span> ${esc(x.label)}</li>`).join("")}</ul>`;
   let side = section("Properties", properties) + section("Development", development);
   if (p) {
@@ -173,24 +177,26 @@ function detail() {
     const entry = (x) => (x.comment
       ? `<li class="comment${isNew(x) ? " new" : ""}"><div class="by"><span class="avatar">${esc((x.by || "?")[0])}</span>${esc(x.by)} <span class="td-muted">${esc(ago(x.at))}</span></div>${slot(x.html)}</li>`
       : `<li class="event${isNew(x) ? " new" : ""}"><span class="who">${esc(x.by)}</span> ${eventText(x)} <span class="td-muted when">· ${esc(ago(x.at))}</span></li>`);
-    main = (p.rich.length ? p.rich.map((r) => section(esc(r.label), slot(r.html))).join("") : section("Description", `<p class="td-muted">No description.</p>`))
+    main = (p.rich.length ? p.rich.map((r) => section(esc(r.label), `<div class="text" data-field="${esc(r.label)}">${slot(r.html)}</div>`)).join("")
+      : section("Description", `<p class="td-muted">No description.</p>`))
       + section(`Activity <span class="td-muted">${p.comments.length ? `${p.comments.length} comment${p.comments.length > 1 ? "s" : ""}` : ""}</span>`, `<ol class="activity">
         ${folded ? `<li class="more"><button data-unfold="${it.id}">Show ${folded} earlier</button></li>` : ""}
         ${activity.map((x, n) => (n < folded ? "" : (n === firstNew ? `<li class="divider"><span>New since you last looked</span></li>` : "") + entry(x))).join("")}
       </ol>
       <div class="composer"><textarea id="compose" rows="3" placeholder="Write a comment… (Markdown works · Ctrl+Enter: send)"></textarea>
-        <div class="buttons"><span class="td-muted">c: here · Esc: leave</span><button id="compose-send">Comment</button></div></div>`, "activity-section");
+        <div class="buttons"><span class="td-muted">${kbd("c")} here · ${kbd("Esc")} leave</span><button id="compose-send">Comment ${kbd("Ctrl+Enter")}</button></div></div>`, "activity-section");
   }
 
   const typing = document.activeElement?.id === "compose" ? [$("compose").selectionStart, $("compose").selectionEnd] : null;
   box.innerHTML = `<header class="head"><i class="bar ${esc(it.type)}"></i>
       <div class="top"><span class="kind"><span class="type ${esc(it.type)}">${esc(it.type.toUpperCase())}</span> ${it.id}</span>
-        ${editable("state", `<i class="dot ${stateClass(it.state)}"></i>${esc(it.state)}`, "state", "Change the state (s)")}
+        ${editable("state", `<i class="dot ${stateClass(it.state)}"></i>${esc(it.state)}`, "state", "Change the state (s)")} ${kbd("s")}
         <span class="spacer"></span>
-        <button data-edit="outside" title="Open it in Azure DevOps (o)">Open ↗</button><button data-edit="copy-branch" title="Copy a branch name for it (y)">Copy branch</button></div>
-      <h2>${editable("title", esc(it.title), "title", "Edit the title (e)")}</h2></header>
+        <button data-edit="outside" title="Open it in Azure DevOps (o)">Open ↗ ${kbd("o")}</button><button data-edit="copy-ref" title="${esc(`Copy “${reference(it)}” (Y)`)}">Copy ${kbd("Y")}</button></div>
+      <h2>${editable("title", esc(it.title), "title", "Edit the title (e)")} ${kbd("e")}</h2></header>
     <div class="cols"><div class="main">${main}</div><aside>${side}</aside></div>`;
   for (const el of box.querySelectorAll("[data-rich]")) el.replaceWith(safe(rich[el.dataset.rich]));
+  fold(box);
   pictures(box, it.id);
   const compose = $("compose");
   if (compose) {
@@ -212,6 +218,32 @@ function detail() {
         if (showing === it.id) detail();
       });
   }
+}
+
+// A long text (over about 10 lines; a bit over isn't worth it) shows its start, and "Show all";
+// the fields you open stay open, on every work item (kept)
+const FOLD_AT = 190;
+let openFields = new Set();
+
+function fold(box) {
+  for (const t of box.querySelectorAll(".text[data-field]")) {
+    const full = t.scrollHeight;
+    if (full <= FOLD_AT * 1.4) continue;
+    const open = openFields.has(t.dataset.field);
+    t.classList.toggle("folded", !open);
+    t.insertAdjacentHTML("afterend", `<button class="fold" data-fold="${esc(t.dataset.field)}">${open ? "Show less" : `Show all (${Math.round(full / 19)} lines)`} ${kbd("f")}</button>`);
+  }
+}
+
+/** Opens or folds a long text (field: its name; none: all of the page's, opened if one is folded) */
+function unfold(field) {
+  const all = [...document.querySelectorAll("#detail [data-fold]")].map((b) => b.dataset.fold);
+  if (!all.length) return;
+  const fields = field ? [field] : all;
+  const open = field ? !openFields.has(field) : all.some((f) => !openFields.has(f));
+  for (const f of fields) open ? openFields.add(f) : openFields.delete(f);
+  td.storage.set("openFields", [...openFields]).catch(() => {});
+  detail();
 }
 
 /** Sends the comment being written on a work item */
@@ -517,7 +549,7 @@ function act(action) {
     case "last": return move(shown().length - 1);
     case "outside": return it && td.ui.openUrl(it.url);
     case "copy-branch": return it && copy(branchName(it, data.branchPrefix), "the branch name");
-    case "copy-ref": return it && copy(`#${it.id} ${it.title}`, `#${it.id}`);
+    case "copy-ref": return it && copy(reference(it), `${it.type} ${it.id}`);
     case "open": // its children shown; then into them
       if (!row?.kids) return;
       return row.open ? move(cursor + 1) : toggle(it.id, true);
@@ -528,6 +560,7 @@ function act(action) {
     case "page-down": return $("detail").scrollBy({ top: $("detail").clientHeight * 0.8 });
     case "page-up": return $("detail").scrollBy({ top: -$("detail").clientHeight * 0.8 });
     case "filter": return startFilter();
+    case "fold": return unfold();
     case "sprint": return toggleSprint();
     case "state": case "assign": case "comment": case "title": case "tags": case "priority": case "iteration":
       return it && $("ask").hidden && edits[action](it);
@@ -557,6 +590,8 @@ document.addEventListener("click", (e) => {
   if (e.target.closest("#refresh")) return td.backend.call("refresh").then(load);
   if (e.target.closest("#sprint")) return toggleSprint();
   if (e.target.closest("#compose-send")) return current() && sendComment(current());
+  const folding = e.target.closest("[data-fold]");
+  if (folding) return unfold(folding.dataset.fold);
   const unfold = e.target.closest("[data-unfold]");
   if (unfold) {
     unfolded.add(Number(unfold.dataset.unfold));
@@ -575,4 +610,7 @@ document.addEventListener("click", (e) => {
 });
 document.addEventListener("dblclick", (e) => e.target.closest("[data-n]") && !e.target.closest("[data-toggle]") && current() && td.ui.openUrl(current().url));
 setInterval(render, 60_000);
-td.storage.get("collapsed").then((ids) => Array.isArray(ids) && (collapsed = new Set(ids)), () => {}).finally(load);
+Promise.all([
+  td.storage.get("collapsed").then((ids) => Array.isArray(ids) && (collapsed = new Set(ids)), () => {}),
+  td.storage.get("openFields").then((f) => Array.isArray(f) && (openFields = new Set(f)), () => {}),
+]).finally(load);

@@ -16,13 +16,47 @@ const DROP = new Set([
   "canvas", "title", "head",
 ]);
 
-/** The HTML as a safe element: <div class="rich">… */
+/** The HTML as a safe element: <div class="rich">…, its empty lines tidied */
 export function safe(html) {
   const doc = new DOMParser().parseFromString(`<body>${html ?? ""}</body>`, "text/html");
   const out = document.createElement("div");
   out.className = "rich";
   copy(doc.body, out);
+  tidy(out);
   return out;
+}
+
+// Azure DevOps' editor keeps an empty line as <div><br></div>, and pasted text brings runs of
+// them: a run becomes one small gap, none at the start or the end; three <br>s or more, two.
+const BLOCKS = /^(DIV|P)$/;
+const blank = (n) => n.nodeType === Node.TEXT_NODE && !n.data.replace(/\u00a0/g, " ").trim();
+const empty = (n) => n.nodeType === Node.ELEMENT_NODE && BLOCKS.test(n.tagName) && !n.querySelector("img, hr, table")
+  && !n.textContent.replace(/\u00a0/g, " ").trim();
+
+function tidy(el) {
+  let last = null; // the last thing kept: "gap", "br", "br br" or "content"
+  for (const n of [...el.childNodes]) {
+    if (blank(n)) continue;
+    if (empty(n)) {
+      if (last === null || last === "gap") n.remove();
+      else {
+        const gap = document.createElement("div");
+        gap.className = "gap";
+        n.replaceWith(gap);
+        last = "gap";
+      }
+      continue;
+    }
+    if (n.nodeType === Node.ELEMENT_NODE && n.tagName === "BR") {
+      if (last === "br br" || last === "gap" || last === null) n.remove();
+      else last = last === "br" ? "br br" : "br";
+      continue;
+    }
+    if (n.nodeType === Node.ELEMENT_NODE && /^(DIV|P|BLOCKQUOTE|LI|TD|TH|UL|OL|TABLE|TBODY|THEAD|TR|SPAN)$/.test(n.tagName)) tidy(n);
+    last = "content";
+  }
+  // Nothing empty at the end either
+  for (let n = el.lastChild; n && (blank(n) || (n.nodeType === Node.ELEMENT_NODE && (n.className === "gap" || n.tagName === "BR"))); n = el.lastChild) n.remove();
 }
 
 function copy(from, to) {

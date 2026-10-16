@@ -1,6 +1,6 @@
 id = "azure-boards"
 name = "Azure Boards"
-version = "1.6.0"
+version = "1.7.0"
 api = 1
 description = "Your Azure DevOps work items as a tree, with what's under and above them: their pages as in Azure DevOps, changes (state, assignee, comments…), notifications, the current sprint"
 homepage = "https://github.com/Nozeren/thumbdeck-plugins/tree/main/plugins/views/azure-boards"
@@ -112,8 +112,9 @@ bindings = [
   { keys = ["u"], action = "page-up", does = "scroll its page up" },
   { keys = ["o"], action = "outside", does = "open it in Azure DevOps" },
   { keys = ["y"], action = "copy-branch", does = "copy a branch name for it (feature/1234-its-title)" },
-  { keys = ["Y"], action = "copy-ref", does = "copy '#1234 its title' (for a commit or a message)" },
+  { keys = ["Y"], action = "copy-ref", does = "copy 'TASK 1234 Its title' (for a commit or a message)" },
   { keys = ["/"], action = "filter", does = "filter by words in the title" },
+  { keys = ["f"], action = "fold", does = "show all of its long texts / fold them again" },
   { keys = ["i"], action = "sprint", does = "only the current sprint's / every iteration's" },
   { keys = ["s"], action = "state", does = "change its state" },
   { keys = ["a"], action = "assign", does = "assign it (to you, someone, nobody)" },
