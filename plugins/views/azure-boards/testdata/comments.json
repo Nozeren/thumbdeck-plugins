@@ -14,5 +14,16 @@
    },
    "createdDate": "2026-09-27T15:40:00Z"
   }
+ ],
+ "4198": [
+  {
+   "text": "Looks good. Two things:\n\n1. the **total** should update too\n2. see #4211",
+   "format": "markdown",
+   "createdBy": {
+    "displayName": "Carol",
+    "uniqueName": "carol@example.test"
+   },
+   "createdDate": "2026-09-26T11:00:00Z"
+  }
  ]
 }

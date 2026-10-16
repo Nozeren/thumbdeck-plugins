@@ -1,7 +1,9 @@
 body { display: flex; flex-direction: column; overflow: hidden; }
 .spacer { flex: 1; }
-#refresh { padding: 2px 8px; }
-#error { margin: 6px 12px; }
+#refresh, #sprint { padding: 2px 8px; }
+#sprint.on { background: var(--bg3); color: var(--green); }
+#error, #warning { margin: 6px 12px; }
+.fields .link { color: var(--blue); cursor: pointer; text-decoration: underline; }
 #filter { margin: 6px 12px; }
 /* A slim list (a type mark, the id, the title, the state's dot: the rest on hover and in the
    details), the details given the room */
@@ -18,27 +20,55 @@ body.td-keys .wi.cursor { box-shadow: inset 2px 0 var(--cursor, var(--orange)); 
 .wi .dot { flex: none; margin: 0; }
 /* Under or above yours, not yours: dimmer (who has it: on hover, and in the details) */
 .wi.other .title { color: var(--grey); }
+/* Something new on it since you last looked */
+.wi.unseen .title { font-weight: 700; }
+.wi.unseen .id { color: var(--orange); }
 .Bug { color: var(--red); } .Task { color: var(--yellow); } .User.Story, .Product.Backlog.Item { color: var(--blue); }
 .Feature { color: var(--purple); } .Epic { color: var(--orange); }
-/* The highlighted work item's page, as Azure DevOps lays it out: a header, then the text and
-   the discussion, with planning, development and related work beside them when there's room */
+/* The highlighted work item's page: a header that stays while it scrolls; its text and its
+   activity, its properties beside them (above them when it's narrow) */
 #detail { padding: 0 0 14px; overflow: auto; container-type: inline-size; font-size: 13px; }
-.head { position: relative; padding: 12px 18px 10px 22px; border-bottom: 1px solid var(--bg2); }
+.head { position: sticky; top: 0; z-index: 1; padding: 9px 18px 8px 22px; background: var(--bg0); border-bottom: 1px solid var(--bg2); }
 .head .bar { position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: currentColor; }
 :where(.head .bar) { color: var(--grey); }
+.head .top { display: flex; align-items: center; gap: 10px; }
 .head .kind { font: 600 11px var(--mono); color: var(--grey); letter-spacing: .04em; }
-.head h2 { margin: 4px 0 8px; font: 600 16px/1.35 var(--sans); }
-.head .facts { display: flex; flex-wrap: wrap; gap: 4px 14px; align-items: center; }
-.head .fields { margin-top: 8px; }
-.head .tags { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 4px; }
+.head .top button { padding: 1px 9px; font-size: 12px; }
+.head h2 { margin: 4px 0 0; font: 600 16px/1.35 var(--sans); }
 .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; background: var(--blue); }
 .dot.proposed { background: var(--grey); } .dot.resolved { background: var(--yellow); }
 .dot.done { background: var(--green); } .dot.removed { background: var(--grey-dim); }
-.cols { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 22px; padding: 0 18px 0 22px; }
-@container (min-width: 600px) { .cols { grid-template-columns: minmax(0, 1fr) minmax(190px, 34%); } }
+.cols { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-areas: "side" "main"; gap: 0 24px; padding: 0 18px 0 22px; }
+.cols .main { grid-area: main; } .cols aside { grid-area: side; }
+@container (min-width: 600px) { .cols { grid-template-columns: minmax(0, 1fr) minmax(200px, 32%); grid-template-areas: "main side"; } }
 #detail section { margin-top: 14px; }
 #detail h3 { margin: 0 0 6px; padding-bottom: 3px; border-bottom: 1px solid var(--bg2); font: 600 12px var(--sans); text-transform: uppercase; letter-spacing: .04em; color: var(--grey); }
+#detail h3 .td-muted { text-transform: none; letter-spacing: 0; font-weight: 400; }
 #detail h4 { margin: 8px 0 3px; font: 600 12px var(--sans); color: var(--grey); }
+.props { row-gap: 5px; }
+/* Changed since you last looked (not by you) */
+.changed::after { content: ""; display: inline-block; width: 6px; height: 6px; margin-left: 5px; border-radius: 50%; background: var(--orange); vertical-align: middle; }
+/* Its activity: comments and history, oldest first */
+.activity { list-style: none; margin: 0; padding: 0 0 0 14px; border-left: 2px solid var(--bg2); }
+.activity > li { position: relative; margin: 0 0 10px; }
+.activity > li::before { content: ""; position: absolute; left: -19px; top: 6px; width: 8px; height: 8px; border-radius: 50%; background: var(--bg3); }
+.activity .event { color: var(--grey); line-height: 1.6; }
+.activity .event .who { color: var(--fg); }
+.activity .event b { color: var(--fg); font-weight: 600; }
+.activity .comment { padding: 8px 10px; border-radius: 6px; background: var(--bg1); }
+.activity .comment::before { top: 12px; }
+.activity .comment .by { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; font-weight: 600; }
+.activity .avatar { display: inline-grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; background: var(--bg3); font-size: 11px; text-transform: uppercase; }
+.activity .new::before { background: var(--orange); }
+.activity .comment.new { box-shadow: inset 2px 0 var(--orange); }
+.activity .divider { display: flex; align-items: center; gap: 8px; color: var(--orange); font-size: 12px; font-weight: 600; }
+.activity .divider::before { display: none; }
+.activity .divider::after { content: ""; flex: 1; border-top: 1px solid var(--orange); }
+.activity .more::before { display: none; }
+.activity .more button { padding: 1px 10px; font-size: 12px; }
+.composer textarea { width: 100%; box-sizing: border-box; resize: vertical; font: 13px/1.5 var(--sans); }
+.composer .buttons { display: flex; align-items: center; justify-content: space-between; margin-top: 4px; font-size: 12px; }
+.composer button { padding: 3px 12px; background: var(--bg3); }
 .fields { display: grid; grid-template-columns: max-content 1fr; gap: 3px 12px; margin: 0; }
 .fields dt { color: var(--grey); } .fields dd { margin: 0; overflow-wrap: anywhere; }
 .links { list-style: none; margin: 0; padding: 0; }
@@ -51,7 +81,8 @@ body.td-keys .wi.cursor { box-shadow: inset 2px 0 var(--cursor, var(--orange)); 
 .rich { line-height: 1.5; overflow-wrap: anywhere; }
 .rich p, .rich ul, .rich ol, .rich pre, .rich blockquote, .rich table { margin: 0 0 8px; }
 .rich ul, .rich ol { padding-left: 20px; }
-.rich h1, .rich h2, .rich h3, .rich h4 { margin: 10px 0 6px; font-size: 14px; border: 0; text-transform: none; letter-spacing: 0; color: var(--fg); }
+#detail .rich :is(h1, h2, h3, h4, h5, h6) { margin: 10px 0 6px; padding: 0; font: 600 14px var(--sans); border: 0; text-transform: none; letter-spacing: 0; color: var(--fg); }
+#detail .rich h1 { font-size: 16px; } #detail .rich h2 { font-size: 15px; }
 .rich pre, .rich code { font: 12px var(--mono); background: var(--bg1); border-radius: 4px; }
 .rich pre { padding: 8px; white-space: pre-wrap; }
 .rich code { padding: 0 3px; }
@@ -67,13 +98,18 @@ body.td-keys .wi.cursor { box-shadow: inset 2px 0 var(--cursor, var(--orange)); 
 #ask { position: absolute; z-index: 2; top: 44px; left: 50%; transform: translateX(-50%); width: min(560px, calc(100% - 24px));
   padding: 10px 12px; border: 1px solid var(--bg3); border-radius: 8px; background: var(--bg1); box-shadow: 0 8px 28px #0007; }
 #ask label { display: block; margin-bottom: 6px; font-weight: 600; }
-#ask input, #ask textarea { width: 100%; box-sizing: border-box; }
-#ask textarea { resize: vertical; font: 13px/1.5 var(--sans); }
+#ask input { width: 100%; box-sizing: border-box; }
 #ask ul { list-style: none; margin: 6px 0 0; padding: 0; max-height: 240px; overflow: auto; }
 #ask li { padding: 3px 8px; border-radius: 5px; cursor: pointer; }
 #ask li.cursor { background: var(--bg2); box-shadow: inset 2px 0 var(--cursor, var(--orange)); }
 #ask ul:empty { display: none; }
-#ask p { margin: 6px 0 0; font-size: 12px; }
+#ask .buttons { display: flex; gap: 6px; align-items: center; margin-top: 8px; }
+#ask .buttons p { flex: 1; margin: 0; font-size: 12px; }
+#ask .buttons button { padding: 3px 12px; }
+#ask-ok { background: var(--bg3); }
+/* Changing it with the mouse: what a click changes */
+.editable { cursor: pointer; border-radius: 4px; }
+.editable:hover { background: var(--bg2); box-shadow: 0 0 0 3px var(--bg2); }
 .empty { padding: 20px; color: var(--grey); line-height: 1.6; }
 /* A narrow window: the details below the list */
 @media (max-width: 640px) {

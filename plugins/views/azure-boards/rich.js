@@ -1,7 +1,8 @@
 // Azure DevOps' rich text (descriptions, comments: anyone in the organization writes them) made
 // safe to show. It's parsed inert (nothing runs or loads) and copied into new elements: only
 // these tags, no attributes but a link's address (opened in the browser by view.js), a table
-// cell's span and an image's address (loaded through the backend by view.js).
+// cell's span and alignment, a numbered list's start and an image's address (loaded through
+// the backend by view.js).
 
 const KEEP = new Set([
   "p", "div", "span", "br", "hr", "b", "strong", "i", "em", "u", "s", "strike", "del", "ins", "sub", "sup",
@@ -55,7 +56,10 @@ function copy(from, to) {
         const v = n.getAttribute(a) ?? "";
         if (/^\d{1,2}$/.test(v)) el.setAttribute(a, v);
       }
+      const align = (n.getAttribute("align") ?? "").toLowerCase();
+      if (["left", "center", "right"].includes(align)) el.style.textAlign = align;
     }
+    if (tag === "ol" && /^\d{1,9}$/.test(n.getAttribute("start") ?? "")) el.setAttribute("start", n.getAttribute("start"));
     copy(n, el);
     to.append(el);
   }

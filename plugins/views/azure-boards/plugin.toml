@@ -1,6 +1,6 @@
 id = "azure-boards"
 name = "Azure Boards"
-version = "1.4.0"
+version = "1.6.0"
 api = 1
 description = "Your Azure DevOps work items as a tree, with what's under and above them: their pages as in Azure DevOps, changes (state, assignee, comments…), notifications, the current sprint"
 homepage = "https://github.com/Nozeren/thumbdeck-plugins/tree/main/plugins/views/azure-boards"
@@ -79,6 +79,13 @@ type = "bool"
 default = true
 
 [[settings]]
+key = "fields"
+label = "Fields"
+type = "list"
+default = []
+help = "Your organization's own fields show by themselves. To change how one shows, or show one of Azure DevOps' own: reference name | label | format | where. Formats: text, markdown, html, date, number, person, yes-no, link. Where: main (beside the description), planning, details, hidden. E.g. Custom.Impact | Customer impact | markdown | main"
+
+[[settings]]
 key = "branch_prefix"
 label = "Branch names start with"
 type = "text"
@@ -110,7 +117,7 @@ bindings = [
   { keys = ["i"], action = "sprint", does = "only the current sprint's / every iteration's" },
   { keys = ["s"], action = "state", does = "change its state" },
   { keys = ["a"], action = "assign", does = "assign it (to you, someone, nobody)" },
-  { keys = ["c"], action = "comment", does = "comment on it" },
+  { keys = ["c"], action = "comment", does = "write a comment (the box under its activity; Ctrl+Enter sends)" },
   { keys = ["e"], action = "title", does = "edit its title" },
   { keys = ["t"], action = "tags", does = "edit its tags" },
   { keys = ["p"], action = "priority", does = "change its priority" },

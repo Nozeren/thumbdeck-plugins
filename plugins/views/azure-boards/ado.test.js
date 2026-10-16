@@ -2,8 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
-  artifact, auth, branchName, changes, childIds, commentHtml, current, gather, ids, item, orgUrl, page, patch, problem, rows, snapshot, sprintOnly, text,
-  wiql, within,
+  artifact, auth, branchName, changes, childIds, commentHtml, current, fieldSettings, gather, history, ids, item, orgUrl, page, patch, problem, rows, snapshot,
+  sprintOnly, text, wiql, within,
 } from "./ado.js";
 
 const testdata = (f) => JSON.parse(readFileSync(new URL(`./testdata/${f}`, import.meta.url), "utf8"));
@@ -81,8 +81,11 @@ test("a work item's page", () => {
   const p = page(w, "contoso");
   assert.deepEqual([p.reason, p.area, p.createdBy, p.changedBy], ["Approved", "Shop\\Accounts", "Ann", "Bob"]);
   assert.deepEqual(p.rich.map((r) => r.label), ["Description", "Repro steps", "System info"]);
-  assert.deepEqual(p.planning, [{ label: "Priority", value: 1 }, { label: "Severity", value: "2 - High" }, { label: "Effort", value: 3 }]);
-  assert.deepEqual(p.other, [{ label: "Customer impact", value: "Every SSO customer" }]);
+  assert.deepEqual(p.planning.map((x) => [x.label, x.value]), [["Priority", 1], ["Severity", "2 - High"], ["Effort", 3]]);
+  assert.deepEqual(p.other.map((x) => [x.label, x.value, x.format]), [
+    ["Account manager", "Dana", "person"], ["Contract end", "2027-03-31T00:00:00Z", "text"], ["Customer impact", "Every SSO customer", "text"],
+    ["Escalated", true, "text"], ["Workaround notes", "Until it's fixed:\n\n- sign in **without** SSO\n- or use `/login?sso=0`", "text"],
+  ], "your organization's own fields, any prefix, guessed without their types; not the Kanban column");
   assert.deepEqual(p.related, [{ kind: "Parent", id: 4100 }, { kind: "Related", id: 4175 }]);
   assert.deepEqual(p.development, [
     { kind: "Branch", label: "feature/4211-login-redirects", url: "https://dev.azure.com/contoso/9b1c/_git/a7e2?version=GBfeature%2F4211-login-redirects" },
@@ -91,6 +94,40 @@ test("a work item's page", () => {
   assert.deepEqual(p.links, [{ label: "The incident", url: "https://status.example.test/incidents/77" }]);
   assert.deepEqual(p.attachments.map((a) => [a.name, a.size]), [["blank.png", 48213]]);
   assert.equal(page({ id: 1, fields: { "Custom.Notes": "<p>rich</p>" } }, "x").rich[0].label, "Notes", "a custom field with HTML: rich text");
+});
+
+test("your organization's fields, as their types say and as the Fields setting says", () => {
+  const w = testdata("workitems.json").value.find((x) => x.id === 4211);
+  const types = new Map(testdata("fields.json").value.map((x) => [x.referenceName.toLowerCase(), { name: x.name, type: x.type }]));
+  let p = page(w, "contoso", { types });
+  assert.deepEqual(p.other.map((x) => [x.label, x.value, x.format]), [
+    ["Account Manager", "Dana", "person"], ["Contract End", "2027-03-31T00:00:00Z", "date"], ["Customer Impact", "Every SSO customer", "text"],
+    ["Escalated", "Yes", "yes-no"],
+  ]);
+  assert.deepEqual(p.rich.map((r) => r.label), ["Description", "Repro steps", "System info", "Workaround Notes"], "multi-line text: beside the description");
+  assert.match(p.rich[3].html, /<li>sign in <strong>without<\/strong> SSO<\/li>/, "as Markdown");
+  const { fields, problems } = fieldSettings([
+    "Contoso.Escalated | | hidden", "custom.customerimpact | Impact | markdown | main", "Microsoft.VSTS.Common.Severity | | | details",
+    "# a comment", "", "Contoso.ContractEnd | Renewal | date | planning", "Bad field! | x", "Contoso.X | | colour", "Contoso.Y | | | sidebar",
+  ]);
+  assert.equal(problems.length, 3);
+  assert.match(problems.join(" "), /reference name.*no format "colour".*nowhere called "sidebar"/s);
+  p = page(w, "contoso", { types, custom: fields });
+  assert.deepEqual(p.rich.map((r) => r.label), ["Description", "Repro steps", "System info", "Impact", "Workaround Notes"]);
+  assert.deepEqual(p.planning.map((x) => x.label), ["Priority", "Effort", "Renewal"]);
+  assert.deepEqual(p.other.map((x) => x.label), ["Severity", "Account Manager"], "hidden: Escalated; moved: Severity");
+});
+
+test("Markdown in work items", () => {
+  const all = testdata("workitems.json").value;
+  const story = page(all.find((x) => x.id === 4198), "contoso").rich[0].html;
+  assert.match(story, /<h3>Notes<\/h3>/, "a Markdown field (multilineFieldsFormat)");
+  assert.match(story, /<a href="https:\/\/dev\.azure\.com\/contoso\/_workitems\/edit\/4100">#4100<\/a>/);
+  assert.match(story, /<li>☑ Design approved<\/li><li>☐ Copy reviewed<\/li>/);
+  assert.match(story, /<td>SPRING10<\/td><td align="right">10%<\/td>/);
+  const bug = page(all.find((x) => x.id === 4201), "contoso").rich[0].html;
+  assert.match(bug, /<h2>What happens<\/h2>[\s\S]*<strong>0\.00<\/strong>[\s\S]*<li>show <code>0\.01<\/code><\/li>/, "Markdown typed into the HTML editor");
+  assert.equal(page(all.find((x) => x.id === 4211), "contoso").rich[0].html, all.find((x) => x.id === 4211).fields["System.Description"], "HTML: as it is");
 });
 
 test("development links", () => {
@@ -118,7 +155,8 @@ test("changes: a patch that doesn't undo someone else's", () => {
   ]);
   assert.deepEqual(patch({ assignee: "" }, null), [{ op: "add", path: "/fields/System.AssignedTo", value: "" }]);
   assert.throws(() => patch({ "System.Rev": 1 }, 1), /can't be changed/);
-  assert.equal(commentHtml("Looks fine\nto me.\n\n<b>ship</b> & go"), "<p>Looks fine<br>to me.</p><p>&lt;b&gt;ship&lt;/b&gt; &amp; go</p>");
+  assert.equal(commentHtml("Looks fine\nto me.\n\n<b>ship</b> & **go** (#12)", "contoso"),
+    `<p>Looks fine<br>to me.</p>\n<p>&lt;b&gt;ship&lt;/b&gt; &amp; <strong>go</strong> (<a href="https://dev.azure.com/contoso/_workitems/edit/12">#12</a>)</p>`, "typed as Markdown; HTML typed: text");
 });
 
 test("what changed on yours, not by you", () => {
@@ -149,4 +187,18 @@ test("the current sprint", () => {
 
 test("a comment as a notification's text", () => {
   assert.equal(text("<div>Looks like the <b>state</b> param&nbsp;is lost.</div><p>Two &amp; three</p>"), "Looks like the state param is lost. Two & three");
+});
+
+test("a work item's history, as what happened", () => {
+  const events = history(testdata("updates.json")["4211"]).map((e) => [e.by, e.kind, e.from, e.to]);
+  assert.deepEqual(events, [
+    ["Ann", "created", "", "New"],
+    ["Bob", "state", "New", "Active"], ["Bob", "assignee", "", "Me"],
+    ["Carol", "iteration", "Shop\\Sprint 41", "Shop\\Sprint 42"], ["Carol", "tags", "auth", "auth; sso"],
+    ["Me", "development", "", "Pull Request"],
+    ["Bob", "priority", 2, 1],
+  ], "the parent given at its creation: part of it; the description's edit: left out");
+  const [e] = history([{ rev: 2, revisedBy: { displayName: "Dana <dana@x>", uniqueName: "dana@x" }, revisedDate: "2026-10-01T10:00:00Z",
+    relations: { removed: [{ rel: "System.LinkTypes.Hierarchy-Reverse", url: "https://x/_apis/wit/workItems/7" }] } }]);
+  assert.deepEqual(e, { at: "2026-10-01T10:00:00Z", by: "Dana", byId: "dana@x", kind: "parent", from: 7, to: "" }, "no ChangedDate: when it was revised");
 });

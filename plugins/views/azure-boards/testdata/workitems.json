@@ -33,7 +33,15 @@
     "Microsoft.VSTS.Scheduling.Effort": 3,
     "Microsoft.VSTS.TCM.ReproSteps": "<ol><li>Open <a href=\"https://shop.example.test/login\">the login page</a></li><li>Choose <b>Sign in with SSO</b></li><li>The page at <code>/callback</code> stays blank</li></ol>",
     "Microsoft.VSTS.TCM.SystemInfo": "<p>Firefox 131, Chrome 129; staging and production</p>",
-    "Custom.CustomerImpact": "Every SSO customer"
+    "Custom.CustomerImpact": "Every SSO customer",
+    "Contoso.AccountManager": {
+     "displayName": "Dana",
+     "uniqueName": "dana@example.test"
+    },
+    "Contoso.ContractEnd": "2027-03-31T00:00:00Z",
+    "Contoso.Escalated": true,
+    "Contoso.WorkaroundNotes": "Until it's fixed:\n\n- sign in **without** SSO\n- or use `/login?sso=0`",
+    "WEF_6CB513B6E70E43499D9FC94E5BBFB784_Kanban.Column": "Doing"
    },
    "relations": [
     {
@@ -97,7 +105,7 @@
     "System.IterationPath": "Shop\\Sprint 42",
     "System.Tags": "cart",
     "Microsoft.VSTS.Common.Priority": 2,
-    "System.Description": "<p>As a customer I want to see the discount before paying.</p><p><b>Acceptance</b>: the cart shows the code and the amount saved.</p>",
+    "System.Description": "As a customer I want to **see the discount** before paying.\n\n### Notes\n- Codes come from the *promotions* service (#4100)\n- [x] Design approved\n- [ ] Copy reviewed\n\n| Code | Saves |\n|---|--:|\n| SPRING10 | 10% |\n| FREESHIP | shipping |",
     "Microsoft.VSTS.Scheduling.StoryPoints": 5,
     "Microsoft.VSTS.Common.ValueArea": "Business",
     "Microsoft.VSTS.Common.AcceptanceCriteria": "<ul><li>The cart shows the code</li><li>…and the amount saved</li></ul>"
@@ -124,7 +132,10 @@
       "name": "Child"
      }
     }
-   ]
+   ],
+   "multilineFieldsFormat": {
+    "System.Description": "markdown"
+   }
   },
   {
    "id": 4175,
@@ -187,7 +198,7 @@
     "System.Tags": "",
     "Microsoft.VSTS.Common.Priority": 2,
     "System.Parent": 4198,
-    "System.Description": "<p>A 10% code on 0.05 shows 0.00 off.</p>",
+    "System.Description": "<div>## What happens</div><div>A 10% code on 0.05 shows **0.00** off.</div><div><br></div><div>## Expected</div><div>- round half up</div><div>- show `0.01`</div>",
     "System.AssignedTo": {
      "displayName": "Ann",
      "uniqueName": "ann@example.test"

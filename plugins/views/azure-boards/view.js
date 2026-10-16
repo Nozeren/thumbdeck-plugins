@@ -2,7 +2,7 @@
 // they're under), the highlighted one's page beside them, laid out as Azure DevOps does, and
 // the changes you make to them (state, assignee, a comment…). The backend asks Azure DevOps
 // (backend.js); this shows what it has.
-import { branchName, rows, sprintOnly } from "./ado.js";
+import { branchName, isMe, rows, sprintOnly } from "./ado.js";
 import { safe } from "./rich.js";
 
 const td = window.thumbdeck;
@@ -30,8 +30,10 @@ const stateClass = (s) => STATES.find(([re]) => re.test(s))?.[1] ?? "doing";
 const MARKS = [[/^epic$/i, "▲"], [/^feature$/i, "◆"], [/^(user story|product backlog item|requirement)$/i, "■"], [/^bug$/i, "●"],
   [/^task$/i, "▪"], [/^(issue|impediment)$/i, "◇"]];
 const mark = (type) => MARKS.find(([re]) => re.test(type))?.[1] ?? "•";
-/** A field's value in words */
-const valueText = (v) => (typeof v === "string" && /^\d{4}-\d\d-\d\dT/.test(v) ? new Date(v).toLocaleDateString() : v === true ? "Yes" : v === false ? "No" : String(v ?? ""));
+/** A field's value in words (format: the backend's, for a field it knows) */
+const valueText = (v, format) =>
+  (format === "date" || (!format && typeof v === "string" && /^\d{4}-\d\d-\d\dT/.test(v))) && !Number.isNaN(Date.parse(v)) ? new Date(v).toLocaleDateString()
+    : v === true ? "Yes" : v === false ? "No" : String(v ?? "");
 const bytes = (n) => (n == null ? "" : n < 1024 ? `${n} B` : n < 1048576 ? `${Math.round(n / 1024)} KB` : `${(n / 1048576).toFixed(1)} MB`);
 const ago = (iso) => {
   const m = Math.round((Date.now() - Date.parse(iso)) / 60_000);
@@ -41,12 +43,14 @@ const ago = (iso) => {
 async function load() {
   const was = current()?.id;
   data = await td.backend.call("list");
+  await seenFor(data.items);
   const at = shown().findIndex((r) => r.it.id === was);
   cursor = at >= 0 ? at : Math.min(cursor, Math.max(0, shown().length - 1));
   render();
 }
 
 function render() {
+  lookingAt(current());
   const list = shown();
   const all = visible();
   const mine = all.filter((i) => i.mine).length;
@@ -59,8 +63,12 @@ function render() {
   $("updated").textContent = data.updated ? `looked ${ago(new Date(data.updated).toISOString())}` : "";
   $("error").hidden = !data.error;
   $("error").textContent = data.error;
+  $("sprint").classList.toggle("on", !!data.sprintOnly);
+  $("sprint").title = data.sprintOnly ? "Showing the current sprint's: every iteration's (i)" : "Only the current sprint's (i)";
+  $("warning").hidden = !data.warning;
+  $("warning").textContent = data.warning ? `Fields setting: ${data.warning}` : "";
   $("list").innerHTML = list.length
-    ? list.map(({ it: i, depth, kids, open }, n) => `<li class="wi${n === cursor ? " cursor" : ""}${i.mine ? "" : " other"}" data-n="${n}"
+    ? list.map(({ it: i, depth, kids, open }, n) => `<li class="wi${n === cursor ? " cursor" : ""}${i.mine ? "" : " other"}${unseen(i) ? " unseen" : ""}" data-n="${n}"
         title="${esc(`${i.type} ${i.id} · ${i.state} · ${i.assignedTo || "unassigned"}\n${i.title}`)}">
         <span class="twig" style="padding-left:${depth * 12}px">${kids ? `<span class="toggle" data-toggle="${i.id}">${open ? "▾" : "▸"}</span>` : ""}</span>
         <span class="mark ${esc(i.type)}">${mark(i.type)}</span><span class="id">${i.id}</span><span class="title">${esc(i.title)}</span>
@@ -70,7 +78,38 @@ function render() {
   detail();
 }
 
-/** The highlighted work item's page: what the list knows at once, the rest when the backend has it */
+// Fields on the page that change with a click (by reference name; the rest: in the properties)
+const EDITABLE = { "Microsoft.VSTS.Common.Priority": "priority" };
+const lastPart = (path) => String(path ?? "").split("\\").pop();
+const since = (at, then) => !!then && Date.parse(at) > Date.parse(then);
+
+/** An event of the history in words (after who did it) */
+function eventText(e) {
+  const dot = (state) => `<i class="dot ${stateClass(state)}"></i>${esc(state)}`;
+  const tags = (x) => String(x ?? "").split(";").map((t) => t.trim()).filter(Boolean);
+  switch (e.kind) {
+    case "created": return `created it${e.to ? ` as ${dot(e.to)}` : ""}`;
+    case "state": return `changed the state ${e.from ? `${dot(e.from)} → ` : "to "}${dot(e.to)}`;
+    case "assignee": return e.to ? (e.from ? `reassigned it from ${esc(e.from)} to <b>${esc(e.to)}</b>` : `assigned it to <b>${esc(e.to)}</b>`) : `unassigned it (was ${esc(e.from)})`;
+    case "iteration": return `moved it ${e.from ? `from ${esc(lastPart(e.from))} ` : ""}to <b>${esc(lastPart(e.to))}</b>`;
+    case "area": return `changed the area to ${esc(e.to)}`;
+    case "title": return `renamed it “${esc(e.to)}”`;
+    case "priority": return `changed the priority ${esc(e.from || "—")} → <b>${esc(e.to || "—")}</b>`;
+    case "tags": {
+      const added = tags(e.to).filter((t) => !tags(e.from).includes(t));
+      const removed = tags(e.from).filter((t) => !tags(e.to).includes(t));
+      return [added.length && `tagged it ${added.map((t) => `<span class="td-badge">${esc(t)}</span>`).join(" ")}`,
+        removed.length && `removed ${removed.map((t) => `<span class="td-badge">${esc(t)}</span>`).join(" ")}`].filter(Boolean).join(", ") || "changed the tags";
+    }
+    case "parent": return e.to ? `put it under <a class="link" data-goto="${e.to}" data-url="">#${e.to}</a>` : `took it out of #${esc(e.from)}`;
+    case "development": return `linked a ${esc(String(e.to).toLowerCase())}`;
+    default: return esc(e.kind);
+  }
+}
+
+/** The highlighted work item's page: a header; its text, then its activity (comments and
+ *  history, what's new since you last looked marked), a comment to write; its properties
+ *  beside them, each changed with a click */
 function detail() {
   const it = current();
   const box = $("detail");
@@ -82,46 +121,85 @@ function detail() {
   showing = it.id;
   const d = details.get(it.id);
   const p = d && !d.error ? d : null;
+  const then = divider.get(it.id);
+  const isNew = (x) => since(x.at, then) && !isMe(x.byId, data.me);
+  const changed = new Set((p?.history ?? []).filter(isNew).map((e) => e.kind)); // what changed since you looked
   const rich = []; // html for the [data-rich] slots, made safe below
   const slot = (html) => `<div data-rich="${rich.push(html) - 1}"></div>`;
-  const section = (title, body) => (body ? `<section><h3>${title}</h3>${body}</section>` : "");
-  const fields = (list) => (list.length ? `<dl class="fields">${list.map((f) => `<dt>${esc(f.label)}</dt><dd>${esc(valueText(f.value))}</dd>`).join("")}</dl>` : "");
+  const section = (title, body, cls = "") => (body ? `<section${cls ? ` class="${cls}"` : ""}><h3>${title}</h3>${body}</section>` : "");
+  const editable = (action, html, kind, title) => `<span class="editable${changed.has(kind) ? " changed" : ""}" data-edit="${action}" title="${title}">${html}</span>`;
+  const value = (f) => (f.format === "link" && /^https?:\/\//i.test(f.value) ? `<a class="link" data-href="${esc(f.value)}">${esc(f.value)}</a>`
+    : EDITABLE[f.ref] ? editable(EDITABLE[f.ref], esc(valueText(f.value, f.format)), EDITABLE[f.ref], "Change it")
+    : esc(valueText(f.value, f.format)));
+  const fields = (list) => list.map((f) => `<dt>${esc(f.label)}</dt><dd>${value(f)}</dd>`).join("");
+
+  // Its properties: the ones that change with a click first
   const tags = it.tags.map((t) => `<span class="td-badge">${esc(t)}</span>`).join(" ");
-
-  let main = d?.error ? `<p class="td-error">${esc(d.error)}</p>` : `<p class="td-muted">…</p>`;
-  let side = "";
-  if (p) {
-    main = (p.rich.length ? p.rich.map((r) => section(esc(r.label), slot(r.html))).join("") : section("Description", `<p class="td-muted">No description.</p>`))
-      + section(`Discussion <span class="td-muted">${p.comments.length || ""}</span>`, p.comments.map((c) => `<div class="comment">
-          <div class="by">${esc(c.by)} <span class="td-muted">${esc(ago(c.at))}</span></div>${slot(c.html)}</div>`).join("") || `<p class="td-muted">No comments.</p>`);
-    const kinds = [...new Set(["Parent", "Child", ...p.related.map((r) => r.kind)])];
-    side = section("Related work", kinds.map((k) => {
-        const of = p.related.filter((r) => r.kind === k);
-        return of.length ? `<h4>${esc(k)}</h4><ul class="links">${of.map((r) => `<li class="link" data-goto="${r.id}" data-url="${esc(r.url)}">
-          <span class="type ${esc(r.type)}">${esc(r.type)}</span> <span class="id">${r.id}</span> <span class="title">${esc(r.title)}</span>
-          <span class="state"><i class="dot ${stateClass(r.state)}"></i>${esc(r.state)}</span></li>`).join("")}</ul>` : "";
-      }).join(""))
-      + section("Links", p.links.length ? `<ul class="links">${p.links.map((l) => `<li class="link" data-href="${esc(l.url)}">${esc(l.label)}</li>`).join("")}</ul>` : "")
-      + section("Attachments", p.attachments.length ? `<ul class="links">${p.attachments.map((f) => `<li class="link" data-href="${esc(f.url)}">${esc(f.name)} <span class="td-muted">${bytes(f.size)}</span></li>`).join("")}</ul>` : "");
-  }
-  const development = `<ul class="links"><li><span class="td-muted">Branch name</span> <code>${esc(branchName(it, data.branchPrefix))}</code> <span class="td-muted">(y)</span></li>
+  const planning = (p?.planning ?? []).filter((f) => f.ref !== "Microsoft.VSTS.Common.Priority");
+  const properties = `<dl class="fields props">
+      <dt>State</dt><dd>${editable("state", `<i class="dot ${stateClass(it.state)}"></i>${esc(it.state)}`, "state", "Change the state (s)")}${p?.reason ? ` <span class="td-muted">${esc(p.reason)}</span>` : ""}</dd>
+      <dt>Assigned</dt><dd>${editable("assign", esc(it.assignedTo || "Unassigned"), "assignee", "Assign it (a)")}</dd>
+      <dt>Iteration</dt><dd>${editable("iteration", esc(lastPart(it.iteration) || "—"), "iteration", `${esc(it.iteration)}: move it (m)`)}</dd>
+      ${p?.area ? `<dt>Area</dt><dd${changed.has("area") ? ' class="changed"' : ""}>${esc(lastPart(p.area))}</dd>` : ""}
+      <dt>Priority</dt><dd>${editable("priority", esc(it.priority ?? "—"), "priority", "Change the priority (p)")}</dd>
+      <dt>Tags</dt><dd>${editable("tags", tags || `<span class="td-muted">+ add</span>`, "tags", "Edit the tags (t)")}</dd>
+      ${fields(planning)}</dl>`;
+  const development = `<ul class="links"><li class="link" data-edit="copy-branch" title="Copy it (y)">⎇ <code>${esc(branchName(it, data.branchPrefix))}</code> <span class="td-muted">copy</span></li>
     ${(p?.development ?? []).map((x) => `<li${x.url ? ` class="link" data-href="${esc(x.url)}"` : ""}><span class="td-muted">${esc(x.kind)}</span> ${esc(x.label)}</li>`).join("")}</ul>`;
-  side = (p ? section("Planning", fields(p.planning)) : "") + section("Development", development) + side
-    + section("Details", fields([...(p?.other ?? []), { label: "Project", value: it.project },
-      ...(p?.createdBy ? [{ label: "Created", value: `${p.createdBy} · ${valueText(p.created)}` }] : [])]));
+  let side = section("Properties", properties) + section("Development", development);
+  if (p) {
+    const kinds = [...new Set(["Parent", "Child", ...p.related.map((r) => r.kind)])];
+    side += section("Related work", kinds.map((k) => {
+      const of = p.related.filter((r) => r.kind === k);
+      return of.length ? `<h4>${esc(k)}</h4><ul class="links">${of.map((r) => `<li class="link" data-goto="${r.id}" data-url="${esc(r.url)}">
+        <span class="type ${esc(r.type)}">${esc(r.type)}</span> <span class="id">${r.id}</span> <span class="title">${esc(r.title)}</span>
+        <span class="state"><i class="dot ${stateClass(r.state)}"></i>${esc(r.state)}</span></li>`).join("")}</ul>` : "";
+    }).join(""))
+      + section("Links", p.links.length ? `<ul class="links">${p.links.map((l) => `<li class="link" data-href="${esc(l.url)}">${esc(l.label)}</li>`).join("")}</ul>` : "")
+      + section("Attachments", p.attachments.length ? `<ul class="links">${p.attachments.map((f) => `<li class="link" data-href="${esc(f.url)}">${esc(f.name)} <span class="td-muted">${bytes(f.size)}</span></li>`).join("")}</ul>` : "")
+      + section("Details", `<dl class="fields">${fields([...p.other, { label: "Project", value: it.project },
+        ...(p.createdBy ? [{ label: "Created", value: `${p.createdBy} · ${valueText(p.created)}` }] : []),
+        ...(p.changedBy ? [{ label: "Updated", value: `${p.changedBy} · ${ago(p.changed)}` }] : [])])}</dl>`);
+  }
 
+  // Its text, then its activity: comments and history, oldest first
+  let main = d?.error ? `<p class="td-error">${esc(d.error)}</p>` : `<p class="td-muted">…</p>`;
+  if (p) {
+    const activity = [...p.history.map((e) => ({ ...e, comment: false })), ...p.comments.map((c) => ({ ...c, comment: true }))]
+      .filter((x) => x.at).sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
+    const firstNew = activity.findIndex(isNew);
+    const old = firstNew < 0 ? activity.length : firstNew;
+    const folded = old > 6 && !unfolded.has(it.id) ? old - 3 : 0; // the older ones, but the last 3 before what's new
+    const entry = (x) => (x.comment
+      ? `<li class="comment${isNew(x) ? " new" : ""}"><div class="by"><span class="avatar">${esc((x.by || "?")[0])}</span>${esc(x.by)} <span class="td-muted">${esc(ago(x.at))}</span></div>${slot(x.html)}</li>`
+      : `<li class="event${isNew(x) ? " new" : ""}"><span class="who">${esc(x.by)}</span> ${eventText(x)} <span class="td-muted when">· ${esc(ago(x.at))}</span></li>`);
+    main = (p.rich.length ? p.rich.map((r) => section(esc(r.label), slot(r.html))).join("") : section("Description", `<p class="td-muted">No description.</p>`))
+      + section(`Activity <span class="td-muted">${p.comments.length ? `${p.comments.length} comment${p.comments.length > 1 ? "s" : ""}` : ""}</span>`, `<ol class="activity">
+        ${folded ? `<li class="more"><button data-unfold="${it.id}">Show ${folded} earlier</button></li>` : ""}
+        ${activity.map((x, n) => (n < folded ? "" : (n === firstNew ? `<li class="divider"><span>New since you last looked</span></li>` : "") + entry(x))).join("")}
+      </ol>
+      <div class="composer"><textarea id="compose" rows="3" placeholder="Write a comment… (Markdown works · Ctrl+Enter: send)"></textarea>
+        <div class="buttons"><span class="td-muted">c: here · Esc: leave</span><button id="compose-send">Comment</button></div></div>`, "activity-section");
+  }
+
+  const typing = document.activeElement?.id === "compose" ? [$("compose").selectionStart, $("compose").selectionEnd] : null;
   box.innerHTML = `<header class="head"><i class="bar ${esc(it.type)}"></i>
-      <div class="kind"><span class="type ${esc(it.type)}">${esc(it.type.toUpperCase())}</span> ${it.id}</div>
-      <h2>${esc(it.title)}</h2>
-      <div class="facts"><span>${esc(it.assignedTo || "Unassigned")}</span>
-        <span><i class="dot ${stateClass(it.state)}"></i>${esc(it.state)}</span>
-        ${p?.reason ? `<span class="td-muted">${esc(p.reason)}</span>` : ""}
-        ${p?.changedBy ? `<span class="td-muted">Updated by ${esc(p.changedBy)} ${esc(ago(p.changed))}</span>` : ""}</div>
-      <dl class="fields">${p?.area ? `<dt>Area</dt><dd>${esc(p.area)}</dd>` : ""}${it.iteration ? `<dt>Iteration</dt><dd>${esc(it.iteration)}</dd>` : ""}</dl>
-      ${tags ? `<div class="tags">${tags}</div>` : ""}</header>
+      <div class="top"><span class="kind"><span class="type ${esc(it.type)}">${esc(it.type.toUpperCase())}</span> ${it.id}</span>
+        ${editable("state", `<i class="dot ${stateClass(it.state)}"></i>${esc(it.state)}`, "state", "Change the state (s)")}
+        <span class="spacer"></span>
+        <button data-edit="outside" title="Open it in Azure DevOps (o)">Open ↗</button><button data-edit="copy-branch" title="Copy a branch name for it (y)">Copy branch</button></div>
+      <h2>${editable("title", esc(it.title), "title", "Edit the title (e)")}</h2></header>
     <div class="cols"><div class="main">${main}</div><aside>${side}</aside></div>`;
   for (const el of box.querySelectorAll("[data-rich]")) el.replaceWith(safe(rich[el.dataset.rich]));
   pictures(box, it.id);
+  const compose = $("compose");
+  if (compose) {
+    compose.value = drafts.get(it.id) ?? "";
+    if (typing) {
+      compose.focus();
+      compose.setSelectionRange(...typing);
+    }
+  }
   box.scrollTop = top;
 
   if (!fresh.has(it.id) && !asking.has(it.id)) {
@@ -135,6 +213,66 @@ function detail() {
       });
   }
 }
+
+/** Sends the comment being written on a work item */
+async function sendComment(it) {
+  const typed = (drafts.get(it.id) ?? "").trim();
+  if (!typed) return td.ui.say("write the comment first", { error: true });
+  try {
+    const { error } = await td.backend.call("comment", { id: it.id, text: typed });
+    if (error) throw new Error(error);
+    drafts.delete(it.id);
+    fresh.delete(it.id);
+    $("compose")?.blur();
+    td.ui.say(`commented on ${it.type} ${it.id}`);
+  } catch (e) {
+    td.ui.say(e.message, { error: true });
+  }
+  await load();
+}
+
+// When you last looked at each work item's page (kept, per organization): what's new is after it
+let seen = {};
+let seenKey = "";
+let saving = null;
+const divider = new Map(); // id -> when you'd looked before, while its page is open: its new things are after it
+const unfolded = new Set(); // ids whose whole activity shows
+const drafts = new Map(); // id -> the comment being written
+
+let looking = null; // the work item whose page is open, for "last looked"
+
+/** Opening a work item's page: what's new on it is after when you last looked; you look now */
+function lookingAt(it) {
+  if (it?.id === looking) return;
+  if (looking) markSeen(looking);
+  looking = it?.id ?? null;
+  if (!it) return;
+  divider.set(it.id, seen[it.id] ?? it.changed);
+  markSeen(it.id);
+}
+
+function markSeen(id) {
+  seen[id] = new Date().toISOString();
+  clearTimeout(saving);
+  saving = setTimeout(() => td.storage.set(seenKey, seen).catch(() => {}), 1000);
+}
+
+/** After a look: the organization's "last looked", and a start for the work items without one
+ *  (what was there before isn't news) */
+async function seenFor(items) {
+  const key = `seen ${data.org ?? ""}`;
+  if (key !== seenKey) {
+    seenKey = key;
+    seen = (await td.storage.get(key).catch(() => null)) ?? {};
+  }
+  const ids = new Set(items.map((i) => String(i.id)));
+  for (const id of Object.keys(seen)) if (!ids.has(id)) delete seen[id];
+  for (const i of items) seen[i.id] ??= i.changed || new Date().toISOString();
+  if (looking) seen[looking] = new Date().toISOString();
+  td.storage.set(seenKey, seen).catch(() => {});
+}
+/** Something new on it since you last looked (not by you) */
+const unseen = (i) => since(i.changed, seen[i.id]) && !isMe(i.changedBy, data.me);
 
 /** The images in the rich text: attachments need the token, so the backend gets them */
 function pictures(box, id) {
@@ -156,14 +294,13 @@ function pictures(box, id) {
 }
 
 /** Asks for a value in the view's own box: choices to pick from (typing narrows them), and/or
- *  free text (multiline: a comment; Ctrl+Enter sends). Its answer, or null (Esc). */
-function ask({ label, value = "", choices = null, free = !choices, multiline = false, hint = "" }) {
+ *  free text. Its answer, or null (Esc). */
+function ask({ label, value = "", choices = null, free = !choices, hint = "" }) {
   const box = $("ask");
-  const field = multiline ? $("ask-text") : $("ask-input");
-  $("ask-input").hidden = multiline;
-  $("ask-text").hidden = !multiline;
+  const field = $("ask-input");
   $("ask-label").textContent = label;
-  $("ask-hint").textContent = hint || (multiline ? "Ctrl+Enter: send · Esc: cancel" : choices ? `↑↓ pick · Enter${free ? " (or what you typed)" : ""} · Esc: cancel` : "Enter: save · Esc: cancel");
+  $("ask-ok").hidden = !!choices && !free; // picking a choice is the saving
+  $("ask-hint").textContent = hint || (choices ? `↑↓ pick · Enter${free ? " (or what you typed)" : ""} · Esc: cancel` : "Enter: save · Esc: cancel");
   box.hidden = false;
   field.value = value;
   let at = 0;
@@ -179,7 +316,7 @@ function ask({ label, value = "", choices = null, free = !choices, multiline = f
   };
   draw();
   field.focus();
-  if (!multiline) field.select();
+  field.select();
   return new Promise((resolve) => {
     const done = (answer) => {
       box.hidden = true;
@@ -187,6 +324,7 @@ function ask({ label, value = "", choices = null, free = !choices, multiline = f
       field.removeEventListener("input", typed);
       field.removeEventListener("blur", left);
       $("ask-choices").onmousedown = null;
+      box.onmousedown = $("ask-ok").onmousedown = $("ask-cancel").onmousedown = null;
       field.blur();
       td.keys.take();
       resolve(answer);
@@ -198,7 +336,6 @@ function ask({ label, value = "", choices = null, free = !choices, multiline = f
     };
     const key = (e) => {
       if (e.key === "Escape") return e.preventDefault(), done(null);
-      if (multiline) return e.key === "Enter" && (e.ctrlKey || e.metaKey) && (e.preventDefault(), done(field.value));
       if (e.key === "ArrowDown" || e.key === "ArrowUp") {
         e.preventDefault();
         at += e.key === "ArrowDown" ? 1 : -1;
@@ -211,6 +348,16 @@ function ask({ label, value = "", choices = null, free = !choices, multiline = f
     field.addEventListener("keydown", key);
     field.addEventListener("input", typed);
     field.addEventListener("blur", left);
+    box.onmousedown = (e) => e.target !== field && e.preventDefault(); // a click in the box keeps the field (its blur would cancel)
+    $("ask-ok").onmousedown = (e) => {
+      e.preventDefault();
+      if (free && !choices) done(field.value);
+      else pick();
+    };
+    $("ask-cancel").onmousedown = (e) => {
+      e.preventDefault();
+      done(null);
+    };
     $("ask-choices").onmousedown = (e) => {
       const li = e.target.closest("[data-pick]");
       if (!li) return;
@@ -256,18 +403,12 @@ const edits = {
     const to = await ask({ label: `Assign ${it.type} ${it.id} (now ${it.assignedTo || "nobody"}) to…`, choices, free: true, hint: "↑↓ pick · or type an email · Enter · Esc: cancel" });
     if (to !== null) await change(it, { assignee: to }, to ? `assigned to ${choices.find((c) => c.value === to)?.label ?? to}` : "unassigned");
   },
-  async comment(it) {
-    const typed = await ask({ label: `Comment on ${it.type} ${it.id}`, multiline: true });
-    if (!typed?.trim()) return;
-    try {
-      const { error } = await td.backend.call("comment", { id: it.id, text: typed });
-      if (error) throw new Error(error);
-      fresh.delete(it.id);
-      td.ui.say(`commented on ${it.type} ${it.id}`);
-    } catch (e) {
-      td.ui.say(e.message, { error: true });
-    }
-    await load();
+  /** The comment box at the end of its activity */
+  async comment() {
+    const box = $("compose");
+    if (!box) return td.ui.say("its page is still loading", { error: true });
+    box.scrollIntoView({ block: "center" });
+    box.focus();
   },
   async title(it) {
     const to = (await ask({ label: `Title of ${it.type} ${it.id}`, value: it.title }))?.trim();
@@ -290,6 +431,13 @@ const edits = {
     if (to) await change(it, { iteration: to }, `moved to ${to.split("\\").pop()}`);
   },
 };
+
+/** Only the current sprint's, or every iteration's */
+async function toggleSprint() {
+  const { sprintOnly: on } = await td.backend.call("sprint", { on: !data.sprintOnly });
+  td.ui.say(on ? "only the current sprint's" : "every iteration's");
+  await load();
+}
 
 /** Shows a work item of the list (opening what it's under); false: it isn't in the list */
 function select(id) {
@@ -356,7 +504,10 @@ $("filter").addEventListener("input", () => {
   render();
 });
 
-td.on("key", ({ action }) => {
+td.on("key", ({ action }) => act(action));
+
+/** What a key or a button does */
+function act(action) {
   const row = shown()[cursor];
   const it = row?.it;
   switch (action) {
@@ -377,17 +528,25 @@ td.on("key", ({ action }) => {
     case "page-down": return $("detail").scrollBy({ top: $("detail").clientHeight * 0.8 });
     case "page-up": return $("detail").scrollBy({ top: -$("detail").clientHeight * 0.8 });
     case "filter": return startFilter();
-    case "sprint":
-      return td.backend.call("sprint", { on: !data.sprintOnly }).then(({ sprintOnly: on }) => {
-        td.ui.say(on ? "only the current sprint's" : "every iteration's");
-        return load();
-      });
+    case "sprint": return toggleSprint();
     case "state": case "assign": case "comment": case "title": case "tags": case "priority": case "iteration":
       return it && $("ask").hidden && edits[action](it);
     case "refresh":
       fresh.clear();
       td.ui.say("looking again…");
       return td.backend.call("refresh").then(load);
+  }
+}
+// The comment box: kept while you write (a look again redraws the page), Ctrl+Enter sends
+document.addEventListener("input", (e) => e.target.id === "compose" && showing && drafts.set(showing, e.target.value));
+document.addEventListener("keydown", (e) => {
+  if (e.target.id !== "compose") return;
+  if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+    e.preventDefault();
+    if (current()) sendComment(current());
+  } else if (e.key === "Escape") {
+    e.target.blur();
+    td.keys.take();
   }
 });
 td.backend.on("updated", () => {
@@ -396,6 +555,15 @@ td.backend.on("updated", () => {
 });
 document.addEventListener("click", (e) => {
   if (e.target.closest("#refresh")) return td.backend.call("refresh").then(load);
+  if (e.target.closest("#sprint")) return toggleSprint();
+  if (e.target.closest("#compose-send")) return current() && sendComment(current());
+  const unfold = e.target.closest("[data-unfold]");
+  if (unfold) {
+    unfolded.add(Number(unfold.dataset.unfold));
+    return detail();
+  }
+  const button = e.target.closest("[data-edit]");
+  if (button) return act(button.dataset.edit);
   const link = e.target.closest("[data-href]");
   if (link) return td.ui.openUrl(link.dataset.href);
   const go = e.target.closest("[data-goto]");

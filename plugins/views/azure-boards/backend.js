@@ -9,15 +9,16 @@ import { readFileSync } from "node:fs";
 // this repository.
 import { serve } from "../../../packages/backend/index.js";
 import {
-  auth, changes, commentHtml, current, gather, ids, isMe, item, orgUrl, page, patch, problem, snapshot, text, wiql, within,
+  auth, changes, commentHtml, current, fieldSettings, gather, history, ids, isMe, item, orgUrl, page, patch, problem, snapshot, text, wiql, within,
 } from "./ado.js";
+import { richHtml } from "./markdown.js";
 
 const demoFile = (f) => JSON.parse(readFileSync(new URL(`./testdata/${f}`, import.meta.url), "utf8"));
 const DEMO_ME = "me@example.test";
-let demo = null; // { items, comments, iterations }: the sample, as changed in memory
+let demo = null; // { items, comments, iterations, fields, updates }: the sample, as changed in memory
 let settings = {
   organization: "", token: "", show: "assigned", projects: [], hidden_states: ["Closed", "Done", "Removed"], refresh_minutes: 5,
-  branch_prefix: "feature/", team: "", notify_assigned: true, notify_state: true, notify_comments: true,
+  branch_prefix: "feature/", team: "", notify_assigned: true, notify_state: true, notify_comments: true, fields: [],
 };
 let items = [];
 let error = "";
@@ -26,6 +27,7 @@ let me = ""; // your uniqueName (an email), for "not your own changes"
 let sprints = {}; // project -> its current iteration's path (null: none)
 let sprintOnly = false; // only the current sprint's (kept in storage)
 const iterationsOf = new Map(); // project -> the team's iterations
+let types = null; // the organization's fields: ref (lowercase) -> { name, type } (once a start)
 
 const isDemo = () => settings.organization.trim() === "demo";
 
@@ -67,6 +69,16 @@ async function query(s) {
   if (!isDemo()) return ids(await ado("/_apis/wit/wiql?api-version=7.1", { method: "POST", body: JSON.stringify({ query: wiql(s) }) }));
   return demo.items.filter((w) => isMe(w.fields["System.AssignedTo"]?.uniqueName, DEMO_ME) && !(s.hidden_states ?? []).includes(w.fields["System.State"]))
     .sort((a, b) => (b.fields["System.ChangedDate"] > a.fields["System.ChangedDate"] ? 1 : -1)).map((w) => w.id);
+}
+
+/** The organization's fields (names and types, for how its own fields show); none: guessed */
+async function fieldTypes() {
+  if (!types) {
+    const all = isDemo() ? demo.fields : await ado("/_apis/wit/fields?api-version=7.1").then((a) => a.value ?? [], () => null);
+    if (!all) return new Map(); // asked again next time
+    types = new Map(all.map((x) => [x.referenceName.toLowerCase(), { name: x.name, type: x.type }]));
+  }
+  return types;
 }
 
 /** A project's iterations, for its team (Settings' team, or the project's default team) */
@@ -139,10 +151,22 @@ async function tell(tb, watched) {
   await tb.storage.set("seen", { key, at: new Date().toISOString(), items: snapshot(watched) }).catch(() => {});
 }
 
+/** A work item's revisions (what changed in each), oldest first: 200 at a time, up to 1000 */
+async function updates(id) {
+  if (isDemo()) return demo.updates[id] ?? [];
+  const all = [];
+  for (let skip = 0; skip < 1000; skip += 200) {
+    const page = (await ado(`/_apis/wit/workItems/${id}/updates?$top=200&$skip=${skip}&api-version=7.1`)).value ?? [];
+    all.push(...page);
+    if (page.length < 200) break;
+  }
+  return all;
+}
+
 /** A work item's comments, newest first */
 async function comments(it) {
   if (isDemo()) return [...(demo.comments[it.id] ?? [])].reverse();
-  return (await ado(`/${encodeURIComponent(it.project)}/_apis/wit/workItems/${it.id}/comments?$top=50&order=desc&api-version=7.1-preview.4`)).comments ?? [];
+  return (await ado(`/${encodeURIComponent(it.project)}/_apis/wit/workItems/${it.id}/comments?$top=50&order=desc&$expand=renderedText&api-version=7.1-preview.4`)).comments ?? [];
 }
 
 let timer = null;
@@ -153,8 +177,14 @@ function schedule(tb) {
 
 function start() {
   me = "";
+  types = null;
   iterationsOf.clear();
-  demo = isDemo() ? { items: demoFile("workitems.json").value, comments: demoFile("comments.json"), iterations: demoFile("iterations.json").value } : null;
+  demo = isDemo()
+    ? {
+      items: demoFile("workitems.json").value, comments: demoFile("comments.json"), iterations: demoFile("iterations.json").value,
+      fields: demoFile("fields.json").value, updates: demoFile("updates.json"),
+    }
+    : null;
 }
 
 const known = (id) => {
@@ -177,7 +207,7 @@ serve({
     load(tb);
     schedule(tb);
   },
-  list: () => ({ items, error, updated, branchPrefix: settings.branch_prefix, me, sprints, sprintOnly }),
+  list: () => ({ org: settings.organization.trim().toLowerCase(), items, error, warning: fieldSettings(settings.fields).problems.join(" · "), updated, branchPrefix: settings.branch_prefix, me, sprints, sprintOnly }),
   async refresh(_p, tb) {
     await load(tb);
     return { error };
@@ -195,7 +225,7 @@ serve({
     const org = settings.organization.trim();
     const w = isDemo() ? demo.items.find((x) => x.id === id) : await ado(`/_apis/wit/workitems/${id}?$expand=all&api-version=7.1`);
     if (!w) throw new Error(`no work item ${id}`);
-    const p = page(w, org);
+    const p = page(w, org, { types: await fieldTypes(), custom: fieldSettings(settings.fields).fields });
     const all = new Map(items.map((i) => [i.id, i]));
     const missing = [...new Set(p.related.map((r) => r.id))].filter((x) => !all.has(x));
     if (missing.length) {
@@ -210,8 +240,14 @@ serve({
     const project = w.fields?.["System.TeamProject"] ?? "";
     p.comments = (await comments({ id, project }).catch(() => [])) // comments are extra: the rest still shows
       .filter((c) => !c.isDeleted)
-      .map((c) => ({ by: c.createdBy?.displayName ?? "", at: c.createdDate ?? "", html: c.text ?? "" }))
+      .map((c) => {
+        // A Markdown comment (format "markdown", or 0): Azure DevOps' own rendering, or ours
+        const md = /^markdown$/i.test(String(c.format)) || c.format === 0;
+        const html = md && c.renderedText ? c.renderedText : richHtml(c.text, { format: md ? "markdown" : "", workItem: (x) => `${orgUrl(org)}/_workitems/edit/${x}` });
+        return { by: c.createdBy?.displayName ?? "", byId: c.createdBy?.uniqueName ?? "", at: c.createdDate ?? "", html };
+      })
       .sort((a, b) => (b.at > a.at ? 1 : b.at < a.at ? -1 : 0));
+    p.history = history(await updates(id).catch(() => [])); // history is extra too
     return p;
   },
   /** What a field can be changed to: state (the type's states), iteration (the team's), assignee
@@ -251,11 +287,11 @@ serve({
     const it = known(id);
     if (!String(typed ?? "").trim()) throw new Error("an empty comment");
     if (isDemo()) {
-      (demo.comments[id] ??= []).push({ text: commentHtml(typed), createdBy: { displayName: "Me", uniqueName: DEMO_ME }, createdDate: new Date().toISOString() });
+      (demo.comments[id] ??= []).push({ text: commentHtml(typed, "demo"), createdBy: { displayName: "Me", uniqueName: DEMO_ME }, createdDate: new Date().toISOString() });
       changeDemo(id, {}, { comments: 1 });
     } else {
       await ado(`/${encodeURIComponent(it.project)}/_apis/wit/workItems/${id}/comments?api-version=7.1-preview.4`,
-        { method: "POST", body: JSON.stringify({ text: commentHtml(typed) }) }, { writing: true });
+        { method: "POST", body: JSON.stringify({ text: commentHtml(typed, settings.organization) }) }, { writing: true });
     }
     await load(tb);
     return { error };
@@ -276,9 +312,17 @@ serve({
 function changeDemo(id, set, { comments: more = 0 } = {}) {
   const w = demo.items.find((x) => x.id === id);
   const f = w.fields;
+  const now = new Date().toISOString();
+  const changed = { "System.ChangedDate": { oldValue: f["System.ChangedDate"], newValue: now } };
   for (const op of patch(set, null)) {
     const key = op.path.replace("/fields/", "");
+    const was = f[key];
     f[key] = key === "System.AssignedTo" ? (op.value ? { displayName: op.value === DEMO_ME ? "Me" : op.value, uniqueName: op.value } : undefined) : op.value;
+    changed[key] = { oldValue: was, newValue: f[key] };
+  }
+  if (Object.keys(set).length) {
+    const list = (demo.updates[id] ??= []);
+    list.push({ rev: list.length + 1, revisedBy: { displayName: "Me", uniqueName: DEMO_ME }, revisedDate: "9999-01-01T00:00:00Z", fields: changed });
   }
   f["System.CommentCount"] = (f["System.CommentCount"] ?? 0) + more;
   f["System.ChangedBy"] = { displayName: "Me", uniqueName: DEMO_ME };

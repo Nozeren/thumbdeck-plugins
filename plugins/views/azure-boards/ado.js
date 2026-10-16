@@ -1,5 +1,6 @@
 // Azure Boards (Azure DevOps work items): the queries, reading the answers, and small helpers.
 // Pure functions, tested with `node --test` (ado.test.js); backend.js does the asking.
+import { markdown, richHtml } from "./markdown.js";
 
 /** A text for a WIQL string (single quotes doubled) */
 const quote = (s) => `'${String(s).replace(/'/g, "''")}'`;
@@ -175,11 +176,37 @@ const PLANNING = [
 const isHtml = (v) => typeof v === "string" && /<\/?[a-z][^>]*>/i.test(v);
 /** A field's value in words: a person's name, not the person */
 const value = (v) => (v && typeof v === "object" ? (v.displayName ?? v.name ?? "") : v);
-/** "Custom.CustomerImpact" -> "Customer impact" */
+/** "Custom.CustomerImpact", "Contoso.Customer_Impact" -> "Customer impact" */
 const label = (ref) => {
-  const words = ref.replace(/^Custom\./, "").replace(/_/g, " ").replace(/([a-z0-9])([A-Z])/g, "$1 $2").toLowerCase();
+  const words = ref.replace(/^[^.]*\./, "").replace(/_/g, " ").replace(/([a-z0-9])([A-Z])/g, "$1 $2").toLowerCase();
   return words.charAt(0).toUpperCase() + words.slice(1);
 };
+
+// Your organization's own fields (any not Azure DevOps' own: Custom.*, Contoso.*…) show by
+// themselves, as their type says; the Fields setting changes how, or shows one of Azure
+// DevOps' own: "reference name | label | format | where", each part but the first optional.
+export const FORMATS = ["text", "markdown", "html", "date", "number", "person", "yes-no", "link"];
+export const SECTIONS = ["main", "planning", "details", "hidden"];
+const ownField = (ref) => !/^(System|Microsoft)\.|^WEF_/i.test(ref);
+// A field's type (from /_apis/wit/fields) -> how it shows
+const TYPES = { html: "html", plaintext: "markdown", datetime: "date", boolean: "yes-no", identity: "person", integer: "number", double: "number" };
+
+/** The Fields setting's lines: ref (lowercase) -> { label, format, where }, and what's wrong */
+export function fieldSettings(lines) {
+  const fields = new Map();
+  const problems = [];
+  for (const line of lines ?? []) {
+    if (!String(line).trim() || String(line).trim().startsWith("#")) continue;
+    const [ref, label = "", format = "", where = ""] = String(line).split("|").map((x) => x.trim());
+    const f = format.toLowerCase();
+    const w = where.toLowerCase();
+    if (!/^[\w.]+$/.test(ref)) problems.push(`"${line}": start with the field's reference name (like Custom.Impact)`);
+    else if (f && f !== "hidden" && !FORMATS.includes(f)) problems.push(`${ref}: no format "${format}" (${FORMATS.join(", ")})`);
+    else if (w && !SECTIONS.includes(w)) problems.push(`${ref}: nowhere called "${where}" (${SECTIONS.join(", ")})`);
+    else fields.set(ref.toLowerCase(), { label, format: f === "hidden" ? "" : f, where: f === "hidden" ? "hidden" : w, order: fields.size });
+  }
+  return { fields, problems };
+}
 
 /** A development link (vstfs:///Git/PullRequestId/…): what it is, and its page */
 export function artifact(uri, name, org, project) {
@@ -200,12 +227,39 @@ export function artifact(uri, name, org, project) {
   return { kind: name || kind, label: id, url: null };
 }
 
-/** A work item (from $expand=all) as its page shows it: the fields, the rich text, its links */
-export function page(w, org) {
+/** A work item (from $expand=all) as its page shows it: the fields, the rich text (as HTML,
+ *  Markdown rendered), its links. types: ref (lowercase) -> { name, type } (/_apis/wit/fields);
+ *  custom: the Fields setting (fieldSettings) */
+export function page(w, org, { types = new Map(), custom = new Map() } = {}) {
   const f = w.fields ?? {};
   const has = (k) => f[k] != null && f[k] !== "";
-  const custom = Object.keys(f).filter((k) => k.startsWith("Custom.") && has(k)).sort();
   const rels = w.relations ?? [];
+  const workItem = (id) => `${orgUrl(org)}/_workitems/edit/${id}`;
+  const markdownField = (k) => Object.entries(w.multilineFieldsFormat ?? {}).some(([ref, fmt]) => ref.toLowerCase() === k.toLowerCase() && /^markdown$/i.test(fmt));
+  // Every field it shows: where, as what, called what
+  const known = new Map([...RICH.map(([k, l]) => [k.toLowerCase(), { label: l, where: "main" }]), ...PLANNING.map(([k, l]) => [k.toLowerCase(), { label: l, where: "planning" }])]);
+  const shown = [];
+  for (const k of Object.keys(f)) {
+    if (!has(k)) continue;
+    const c = custom.get(k.toLowerCase());
+    const builtIn = known.get(k.toLowerCase());
+    if (!c && !builtIn && !ownField(k)) continue;
+    const type = types.get(k.toLowerCase());
+    let format = c?.format || (markdownField(k) ? "markdown" : TYPES[String(type?.type).toLowerCase()]) || (isHtml(f[k]) ? "html" : "text");
+    if (f[k] && typeof f[k] === "object" && format === "text") format = "person";
+    const where = c?.where || builtIn?.where || (format === "html" || format === "markdown" ? "main" : "details");
+    if (where === "hidden") continue;
+    shown.push({ k, label: c?.label || builtIn?.label || type?.name || label(k), format, where, order: c ? c.order : builtIn ? -1 : 1e6 });
+  }
+  // Azure DevOps' own in the order its page has them, then the setting's in its order, then the rest by name
+  const builtInOrder = [...RICH, ...PLANNING].map(([k]) => k.toLowerCase());
+  const rank = (x) => (x.order === -1 ? [0, builtInOrder.indexOf(x.k.toLowerCase())] : x.order < 1e6 ? [1, x.order] : [2, 0]);
+  shown.sort((a, b) => rank(a)[0] - rank(b)[0] || rank(a)[1] - rank(b)[1] || a.label.localeCompare(b.label));
+  const rich = (x) => (x.format === "markdown" || x.format === "html"
+    ? richHtml(f[x.k], { format: x.format === "markdown" ? "markdown" : "", workItem })
+    : `<p>${String(display(f[x.k], x.format)).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/\n/g, "<br>")}</p>`);
+  const scalar = (x) => ({ label: x.label, value: display(f[x.k], x.format), format: x.format, ref: x.k });
+  const isRich = (x) => x.format === "markdown" || x.format === "html";
   return {
     reason: f["System.Reason"] ?? "",
     area: f["System.AreaPath"] ?? "",
@@ -213,10 +267,9 @@ export function page(w, org) {
     created: f["System.CreatedDate"] ?? "",
     changedBy: value(f["System.ChangedBy"]) ?? "",
     changed: f["System.ChangedDate"] ?? "",
-    rich: [...RICH.filter(([k]) => has(k)), ...custom.filter((k) => isHtml(f[k])).map((k) => [k, label(k)])]
-      .map(([k, l]) => ({ label: l, html: String(f[k]) })),
-    planning: PLANNING.filter(([k]) => has(k)).map(([k, l]) => ({ label: l, value: value(f[k]) })),
-    other: custom.filter((k) => !isHtml(f[k])).map((k) => ({ label: label(k), value: value(f[k]) })),
+    rich: shown.filter((x) => x.where === "main").map((x) => ({ label: x.label, html: rich(x) })),
+    planning: shown.filter((x) => x.where === "planning").map((x) => (isRich(x) ? { label: x.label, value: text(f[x.k]), format: "text" } : scalar(x))),
+    other: shown.filter((x) => x.where === "details").map((x) => (isRich(x) ? { label: x.label, value: text(f[x.k]), format: "text" } : scalar(x))),
     related: rels.filter((r) => /\/workItems\/\d+$/i.test(r.url ?? ""))
       .map((r) => ({ kind: r.attributes?.name ?? r.rel, id: Number(r.url.split("/").pop()) })),
     development: rels.filter((r) => r.rel === "ArtifactLink")
@@ -225,6 +278,46 @@ export function page(w, org) {
     attachments: rels.filter((r) => r.rel === "AttachedFile")
       .map((r) => ({ name: r.attributes?.name ?? "a file", size: r.attributes?.resourceSize ?? null, url: r.url })),
   };
+}
+
+// What the history (/updates) tells, field by field: the rest of its edits are left out
+const TRACKED = {
+  "System.State": "state", "System.AssignedTo": "assignee", "System.IterationPath": "iteration", "System.AreaPath": "area",
+  "System.Title": "title", "Microsoft.VSTS.Common.Priority": "priority", "System.Tags": "tags",
+};
+
+/** A work item's history (its /updates, oldest first) as events: { at, by, byId, kind, from, to }.
+ *  kind: created, state, assignee, iteration, area, title, priority, tags, parent, development */
+export function history(updates) {
+  const out = [];
+  for (const u of updates ?? []) {
+    const f = u.fields ?? {};
+    const revised = String(u.revisedDate ?? "");
+    const at = f["System.ChangedDate"]?.newValue ?? (revised.startsWith("9999") ? "" : revised);
+    const who = { at, by: u.revisedBy?.displayName?.replace(/\s*<[^>]*>$/, "") ?? "", byId: u.revisedBy?.uniqueName ?? "" };
+    if (u.rev === 1) {
+      out.push({ ...who, kind: "created", from: "", to: value(f["System.State"]?.newValue) ?? "" });
+      continue;
+    }
+    for (const [ref, kind] of Object.entries(TRACKED)) {
+      if (f[ref]) out.push({ ...who, kind, from: value(f[ref].oldValue) ?? "", to: value(f[ref].newValue) ?? "" });
+    }
+    const id = (r) => Number(String(r.url).split("/").pop());
+    for (const r of u.relations?.added ?? []) {
+      if (r.rel === PARENT) out.push({ ...who, kind: "parent", from: "", to: id(r) });
+      if (r.rel === "ArtifactLink") out.push({ ...who, kind: "development", from: "", to: r.attributes?.name ?? "a link" });
+    }
+    for (const r of u.relations?.removed ?? []) if (r.rel === PARENT) out.push({ ...who, kind: "parent", from: id(r), to: "" });
+  }
+  return out;
+}
+
+/** A field's value in words, as its format says */
+function display(v, format) {
+  if (format === "person") return value(v) ?? "";
+  if (format === "yes-no") return v === true || /^(true|yes|1)$/i.test(String(v)) ? "Yes" : "No";
+  if (format === "number") return Number.isFinite(Number(v)) ? Number(v) : String(v);
+  return typeof v === "object" ? (value(v) ?? "") : v;
 }
 
 /** What an HTTP answer means, in words (writing: a change was asked; message: Azure DevOps' own) */
@@ -269,9 +362,8 @@ export function patch(set, rev) {
   return ops;
 }
 
-/** A comment as Azure DevOps keeps them (HTML), from what was typed */
-export const commentHtml = (typed) =>
-  String(typed).trim().split(/\n{2,}/).map((p) => `<p>${p.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>")}</p>`).join("");
+/** A comment as Azure DevOps keeps them (HTML), from what was typed (Markdown) */
+export const commentHtml = (typed, org) => markdown(String(typed).trim(), org ? { workItem: (id) => `${orgUrl(org)}/_workitems/edit/${id}` } : {});
 
 /** Is this you (an identity from Azure DevOps: uniqueName, an email)? */
 export const isMe = (who, me) => !!who && !!me && String(who).toLowerCase() === String(me).toLowerCase();

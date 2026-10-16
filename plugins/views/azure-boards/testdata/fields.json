@@ -1,0 +1,34 @@
+{
+ "value": [
+  {
+   "referenceName": "System.Description",
+   "name": "Description",
+   "type": "html"
+  },
+  {
+   "referenceName": "Custom.CustomerImpact",
+   "name": "Customer Impact",
+   "type": "string"
+  },
+  {
+   "referenceName": "Contoso.AccountManager",
+   "name": "Account Manager",
+   "type": "identity"
+  },
+  {
+   "referenceName": "Contoso.ContractEnd",
+   "name": "Contract End",
+   "type": "dateTime"
+  },
+  {
+   "referenceName": "Contoso.Escalated",
+   "name": "Escalated",
+   "type": "boolean"
+  },
+  {
+   "referenceName": "Contoso.WorkaroundNotes",
+   "name": "Workaround Notes",
+   "type": "plainText"
+  }
+ ]
+}
