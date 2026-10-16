@@ -16,8 +16,70 @@
     "System.IterationPath": "Shop\\Sprint 42",
     "System.Tags": "auth; sso",
     "Microsoft.VSTS.Common.Priority": 1,
-    "System.Description": "<div>After signing in with SSO, the browser lands on <b>/callback</b> and stays blank.</div><div><br></div><div>Steps:</div><ol><li>Sign in with SSO</li><li>Wait</li></ol>"
-   }
+    "System.Description": "<div>After signing in with SSO, the browser lands on <b>/callback</b> and stays blank.</div><div><br></div><div>Steps:</div><ol><li>Sign in with SSO</li><li>Wait</li></ol>",
+    "System.Parent": 4100,
+    "System.Reason": "Approved",
+    "System.AreaPath": "Shop\\Accounts",
+    "System.CreatedBy": {
+     "displayName": "Ann",
+     "uniqueName": "ann@example.test"
+    },
+    "System.CreatedDate": "2026-09-24T08:30:00Z",
+    "System.ChangedBy": {
+     "displayName": "Bob",
+     "uniqueName": "bob@example.test"
+    },
+    "Microsoft.VSTS.Common.Severity": "2 - High",
+    "Microsoft.VSTS.Scheduling.Effort": 3,
+    "Microsoft.VSTS.TCM.ReproSteps": "<ol><li>Open <a href=\"https://shop.example.test/login\">the login page</a></li><li>Choose <b>Sign in with SSO</b></li><li>The page at <code>/callback</code> stays blank</li></ol>",
+    "Microsoft.VSTS.TCM.SystemInfo": "<p>Firefox 131, Chrome 129; staging and production</p>",
+    "Custom.CustomerImpact": "Every SSO customer"
+   },
+   "relations": [
+    {
+     "rel": "System.LinkTypes.Hierarchy-Reverse",
+     "url": "https://dev.azure.com/contoso/_apis/wit/workItems/4100",
+     "attributes": {
+      "name": "Parent"
+     }
+    },
+    {
+     "rel": "System.LinkTypes.Related",
+     "url": "https://dev.azure.com/contoso/_apis/wit/workItems/4175",
+     "attributes": {
+      "name": "Related"
+     }
+    },
+    {
+     "rel": "ArtifactLink",
+     "url": "vstfs:///Git/Ref/9b1c%2Fa7e2%2FGBfeature%2F4211-login-redirects",
+     "attributes": {
+      "name": "Branch"
+     }
+    },
+    {
+     "rel": "ArtifactLink",
+     "url": "vstfs:///Git/PullRequestId/9b1c%2Fa7e2%2F311",
+     "attributes": {
+      "name": "Pull Request"
+     }
+    },
+    {
+     "rel": "Hyperlink",
+     "url": "https://status.example.test/incidents/77",
+     "attributes": {
+      "comment": "The incident"
+     }
+    },
+    {
+     "rel": "AttachedFile",
+     "url": "https://dev.azure.com/contoso/9b1c/_apis/wit/attachments/1f2e?fileName=blank.png",
+     "attributes": {
+      "name": "blank.png",
+      "resourceSize": 48213
+     }
+    }
+   ]
   },
   {
    "id": 4198,
@@ -35,7 +97,10 @@
     "System.IterationPath": "Shop\\Sprint 42",
     "System.Tags": "cart",
     "Microsoft.VSTS.Common.Priority": 2,
-    "System.Description": "<p>As a customer I want to see the discount before paying.</p><p><b>Acceptance</b>: the cart shows the code and the amount saved.</p>"
+    "System.Description": "<p>As a customer I want to see the discount before paying.</p><p><b>Acceptance</b>: the cart shows the code and the amount saved.</p>",
+    "Microsoft.VSTS.Scheduling.StoryPoints": 5,
+    "Microsoft.VSTS.Common.ValueArea": "Business",
+    "Microsoft.VSTS.Common.AcceptanceCriteria": "<ul><li>The cart shows the code</li><li>…and the amount saved</li></ul>"
    },
    "relations": [
     {
@@ -195,6 +260,34 @@
      "url": "https://dev.azure.com/contoso/_apis/wit/workItems/4201",
      "attributes": {
       "name": "Parent"
+     }
+    }
+   ]
+  },
+  {
+   "id": 4100,
+   "fields": {
+    "System.Id": 4100,
+    "System.Title": "Single sign-on for every customer",
+    "System.State": "Active",
+    "System.WorkItemType": "Feature",
+    "System.TeamProject": "Shop",
+    "System.AssignedTo": {
+     "displayName": "Carol",
+     "uniqueName": "carol@example.test"
+    },
+    "System.ChangedDate": "2026-09-10T10:00:00Z",
+    "System.IterationPath": "Shop",
+    "System.Tags": "auth",
+    "Microsoft.VSTS.Common.Priority": 1,
+    "System.Description": "<p>Customers sign in with their own identity provider.</p>"
+   },
+   "relations": [
+    {
+     "rel": "System.LinkTypes.Hierarchy-Forward",
+     "url": "https://dev.azure.com/contoso/_apis/wit/workItems/4211",
+     "attributes": {
+      "name": "Child"
      }
     }
    ]
