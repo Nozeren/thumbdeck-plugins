@@ -1,8 +1,8 @@
 id = "azure-boards"
 name = "Azure Boards"
-version = "1.0.1"
+version = "1.1.0"
 api = 1
-description = "Your Azure DevOps work items: what's assigned to you, their details, branch names (with a token, read-only)"
+description = "Your Azure DevOps work items as a tree, with what's under them: their details, branch names (with a token, read-only)"
 homepage = "https://github.com/Nozeren/thumbdeck-plugins/tree/main/plugins/views/azure-boards"
 
 [view]
@@ -74,6 +74,8 @@ bindings = [
   { keys = ["k", "ArrowUp"], action = "up", does = "previous" },
   { keys = ["g"], action = "first", does = "first" },
   { keys = ["G"], action = "last", does = "last" },
+  { keys = ["l", "ArrowRight", "Space"], action = "open", does = "show what's under it (then: into it)" },
+  { keys = ["h", "ArrowLeft"], action = "close", does = "hide what's under it (or: up to its parent)" },
   { keys = ["o"], action = "outside", does = "open it in Azure DevOps" },
   { keys = ["y"], action = "copy-branch", does = "copy a branch name for it (feature/1234-its-title)" },
   { keys = ["Y"], action = "copy-ref", does = "copy '#1234 its title' (for a commit or a message)" },

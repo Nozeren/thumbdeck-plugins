@@ -36,7 +36,30 @@
     "System.Tags": "cart",
     "Microsoft.VSTS.Common.Priority": 2,
     "System.Description": "<p>As a customer I want to see the discount before paying.</p><p><b>Acceptance</b>: the cart shows the code and the amount saved.</p>"
-   }
+   },
+   "relations": [
+    {
+     "rel": "System.LinkTypes.Hierarchy-Forward",
+     "url": "https://dev.azure.com/contoso/_apis/wit/workItems/4175",
+     "attributes": {
+      "name": "Child"
+     }
+    },
+    {
+     "rel": "System.LinkTypes.Hierarchy-Forward",
+     "url": "https://dev.azure.com/contoso/_apis/wit/workItems/4201",
+     "attributes": {
+      "name": "Child"
+     }
+    },
+    {
+     "rel": "System.LinkTypes.Hierarchy-Forward",
+     "url": "https://dev.azure.com/contoso/_apis/wit/workItems/4202",
+     "attributes": {
+      "name": "Child"
+     }
+    }
+   ]
   },
   {
    "id": 4175,
@@ -54,8 +77,18 @@
     "System.IterationPath": "Shop\\Sprint 43",
     "System.Tags": "",
     "Microsoft.VSTS.Common.Priority": 3,
-    "System.Description": "<p>The old runner goes away next month.</p>"
-   }
+    "System.Description": "<p>The old runner goes away next month.</p>",
+    "System.Parent": 4198
+   },
+   "relations": [
+    {
+     "rel": "System.LinkTypes.Hierarchy-Reverse",
+     "url": "https://dev.azure.com/contoso/_apis/wit/workItems/4198",
+     "attributes": {
+      "name": "Parent"
+     }
+    }
+   ]
   },
   {
    "id": 3990,
@@ -75,6 +108,96 @@
     "Microsoft.VSTS.Common.Priority": 2,
     "System.Description": "<p>The CSV writer doesn't escape <code>&amp;</code>.</p>"
    }
+  },
+  {
+   "id": 4201,
+   "fields": {
+    "System.Id": 4201,
+    "System.Title": "Discount rounds half cents down",
+    "System.State": "Active",
+    "System.WorkItemType": "Bug",
+    "System.TeamProject": "Shop",
+    "System.ChangedDate": "2026-09-27T12:00:00Z",
+    "System.IterationPath": "Shop\\Sprint 42",
+    "System.Tags": "",
+    "Microsoft.VSTS.Common.Priority": 2,
+    "System.Parent": 4198,
+    "System.Description": "<p>A 10% code on 0.05 shows 0.00 off.</p>",
+    "System.AssignedTo": {
+     "displayName": "Ann",
+     "uniqueName": "ann@example.test"
+    }
+   },
+   "relations": [
+    {
+     "rel": "System.LinkTypes.Hierarchy-Reverse",
+     "url": "https://dev.azure.com/contoso/_apis/wit/workItems/4198",
+     "attributes": {
+      "name": "Parent"
+     }
+    },
+    {
+     "rel": "System.LinkTypes.Hierarchy-Forward",
+     "url": "https://dev.azure.com/contoso/_apis/wit/workItems/4205",
+     "attributes": {
+      "name": "Child"
+     }
+    }
+   ]
+  },
+  {
+   "id": 4202,
+   "fields": {
+    "System.Id": 4202,
+    "System.Title": "Add the code field to the cart",
+    "System.State": "Done",
+    "System.WorkItemType": "Task",
+    "System.TeamProject": "Shop",
+    "System.ChangedDate": "2026-09-20T10:00:00Z",
+    "System.IterationPath": "Shop\\Sprint 42",
+    "System.Tags": "",
+    "Microsoft.VSTS.Common.Priority": 2,
+    "System.Parent": 4198,
+    "System.Description": "<p>Done in the last sprint.</p>",
+    "System.AssignedTo": {
+     "displayName": "Bob",
+     "uniqueName": "bob@example.test"
+    }
+   },
+   "relations": [
+    {
+     "rel": "System.LinkTypes.Hierarchy-Reverse",
+     "url": "https://dev.azure.com/contoso/_apis/wit/workItems/4198",
+     "attributes": {
+      "name": "Parent"
+     }
+    }
+   ]
+  },
+  {
+   "id": 4205,
+   "fields": {
+    "System.Id": 4205,
+    "System.Title": "A test for half-cent discounts",
+    "System.State": "New",
+    "System.WorkItemType": "Task",
+    "System.TeamProject": "Shop",
+    "System.ChangedDate": "2026-09-27T13:00:00Z",
+    "System.IterationPath": "Shop\\Sprint 42",
+    "System.Tags": "",
+    "Microsoft.VSTS.Common.Priority": 2,
+    "System.Parent": 4201,
+    "System.Description": ""
+   },
+   "relations": [
+    {
+     "rel": "System.LinkTypes.Hierarchy-Reverse",
+     "url": "https://dev.azure.com/contoso/_apis/wit/workItems/4201",
+     "attributes": {
+      "name": "Parent"
+     }
+    }
+   ]
   }
  ]
 }

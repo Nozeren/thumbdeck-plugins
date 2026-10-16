@@ -3,7 +3,9 @@
 Your Azure DevOps work items in thumbdeck, read-only:
 
 - **Its view** in the Plugins pane (`Ctrl+p`): the work items assigned to you (or created by
-  you, or that you follow), most recently changed first; the highlighted one's details,
+  you, or that you follow), most recently changed first, as a tree: each under its parent, and
+  under yours their children and grandchildren even when they aren't yours (dimmer, with who
+  has them). `l` / `h` show and hide what's under one. The highlighted one's details,
   description and comments beside them. `o` opens it in Azure DevOps, `y` copies a branch name
   for it (`feature/4211-login-redirects-to-a-blank-page`), `Y` copies `#4211 its title`, `/`
   filters.

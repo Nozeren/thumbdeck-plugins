@@ -1,12 +1,12 @@
 // The Azure Boards backend: asks Azure DevOps for your work items (with the token in the
-// plugin's settings), looks again every few minutes, says how many are open (the Plugins
+// plugin's settings) and the ones under them, yours or not, looks again every few minutes, says how many are open (the Plugins
 // pane's status), and tells you when a new one is assigned to you. Organization "demo":
 // sample work items (testdata/).
 import { readFileSync } from "node:fs";
 // In your own plugin: `npm install @thumbdeck/backend`. The official plugins use the copy in
 // this repository.
 import { serve } from "../../../packages/backend/index.js";
-import { added, auth, FIELD_LIST, ids, item, orgUrl, problem, text, wiql } from "./ado.js";
+import { added, auth, gather, ids, item, orgUrl, problem, text, wiql } from "./ado.js";
 
 const demo = (f) => JSON.parse(readFileSync(new URL(`./testdata/${f}`, import.meta.url), "utf8"));
 let settings = { organization: "", token: "", show: "assigned", projects: [], hidden_states: ["Closed", "Done", "Removed"], refresh_minutes: 5, branch_prefix: "feature/" };
@@ -30,16 +30,30 @@ async function load(tb) {
   const org = settings.organization.trim();
   try {
     if (!org) throw new Error("Set your organization and a token in Settings (,) › Plugins › Azure Boards");
-    let found;
-    if (org === "demo") found = demo("workitems.json").value.map((w) => item(w, "demo"));
-    else {
+    let list;
+    let fetch;
+    if (org === "demo") {
+      const all = demo("workitems.json").value;
+      list = ids(demo("wiql.json"));
+      fetch = async (want) => all.filter((w) => want.includes(w.id));
+    } else {
       if (!settings.token.trim()) throw new Error("Add a personal access token in Settings (,) › Plugins › Azure Boards");
-      const list = ids(await ado("/_apis/wit/wiql?api-version=7.1", { method: "POST", body: JSON.stringify({ query: wiql(settings) }) }));
-      found = list.length ? (await ado(`/_apis/wit/workitems?ids=${list.join(",")}&fields=${FIELD_LIST}&api-version=7.1`)).value.map((w) => item(w, org)) : [];
-      // In the query's order (recently changed first)
-      found.sort((a, b) => list.indexOf(a.id) - list.indexOf(b.id));
+      list = ids(await ado("/_apis/wit/wiql?api-version=7.1", { method: "POST", body: JSON.stringify({ query: wiql(settings) }) }));
+      // With their relations (for what's under them), 200 at a time; errorPolicy=omit: one the
+      // token can't see is left out instead of failing them all
+      fetch = async (want) => {
+        const got = [];
+        for (let i = 0; i < want.length; i += 200) {
+          const answer = await ado(`/_apis/wit/workitems?ids=${want.slice(i, i + 200).join(",")}&$expand=relations&errorPolicy=omit&api-version=7.1`);
+          got.push(...(answer.value ?? []).filter(Boolean));
+        }
+        return got;
+      };
     }
-    const now = found.map((i) => i.id);
+    const found = (list.length ? await gather(list, fetch, { hidden: settings.hidden_states ?? [] }) : []).map(({ w, mine }) => item(w, org, mine));
+    // Recently changed first (the query's order)
+    found.sort((a, b) => (b.changed > a.changed ? 1 : b.changed < a.changed ? -1 : 0));
+    const now = found.filter((i) => i.mine).map((i) => i.id);
     for (const id of added(seen, now)) {
       const it = found.find((i) => i.id === id);
       tb.notify(`${it.type} ${it.id} is yours`, it.title);
@@ -51,7 +65,7 @@ async function load(tb) {
     error = e.message;
   }
   updated = Date.now();
-  tb.status(error ? "!" : `${items.length} open`);
+  tb.status(error ? "!" : `${items.filter((i) => i.mine).length} open`);
   tb.event("updated", { updated });
 }
 

@@ -1,13 +1,6 @@
 // Azure Boards (Azure DevOps work items): the queries, reading the answers, and small helpers.
 // Pure functions, tested with `node --test` (ado.test.js); backend.js does the asking.
 
-const FIELDS = [
-  "System.Id", "System.Title", "System.State", "System.WorkItemType", "System.TeamProject",
-  "System.AssignedTo", "System.ChangedDate", "System.IterationPath", "System.Tags",
-  "Microsoft.VSTS.Common.Priority",
-];
-export const FIELD_LIST = FIELDS.join(",");
-
 /** A text for a WIQL string (single quotes doubled) */
 const quote = (s) => `'${String(s).replace(/'/g, "''")}'`;
 
@@ -33,12 +26,41 @@ export function orgUrl(org) {
 /** The Authorization header for a personal access token */
 export const auth = (token) => `Basic ${Buffer.from(`:${String(token).trim()}`).toString("base64")}`;
 
-/** A work item from the API as the view shows it */
-export function item(w, org) {
+const PARENT = "System.LinkTypes.Hierarchy-Reverse";
+const CHILD = "System.LinkTypes.Hierarchy-Forward";
+/** The ids a work item links to with a link type (its relations, from $expand=relations) */
+const linked = (w, rel) => (w.relations ?? []).filter((r) => r.rel === rel).map((r) => Number(String(r.url).split("/").pop())).filter(Number.isInteger);
+/** A work item's children's ids */
+export const childIds = (w) => linked(w, CHILD);
+
+/** Your work items (the ids of the query) and everything under them, yours or not: asks for
+ *  a level at a time (fetch(ids) gives the work items, with their relations). Ones under yours
+ *  in a hidden state are left out, and what's under them. [{ w, mine }], yours first. */
+export async function gather(mine, fetch, { hidden = [], depth = 6, limit = 1000 } = {}) {
+  const found = new Map();
+  for (const w of await fetch(mine)) found.set(w.id, { w, mine: true });
+  let next = [...found.values()].flatMap(({ w }) => childIds(w));
+  for (let level = 0; level < depth && found.size < limit; level++) {
+    const ask = [...new Set(next)].filter((id) => !found.has(id)).slice(0, limit - found.size);
+    if (!ask.length) break;
+    next = [];
+    for (const w of await fetch(ask)) {
+      if (hidden.includes(w.fields?.["System.State"])) continue;
+      found.set(w.id, { w, mine: false });
+      next.push(...childIds(w));
+    }
+  }
+  return [...found.values()];
+}
+
+/** A work item from the API as the view shows it (mine: one of the query's, not only under one) */
+export function item(w, org, mine = true) {
   const f = w.fields ?? {};
   const project = f["System.TeamProject"] ?? "";
   return {
     id: w.id,
+    mine,
+    parent: f["System.Parent"] ?? linked(w, PARENT)[0] ?? null,
     title: f["System.Title"] ?? "",
     state: f["System.State"] ?? "",
     type: f["System.WorkItemType"] ?? "",
@@ -50,6 +72,42 @@ export function item(w, org) {
     priority: f["Microsoft.VSTS.Common.Priority"] ?? null,
     url: `${orgUrl(org)}/${encodeURIComponent(project)}/_workitems/edit/${w.id}`,
   };
+}
+
+/** The list as a tree: each work item under its parent (when the parent is in the list too),
+ *  rows of { it, depth, kids, open } in the order they show. Collapsed ones (ids) hide what's
+ *  under them; with words, the work items they match and the ones above them, all open. */
+export function rows(items, { collapsed = new Set(), words = "" } = {}) {
+  const byId = new Map(items.map((i) => [i.id, i]));
+  const kids = new Map();
+  const roots = [];
+  for (const i of items) {
+    if (i.parent != null && i.parent !== i.id && byId.has(i.parent)) {
+      if (!kids.has(i.parent)) kids.set(i.parent, []);
+      kids.get(i.parent).push(i);
+    } else roots.push(i);
+  }
+  const w = words.toLowerCase();
+  let keep = null; // with words: the ids that show
+  if (w) {
+    keep = new Set();
+    for (const i of items) {
+      if (!i.title.toLowerCase().includes(w) && String(i.id) !== words) continue;
+      for (let a = i; a && !keep.has(a.id); a = byId.get(a.parent)) keep.add(a.id);
+    }
+  }
+  const out = [];
+  const seen = new Set();
+  const walk = (i, depth) => {
+    if (seen.has(i.id) || (keep && !keep.has(i.id))) return;
+    seen.add(i.id);
+    const under = (kids.get(i.id) ?? []).filter((c) => !keep || keep.has(c.id));
+    const open = keep ? true : !collapsed.has(i.id);
+    out.push({ it: i, depth, kids: under.length, open });
+    if (open) for (const c of under) walk(c, depth + 1);
+  };
+  for (const r of roots) walk(r, 0);
+  return out;
 }
 
 /** A git branch name for a work item: "feature/1234-fix-the-login-redirect" */
