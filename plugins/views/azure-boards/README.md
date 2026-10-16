@@ -37,6 +37,15 @@ Your Azure DevOps work items in thumbdeck: to see them, change them and be told 
   item meanwhile (yours doesn't undo theirs): look again (`r`) and redo it.
 - **The current sprint**: `i` (or the Sprint button) shows only the current sprint's work items (your team's: each
   project's default team, or the one in Settings), and again for every iteration's; remembered.
+- **Your hours, day by day**: `w` (or the Hours button) shows a month as a calendar. Each day
+  shows the hours you logged that day: what you added to a work item's Completed Work, counted
+  on the day you added it, and taken off again if you corrected it down. A bar shows how much of
+  a working day that is, and turns green once the day is full. Each week also has a total. Beside
+  the calendar are the selected day's work items and its week's, each with its hours. A click on
+  one opens it. `h` / `l` move a day, `j` / `k` a week, `d` / `u` a month, `g` goes to today and
+  `w` goes back to the list. Only your own changes count. The **Hours in a working day** setting
+  is 8 by default. If your organization logs hours in a field of its own, put that field's
+  reference name in the **Hours field** setting.
 - **How many are open**, next to its name in the Plugins pane.
 - **Notifications** (it looks every 5 minutes): a work item assigned to you, a state changed on
   yours, new comments on yours; not your own changes. What it saw last is remembered, so what

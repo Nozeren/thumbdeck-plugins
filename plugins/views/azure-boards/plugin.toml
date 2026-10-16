@@ -1,8 +1,8 @@
 id = "azure-boards"
 name = "Azure Boards"
-version = "1.7.2"
+version = "1.8.0"
 api = 1
-description = "Your Azure DevOps work items as a tree, with what's under and above them: their pages as in Azure DevOps, changes (state, assignee, comments…), notifications, the current sprint"
+description = "Your Azure DevOps work items as a tree, with what's under and above them: their pages as in Azure DevOps, changes (state, assignee, comments…), notifications, the current sprint, the hours you logged by day"
 homepage = "https://github.com/Nozeren/thumbdeck-plugins/tree/main/plugins/views/azure-boards"
 
 [view]
@@ -92,6 +92,22 @@ type = "text"
 default = "feature/"
 
 [[settings]]
+key = "hours_per_day"
+label = "Hours in a working day"
+type = "number"
+min = 1
+max = 24
+default = 8
+help = "The hours calendar (w) marks the days you logged this many hours, and the ones short of it."
+
+[[settings]]
+key = "hours_field"
+label = "Hours field"
+type = "text"
+default = ""
+help = "The field your hours are logged in. Empty: Completed Work (Microsoft.VSTS.Scheduling.CompletedWork). Your organization's own: its reference name, e.g. Custom.HoursSpent"
+
+[[settings]]
 key = "refresh_minutes"
 label = "Look again every (minutes)"
 type = "number"
@@ -124,4 +140,5 @@ bindings = [
   { keys = ["p"], action = "priority", does = "change its priority" },
   { keys = ["m"], action = "iteration", does = "move it to another iteration (sprint)" },
   { keys = ["r"], action = "refresh", does = "look again now" },
+  { keys = ["w"], action = "hours", does = "the hours you logged, day by day (a calendar) / back to the list" },
 ]

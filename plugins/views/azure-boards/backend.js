@@ -1,8 +1,8 @@
 // The Azure Boards backend: asks Azure DevOps for your work items (with the token in the
 // plugin's settings) and the ones under and above them, looks again every few minutes, says how
 // many are open (the Plugins pane's status), tells you what changed on yours (assigned to you,
-// a state, new comments; not your own changes), knows each project's current sprint, and makes
-// the changes the view asks for. Organization "demo": sample work items (testdata/), changed in
+// a state, new comments; not your own changes), knows each project's current sprint, makes
+// the changes the view asks for, and counts the hours you logged, day by day (hours.js). Organization "demo": sample work items (testdata/), changed in
 // memory only.
 import { readFileSync } from "node:fs";
 // In your own plugin: `npm install @thumbdeck/backend`. The official plugins use the copy in
@@ -11,6 +11,7 @@ import { serve } from "../../../packages/backend/index.js";
 import {
   auth, changes, commentHtml, current, fieldSettings, gather, history, ids, isMe, item, orgUrl, page, patch, problem, snapshot, text, wiql, within,
 } from "./ado.js";
+import { HOURS_FIELD, hoursWiql, logged } from "./hours.js";
 import { richHtml } from "./markdown.js";
 
 const demoFile = (f) => JSON.parse(readFileSync(new URL(`./testdata/${f}`, import.meta.url), "utf8"));
@@ -19,6 +20,7 @@ let demo = null; // { items, comments, iterations, fields, updates }: the sample
 let settings = {
   organization: "", token: "", show: "assigned", projects: [], hidden_states: ["Closed", "Done", "Removed"], refresh_minutes: 5,
   branch_prefix: "feature/", team: "", notify_assigned: true, notify_state: true, notify_comments: true, fields: [],
+  hours_field: "", hours_per_day: 8,
 };
 // How many it shows: yours (the most recently changed), and with what's under and above them
 const MAX_MINE = 1000;
@@ -32,6 +34,8 @@ let sprints = {}; // project -> its current iteration's path (null: none)
 let sprintOnly = false; // only the current sprint's (kept in storage)
 const iterationsOf = new Map(); // project -> the team's iterations
 let types = null; // the organization's fields: ref (lowercase) -> { name, type } (once a start)
+const logs = new Map(); // id -> { rev, field, entries: [{ at, hours }] }: what you logged on it, at that revision
+const MAX_LOGGED = 400; // work items looked into for the hours, the most recently changed
 
 const isDemo = () => settings.organization.trim() === "demo";
 
@@ -113,12 +117,26 @@ function load(tb) {
   return looking;
 }
 
+/** Who you are (your uniqueName: an email), once */
+async function whoAmI() {
+  if (!me) me = isDemo() ? DEMO_ME : await ado("/_apis/connectionData").then((c) => c.authenticatedUser?.properties?.Account?.$value ?? "", () => "");
+  return me;
+}
+
+/** Runs work on each thing, a few at a time */
+async function each(things, work, at = 6) {
+  const queue = [...things];
+  await Promise.all(Array.from({ length: at }, async () => {
+    while (queue.length) await work(queue.shift());
+  }));
+}
+
 async function look(tb) {
   const org = settings.organization.trim();
   try {
     if (!org) throw new Error("Set your organization and a token in Settings (,) › Plugins › Azure Boards");
     if (!isDemo() && !settings.token.trim()) throw new Error("Add a personal access token in Settings (,) › Plugins › Azure Boards");
-    if (!me) me = isDemo() ? DEMO_ME : await ado("/_apis/connectionData").then((c) => c.authenticatedUser?.properties?.Account?.$value ?? "", () => "");
+    await whoAmI();
     const all = await query(settings);
     const list = all.slice(0, MAX_MINE);
     const found = (list.length ? await gather(list, workItems, { hidden: settings.hidden_states ?? [], limit: MAX_ALL }) : []).map(({ w, mine, above }) => item(w, org, mine, above));
@@ -213,6 +231,7 @@ function schedule(tb) {
 
 function start() {
   me = "";
+  logs.clear();
   types = null;
   iterationsOf.clear();
   demo = isDemo()
@@ -221,6 +240,34 @@ function start() {
       fields: demoFile("fields.json").value, updates: demoFile("updates.json"),
     }
     : null;
+  if (demo) demoHours();
+}
+
+/** The sample's logged hours: most working days of the last two months, on a few work items */
+function demoHours() {
+  const on = [4175, 4211, 3990, 4202];
+  let seed = 7;
+  const random = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const done = new Map();
+  const today = new Date();
+  for (let back = 60; back >= 0; back--) {
+    const day = new Date(today.getFullYear(), today.getMonth(), today.getDate() - back, 9);
+    if (day.getDay() === 0 || day.getDay() === 6 || random() < 0.1) continue;
+    let left = back === 0 ? 3 : 5 + Math.round(random() * 7) / 2; // 5 to 8.5
+    for (let n = 0; left > 0 && n < 3; n++) {
+      const id = on[Math.floor(random() * on.length)];
+      const hours = n === 2 ? left : Math.min(left, 1 + Math.round(random() * 8) / 2);
+      const was = done.get(id) ?? 0;
+      done.set(id, was + hours);
+      day.setHours(day.getHours() + Math.ceil(hours));
+      (demo.updates[id] ??= []).push({
+        rev: 100 + (demo.updates[id]?.length ?? 0), revisedBy: { displayName: "Me", uniqueName: DEMO_ME }, revisedDate: "9999-01-01T00:00:00Z",
+        fields: { "System.ChangedDate": { newValue: day.toISOString() }, [HOURS_FIELD]: { oldValue: was || undefined, newValue: was + hours } },
+      });
+      left -= hours;
+    }
+  }
+  for (const w of demo.items) if (done.has(w.id)) w.fields[HOURS_FIELD] = done.get(w.id);
 }
 
 const known = (id) => {
@@ -254,6 +301,38 @@ serve({
     await tb.storage.set("sprintOnly", sprintOnly).catch(() => {});
     tb.status(error ? "!" : `${items.filter((i) => i.mine && (!sprintOnly || i.sprint)).length} open`);
     return { sprintOnly };
+  },
+  /** The hours you logged on work items changed since a day (YYYY-MM-DD): { entries: [{ at,
+   *  hours, id, type, title, state, url }], perDay, note, error } (what's looked into stays known
+   *  until it changes) */
+  async hours({ since }) {
+    const org = settings.organization.trim();
+    const field = String(settings.hours_field ?? "").trim() || HOURS_FIELD;
+    const perDay = Number(settings.hours_per_day) || 8;
+    try {
+      if (!/^\d{4}-\d\d-\d\d$/.test(String(since))) throw new Error("since: a day, YYYY-MM-DD");
+      if (!org || (!isDemo() && !settings.token.trim())) throw new Error("Set your organization and a token in Settings (,) › Plugins › Azure Boards");
+      await whoAmI();
+      if (!me) throw new Error("Azure DevOps didn't say who you are, so your hours can't be told from others'");
+      let found;
+      let note = "";
+      if (isDemo()) found = demo.items;
+      else {
+        const all = ids(await ado("/_apis/wit/wiql?api-version=7.1", { method: "POST", body: JSON.stringify({ query: hoursWiql({ field, since, projects: settings.projects ?? [] }) }) }));
+        if (all.length > MAX_LOGGED) note = `Only the ${MAX_LOGGED} most recently changed work items are counted: older days may miss some hours`;
+        found = await workItems(all.slice(0, MAX_LOGGED));
+      }
+      await each(found.filter((w) => logs.get(w.id)?.rev !== w.rev || logs.get(w.id)?.field !== field), async (w) => {
+        logs.set(w.id, { rev: w.rev, field, entries: logged(await updates(w.id), me, field) });
+      });
+      const entries = found.flatMap((w) => {
+        const it = item(w, org);
+        return (logs.get(w.id)?.entries ?? []).map((e) => ({ ...e, id: it.id, type: it.type, title: it.title, state: it.state, url: it.url }));
+      });
+      return { entries, perDay, note, error: "" };
+    } catch (e) {
+      return { entries: [], perDay, note: "", error: e.message };
+    }
   },
   /** A work item's page: its fields, rich text, links (the related work items with their
    *  titles) and discussion, newest first */

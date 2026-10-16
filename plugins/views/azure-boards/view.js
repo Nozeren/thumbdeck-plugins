@@ -1,8 +1,9 @@
 // The Azure Boards view: your work items as a tree (what's under each, yours or not, and what
 // they're under), the highlighted one's page beside them, laid out as Azure DevOps does, and
-// the changes you make to them (state, assignee, a comment…). The backend asks Azure DevOps
-// (backend.js); this shows what it has.
+// the changes you make to them (state, assignee, a comment…); and the hours you logged, day by
+// day (w: a calendar). The backend asks Azure DevOps (backend.js); this shows what it has.
 import { branchName, isMe, rows, sprintOnly } from "./ado.js";
+import { byDay, dayKey, hoursText, weeks } from "./hours.js";
 import { safe } from "./rich.js";
 
 const td = window.thumbdeck;
@@ -50,7 +51,7 @@ async function load() {
 }
 
 function render() {
-  lookingAt(current());
+  lookingAt(mode === "hours" ? null : current());
   const list = shown();
   const all = visible();
   const mine = all.filter((i) => i.mine).length;
@@ -472,6 +473,145 @@ async function toggleSprint() {
   await load();
 }
 
+// The hours calendar: a month, the hours you logged on each day (hours.js), the highlighted
+// day's work items and its week's beside it
+let mode = "list"; // or "hours" (kept)
+let day = new Date(); // the highlighted day
+let logged = { since: "", entries: [], perDay: 8, note: "", error: "" }; // backend.js hours
+let loggedDays = new Map();
+let hoursAsked = ""; // the since asked for (a newer answer wins)
+const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+
+function setMode(to) {
+  mode = to;
+  td.storage.set("mode", mode).catch(() => {});
+  $("hours").hidden = mode !== "hours";
+  document.querySelector("main").hidden = mode === "hours";
+  $("hours-toggle").classList.toggle("on", mode === "hours");
+  $("hours-toggle").title = mode === "hours" ? "Back to the work items (w)" : "The hours you logged, day by day (w)";
+  render();
+  if (mode === "hours") loadHours();
+}
+
+/** Asks for the hours of the highlighted day's month (and the days around it) */
+async function loadHours() {
+  const since = dayKey(weeks(day.getFullYear(), day.getMonth())[0][0]);
+  hoursAsked = since;
+  if (logged.since !== since) renderHours();
+  const got = await td.backend.call("hours", { since }).catch((e) => ({ entries: [], perDay: 8, note: "", error: e.message }));
+  if (hoursAsked !== since) return;
+  logged = { ...got, since };
+  loggedDays = byDay(logged.entries);
+  renderHours();
+}
+
+function moveDay(to) {
+  const was = day.getMonth();
+  day = startOfDay(to);
+  renderHours();
+  if (day.getMonth() !== was) loadHours();
+}
+
+/** A month on, or back (the same day, or its last) */
+function moveMonth(by) {
+  const last = new Date(day.getFullYear(), day.getMonth() + by + 1, 0).getDate();
+  moveDay(new Date(day.getFullYear(), day.getMonth() + by, Math.min(day.getDate(), last)));
+}
+
+function renderHours() {
+  if (mode !== "hours") return;
+  const year = day.getFullYear();
+  const month = day.getMonth();
+  const today = startOfDay(new Date());
+  const per = logged.perDay || 8;
+  const loading = logged.since !== hoursAsked;
+  const hoursOn = (d) => (loading ? 0 : loggedDays.get(dayKey(d))?.hours ?? 0);
+  const working = (d) => d.getDay() !== 0 && d.getDay() !== 6;
+  const all = weeks(year, month);
+  const inMonth = all.flat().filter((d) => d.getMonth() === month);
+  const total = inMonth.reduce((n, d) => n + hoursOn(d), 0);
+  const workedDays = inMonth.filter((d) => hoursOn(d) > 0).length;
+  const cell = (d) => {
+    const h = hoursOn(d);
+    const cls = ["cell", d.getMonth() !== month && "out", !working(d) && "weekend", +d === +today && "today", d > today && "future",
+      +d === +startOfDay(day) && "cursor", h >= per ? "full" : h > 0 ? "short" : ""].filter(Boolean).join(" ");
+    return `<div class="${cls}" data-day="${dayKey(d)}" title="${esc(`${d.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" })}: ${hoursText(h)}`)}">
+      <span class="n">${d.getDate()}</span>${h ? `<span class="h">${hoursText(h)}</span>` : ""}
+      <i class="fill" style="width:${Math.min(100, (h / per) * 100)}%"></i></div>`;
+  };
+  const week = (w) => {
+    const h = w.reduce((n, d) => n + hoursOn(d), 0);
+    const target = w.filter(working).length * per;
+    return `<div class="week${h >= target ? " full" : ""}"><span class="h">${h ? hoursText(h) : "—"}</span><span class="td-muted">of ${target}h</span></div>`;
+  };
+
+  // The highlighted day: its work items; its week's, each with its hours
+  const it = (i, max) => `<li class="link" data-goto="${i.id}" data-url="${esc(i.url)}" title="${esc(`${i.type} ${i.id} · ${i.state}\n${i.title}`)}">
+      <span class="mark ${esc(i.type)}">${mark(i.type)}</span><span class="id">${i.id}</span><span class="title">${esc(i.title)}</span>
+      <span class="h">${hoursText(i.hours)}</span><i class="fill" style="width:${max ? (i.hours / max) * 100 : 0}%"></i></li>`;
+  const list = (items) => {
+    const max = Math.max(0, ...items.map((i) => i.hours));
+    return items.length ? `<ul class="logged">${items.map((i) => it(i, max)).join("")}</ul>` : "";
+  };
+  const picked = loading ? null : loggedDays.get(dayKey(day));
+  const thisWeek = all.find((w) => w.some((d) => +d === +startOfDay(day))) ?? [];
+  const weekItems = new Map();
+  for (const d of thisWeek) {
+    for (const i of (loading ? null : loggedDays.get(dayKey(d)))?.items ?? []) {
+      const was = weekItems.get(i.id);
+      weekItems.set(i.id, { ...i, hours: (was?.hours ?? 0) + i.hours });
+    }
+  }
+  const weekList = [...weekItems.values()].filter((i) => Math.abs(i.hours) > 0.001).sort((a, b) => b.hours - a.hours);
+  const weekTotal = thisWeek.reduce((n, d) => n + hoursOn(d), 0);
+  const dayName = day.toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long" });
+
+  $("hours").innerHTML = `<div class="calendar">
+      <header class="cal-head">
+        <button data-month="-1" title="The month before (u)">‹ ${kbd("u")}</button>
+        <h2>${esc(day.toLocaleDateString(undefined, { month: "long", year: "numeric" }))}</h2>
+        <button data-month="1" title="The month after (d)">${kbd("d")} ›</button>
+        <button data-today title="Today (g)">Today ${kbd("g")}</button>
+        <span class="spacer"></span>
+        <span class="td-muted">${loading ? "Asking Azure DevOps…" : `<b>${hoursText(total)}</b> logged${workedDays ? ` · ${hoursText(total / workedDays)} a day you logged` : ""}`}</span>
+      </header>
+      ${logged.error && !loading ? `<p class="td-error">${esc(logged.error)}</p>` : ""}
+      ${logged.note && !loading ? `<p class="td-muted">${esc(logged.note)}</p>` : ""}
+      <div class="grid">${[...DAY_NAMES, "Week"].map((n) => `<div class="name">${n}</div>`).join("")}
+        ${all.map((w) => w.map(cell).join("") + week(w)).join("")}</div>
+      <p class="td-muted keys">${kbd("h")}${kbd("l")} day · ${kbd("j")}${kbd("k")} week · ${kbd("d")}${kbd("u")} month · ${kbd("w")} back to the work items</p>
+    </div>
+    <aside class="day">
+      <h3>${esc(dayName)}</h3>
+      <p class="total"><b>${hoursText(picked?.hours ?? 0)}</b> <span class="td-muted">of ${per}h</span></p>
+      ${loading ? `<p class="td-muted">…</p>` : list(picked?.items ?? []) || `<p class="td-muted">${day > today ? "Not yet." : "Nothing logged."}</p>`}
+      <h3>Its week <span class="td-muted">${hoursText(weekTotal)}</span></h3>
+      ${loading ? "" : list(weekList) || `<p class="td-muted">Nothing logged.</p>`}
+      <p class="td-muted note">What you added to a work item's completed work, counted on the day you added it. A click: its page (or Azure DevOps).</p>
+    </aside>`;
+}
+
+/** What a key does on the calendar */
+function actHours(action) {
+  const by = (n) => moveDay(new Date(day.getFullYear(), day.getMonth(), day.getDate() + n));
+  switch (action) {
+    case "open": return by(1);
+    case "close": return by(-1);
+    case "down": return by(7);
+    case "up": return by(-7);
+    case "first": return moveDay(new Date());
+    case "last": return moveDay(new Date(day.getFullYear(), day.getMonth() + 1, 0));
+    case "page-down": return moveMonth(1);
+    case "page-up": return moveMonth(-1);
+    case "hours": return setMode("list");
+    case "refresh":
+      td.ui.say("looking again…");
+      logged.since = "";
+      return loadHours();
+  }
+}
+
 /** Shows a work item of the list (opening what it's under); false: it isn't in the list */
 function select(id) {
   let it = data.items.find((i) => i.id === id);
@@ -541,6 +681,8 @@ td.on("key", ({ action }) => act(action));
 
 /** What a key or a button does */
 function act(action) {
+  if (mode === "hours") return actHours(action);
+  if (action === "hours") return setMode("hours");
   const row = shown()[cursor];
   const it = row?.it;
   switch (action) {
@@ -586,10 +728,20 @@ document.addEventListener("keydown", (e) => {
 td.backend.on("updated", () => {
   fresh.clear();
   load();
+  if (mode === "hours") loadHours();
 });
 document.addEventListener("click", (e) => {
   if (e.target.closest("#refresh")) return td.backend.call("refresh").then(load);
   if (e.target.closest("#sprint")) return toggleSprint();
+  if (e.target.closest("#hours-toggle")) return setMode(mode === "hours" ? "list" : "hours");
+  const month = e.target.closest("[data-month]");
+  if (month) return moveMonth(Number(month.dataset.month));
+  if (e.target.closest("[data-today]")) return moveDay(new Date());
+  const cell = e.target.closest("[data-day]");
+  if (cell) {
+    const [y, m, d] = cell.dataset.day.split("-").map(Number);
+    return moveDay(new Date(y, m - 1, d));
+  }
   if (e.target.closest("#compose-send")) return current() && sendComment(current());
   const folding = e.target.closest("[data-fold]");
   if (folding) return foldText(folding.dataset.fold);
@@ -603,7 +755,11 @@ document.addEventListener("click", (e) => {
   const link = e.target.closest("[data-href]");
   if (link) return td.ui.openUrl(link.dataset.href);
   const go = e.target.closest("[data-goto]");
-  if (go) return select(Number(go.dataset.goto)) || td.ui.openUrl(go.dataset.url);
+  if (go) {
+    const id = Number(go.dataset.goto);
+    if (mode === "hours" && data.items.some((i) => i.id === id)) setMode("list");
+    return select(id) || td.ui.openUrl(go.dataset.url);
+  }
   const t = e.target.closest("[data-toggle]");
   if (t && !words) return toggle(Number(t.dataset.toggle));
   const row = e.target.closest("[data-n]");
@@ -614,4 +770,8 @@ setInterval(render, 60_000);
 Promise.all([
   td.storage.get("collapsed").then((ids) => Array.isArray(ids) && (collapsed = new Set(ids)), () => {}),
   td.storage.get("openFields").then((f) => Array.isArray(f) && (openFields = new Set(f)), () => {}),
-]).finally(load);
+  td.storage.get("mode").then((m) => m === "hours" && (mode = "hours"), () => {}),
+]).finally(() => {
+  if (mode === "hours") setMode("hours");
+  load();
+});

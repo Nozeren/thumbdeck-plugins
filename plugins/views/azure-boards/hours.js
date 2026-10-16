@@ -1,0 +1,79 @@
+// The hours you logged, day by day: what you added to a work item's completed work (its
+// history says when, and by whom), counted on the day you added it; a correction down, taken
+// off that day. For the calendar (view.js), and what the backend asks Azure DevOps for.
+
+export const HOURS_FIELD = "Microsoft.VSTS.Scheduling.CompletedWork";
+const quote = (s) => `'${String(s).replace(/'/g, "''")}'`;
+const same = (who, me) => !!who && !!me && String(who).toLowerCase() === String(me).toLowerCase();
+
+/** The query for the work items you may have logged hours on since a day (YYYY-MM-DD) */
+export function hoursWiql({ field = HOURS_FIELD, since, projects = [] }) {
+  const where = [`[System.ChangedBy] EVER @Me`, `[${field}] > 0`, `[System.ChangedDate] >= ${quote(since)}`];
+  const only = projects.filter(Boolean);
+  if (only.length) where.push(`[System.TeamProject] IN (${only.map(quote).join(", ")})`);
+  return `SELECT [System.Id] FROM WorkItems WHERE ${where.join(" AND ")} ORDER BY [System.ChangedDate] DESC`;
+}
+
+/** What you logged on a work item, from its revisions (backend.js updates): [{ at, hours }] */
+export function logged(updates, me, field = HOURS_FIELD) {
+  const out = [];
+  for (const u of updates ?? []) {
+    const f = u.fields ?? {};
+    const c = f[field];
+    if (!c || !same(u.revisedBy?.uniqueName, me)) continue;
+    const hours = (Number(c.newValue) || 0) - (Number(c.oldValue) || 0);
+    const at = f["System.ChangedDate"]?.newValue;
+    if (hours && at) out.push({ at, hours });
+  }
+  return out;
+}
+
+/** A day as YYYY-MM-DD, where you are */
+export const dayKey = (d) => {
+  const x = new Date(d);
+  return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, "0")}-${String(x.getDate()).padStart(2, "0")}`;
+};
+
+/** The entries ({ at, hours, id, … }) by day: key -> { hours, items: [{ …the item, hours }] } */
+export function byDay(entries) {
+  const days = new Map();
+  for (const e of entries ?? []) {
+    const k = dayKey(e.at);
+    const day = days.get(k) ?? { hours: 0, items: [] };
+    day.hours += e.hours;
+    const it = day.items.find((i) => i.id === e.id);
+    if (it) it.hours += e.hours;
+    else {
+      const { at: _at, ...rest } = e;
+      day.items.push(rest);
+    }
+    days.set(k, day);
+  }
+  for (const d of days.values()) {
+    d.hours = round(d.hours);
+    for (const i of d.items) i.hours = round(i.hours);
+    d.items = d.items.filter((i) => i.hours).sort((a, b) => b.hours - a.hours);
+  }
+  return days;
+}
+
+const round = (h) => Math.round(h * 100) / 100;
+
+/** Hours in words: 2.5h, 45m, 0h */
+export const hoursText = (h) => {
+  const n = round(h);
+  return Math.abs(n) > 0 && Math.abs(n) < 1 ? `${Math.round(n * 60)}m` : `${n}h`;
+};
+
+/** A month's weeks, Monday first: [[Date × 7], …] (with the days around it that fill them) */
+export function weeks(year, month) {
+  const first = new Date(year, month, 1);
+  const start = new Date(year, month, 1 - ((first.getDay() + 6) % 7));
+  const out = [];
+  for (let d = new Date(start); out.length < 6 && (out.length === 0 || d.getMonth() === month); ) {
+    const week = [];
+    for (let n = 0; n < 7; n++, d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1)) week.push(d);
+    out.push(week);
+  }
+  return out;
+}
