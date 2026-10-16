@@ -81,6 +81,10 @@ export function item(w, org, mine = true, above = false) {
     type: f["System.WorkItemType"] ?? "",
     project,
     assignedTo: f["System.AssignedTo"]?.displayName ?? "",
+    assignee: f["System.AssignedTo"]?.uniqueName ?? "", // for "is it mine" and assigning
+    changedBy: f["System.ChangedBy"]?.uniqueName ?? "",
+    rev: w.rev ?? null,
+    comments: f["System.CommentCount"] ?? 0,
     changed: f["System.ChangedDate"] ?? "",
     iteration: f["System.IterationPath"] ?? "",
     tags: String(f["System.Tags"] ?? "").split(";").map((t) => t.trim()).filter(Boolean),
@@ -223,15 +227,90 @@ export function page(w, org) {
   };
 }
 
-/** What an HTTP answer means, in words */
-export function problem(status, org) {
+/** What an HTTP answer means, in words (writing: a change was asked; message: Azure DevOps' own) */
+export function problem(status, org, { writing = false, message = "" } = {}) {
+  if (writing && (status === 401 || status === 403 || status === 203)) return "Azure DevOps refused the change: the token needs Work Items: Read & write (Settings › Plugins › Azure Boards)";
   if (status === 401 || status === 203) return "Azure DevOps refused the token: check it in Settings › Plugins › Azure Boards (it needs Work Items: Read)";
+  if (writing && (status === 409 || /\brev\b|TF26071|TF237082/i.test(message))) return "Someone changed it meanwhile: look again (r) and redo it";
   if (status === 404) return `There's no organization "${org}" (or the token can't see it)`;
-  return `Azure DevOps answered ${status}`;
+  return message ? `Azure DevOps: ${message}` : `Azure DevOps answered ${status}`;
+}
+
+/** HTML (comments) as plain text, for a notification */
+export function text(html) {
+  return String(html ?? "")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|div|li|h\d|tr)>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, "&")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+// Changing a work item: the fields that can be changed from here
+export const FIELDS = {
+  state: "System.State", assignee: "System.AssignedTo", title: "System.Title", tags: "System.Tags",
+  priority: "Microsoft.VSTS.Common.Priority", iteration: "System.IterationPath",
+};
+
+/** The JSON Patch for a change ({ state: "Resolved" }, …): refused by Azure DevOps if the work
+ *  item changed since rev (someone else's change isn't undone) */
+export function patch(set, rev) {
+  const ops = rev == null ? [] : [{ op: "test", path: "/rev", value: rev }];
+  for (const [k, v] of Object.entries(set)) {
+    if (!FIELDS[k]) throw new Error(`${k} can't be changed from here`);
+    ops.push({ op: "add", path: `/fields/${FIELDS[k]}`, value: k === "priority" ? Number(v) : k === "tags" ? [].concat(v).join("; ") : v });
+  }
+  return ops;
+}
+
+/** A comment as Azure DevOps keeps them (HTML), from what was typed */
+export const commentHtml = (typed) =>
+  String(typed).trim().split(/\n{2,}/).map((p) => `<p>${p.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br>")}</p>`).join("");
+
+/** Is this you (an identity from Azure DevOps: uniqueName, an email)? */
+export const isMe = (who, me) => !!who && !!me && String(who).toLowerCase() === String(me).toLowerCase();
+
+/** What the notifications compare: id -> what matters of each of your work items */
+export const snapshot = (items) =>
+  Object.fromEntries(items.map((i) => [i.id, { state: i.state, assignee: i.assignee, comments: i.comments, title: i.title, type: i.type }]));
+
+/** What changed on your work items since the last look, not by you: [{ id, kind, … }] (kind:
+ *  assigned, state, comments). before: null on the very first look (nothing is news). */
+export function changes(before, items, me) {
+  if (!before) return [];
+  const out = [];
+  for (const i of items) {
+    const was = before[i.id];
+    if (isMe(i.assignee, me) && !isMe(was?.assignee, me) && !isMe(i.changedBy, me)) out.push({ id: i.id, kind: "assigned" });
+    if (!was) continue;
+    if (was.state !== i.state && !isMe(i.changedBy, me)) out.push({ id: i.id, kind: "state", from: was.state, to: i.state });
+    if (i.comments > was.comments) out.push({ id: i.id, kind: "comments", count: i.comments - was.comments });
+  }
+  return out;
+}
+
+/** The iteration a team is in now (from teamsettings/iterations): its path, or null */
+export const current = (iterations) => (iterations ?? []).find((t) => t.attributes?.timeFrame === "current")?.path ?? null;
+
+/** In an iteration (the path, or one under it) */
+export const within = (iteration, path) => !!path && (iteration === path || String(iteration).startsWith(`${path}\\`));
+
+/** Only the current sprint's work items (sprint: true, set by the backend), and what they're
+ *  under (for where they belong) */
+export function sprintOnly(items) {
+  const byId = new Map(items.map((i) => [i.id, i]));
+  const keep = new Set(items.filter((i) => !i.above && i.sprint).map((i) => i.id));
+  for (const id of [...keep]) {
+    for (let a = byId.get(byId.get(id).parent), n = 0; a && a.above && n < 50; a = byId.get(a.parent), n++) keep.add(a.id);
+  }
+  return items.filter((i) => keep.has(i.id));
 }
 
 /** Ids in the answer of a WIQL query (the first 200: the API reads 200 at a time) */
 export const ids = (answer) => (answer?.workItems ?? []).map((w) => w.id).slice(0, 200);
-
-/** New ids since the last look (for "a work item was assigned to you") */
-export const added = (before, now) => (before ? now.filter((id) => !before.includes(id)) : []);

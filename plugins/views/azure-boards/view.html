@@ -10,6 +10,13 @@
     <button id="refresh" title="Look again (r)">↻</button></header>
   <p class="td-error" id="error" hidden></p>
   <input id="filter" placeholder="Filter by title… (Enter keeps it, Esc clears)" hidden>
+  <div id="ask" hidden>
+    <label id="ask-label" for="ask-input"></label>
+    <input id="ask-input" autocomplete="off" spellcheck="false">
+    <textarea id="ask-text" rows="6" hidden></textarea>
+    <ul id="ask-choices"></ul>
+    <p class="td-muted" id="ask-hint"></p>
+  </div>
   <main>
     <ul id="list"></ul>
     <section id="detail"></section>

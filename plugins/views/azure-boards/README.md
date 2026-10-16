@@ -13,12 +13,22 @@ Your Azure DevOps work items in thumbdeck, read-only:
   scroll it; a related work item opens in the list (or in Azure DevOps). `o` opens it in Azure DevOps, `y` copies a branch name
   for it (`feature/4211-login-redirects-to-a-blank-page`), `Y` copies `#4211 its title`, `/`
   filters.
+- **Changes, from the keyboard**: `s` its state (the ones its type has), `a` assign it (to you,
+  someone in the list, an email, or nobody), `c` a comment, `e` its title, `t` its tags, `p` its
+  priority, `m` move it to another iteration. A change is refused if someone changed the work
+  item meanwhile (yours doesn't undo theirs): look again (`r`) and redo it.
+- **The current sprint**: `i` shows only the current sprint's work items (your team's: each
+  project's default team, or the one in Settings), and again for every iteration's; remembered.
 - **How many are open**, next to its name in the Plugins pane.
-- **A notification** when a new work item is assigned to you (it looks every 5 minutes).
+- **Notifications** (it looks every 5 minutes): a work item assigned to you, a state changed on
+  yours, new comments on yours; not your own changes. What it saw last is remembered, so what
+  changed while thumbdeck was closed is told too (many at once: in one). Each can be turned off
+  in Settings.
 
 Set it up in Settings (`,`) › Plugins › Azure Boards: your **organization** (its name, as in
 dev.azure.com/*name*) and a **personal access token** (Azure DevOps › User settings ›
-Personal access tokens › New token, with **Work Items: Read**; nothing more is needed). The
+Personal access tokens › New token, with **Work Items: Read & write**, or **Read** to only
+look; nothing more is needed). The
 token is kept in thumbdeck's settings file, which only you can read, and is only sent to Azure
 DevOps. Set the organization to `demo` to see it with sample work items.
 

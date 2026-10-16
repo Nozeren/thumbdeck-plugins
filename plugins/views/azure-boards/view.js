@@ -1,14 +1,15 @@
 // The Azure Boards view: your work items as a tree (what's under each, yours or not, and what
-// they're under), the highlighted one's page beside them, laid out as Azure DevOps does. The
-// backend asks Azure DevOps (backend.js); this shows what it has.
-import { branchName, rows } from "./ado.js";
+// they're under), the highlighted one's page beside them, laid out as Azure DevOps does, and
+// the changes you make to them (state, assignee, a comment…). The backend asks Azure DevOps
+// (backend.js); this shows what it has.
+import { branchName, rows, sprintOnly } from "./ado.js";
 import { safe } from "./rich.js";
 
 const td = window.thumbdeck;
 const esc = td.escape;
 const $ = (id) => document.getElementById(id);
 
-let data = { items: [], error: "", updated: null, branchPrefix: "feature/" };
+let data = { items: [], error: "", updated: null, branchPrefix: "feature/", sprints: {}, sprintOnly: false };
 let cursor = 0;
 let words = "";
 let collapsed = new Set(); // ids whose children are hidden (kept in storage)
@@ -18,7 +19,9 @@ const asking = new Set();
 const images = new Map(); // url -> data URL | null (couldn't) | a promise
 let showing = null; // the id the details show (to keep where they're scrolled)
 
-const shown = () => rows(data.items, { collapsed, words });
+/** The work items it shows: every iteration's, or the current sprint's */
+const visible = () => (data.sprintOnly ? sprintOnly(data.items) : data.items);
+const shown = () => rows(visible(), { collapsed, words });
 const current = () => shown()[cursor]?.it;
 const STATES = [[/^(new|to do|proposed|open|design|approved)$/i, "proposed"], [/^(resolved|in review|testing)$/i, "resolved"],
   [/^(closed|done|completed)$/i, "done"], [/^removed$/i, "removed"]];
@@ -45,11 +48,13 @@ async function load() {
 
 function render() {
   const list = shown();
-  const mine = data.items.filter((i) => i.mine).length;
-  const above = data.items.filter((i) => i.above).length;
-  const under = data.items.length - mine - above;
+  const all = visible();
+  const mine = all.filter((i) => i.mine).length;
+  const above = all.filter((i) => i.above).length;
+  const under = all.length - mine - above;
+  const sprints = [...new Set(Object.values(data.sprints ?? {}).filter(Boolean).map((p) => p.split("\\").pop()))];
   $("summary").textContent = data.items.length
-    ? `${mine} open${under ? ` · ${under} under them` : ""}${above ? ` · ${above} above them` : ""}${words ? ` · ${list.filter((r) => r.it.title.toLowerCase().includes(words.toLowerCase()) || String(r.it.id) === words).length} match "${words}"` : ""}`
+    ? `${data.sprintOnly ? `${sprints.join(", ") || "no current sprint found"} · ` : ""}${mine} open${under ? ` · ${under} under them` : ""}${above ? ` · ${above} above them` : ""}${words ? ` · ${list.filter((r) => r.it.title.toLowerCase().includes(words.toLowerCase()) || String(r.it.id) === words).length} match "${words}"` : ""}`
     : "";
   $("updated").textContent = data.updated ? `looked ${ago(new Date(data.updated).toISOString())}` : "";
   $("error").hidden = !data.error;
@@ -60,7 +65,7 @@ function render() {
         <span class="twig" style="padding-left:${depth * 12}px">${kids ? `<span class="toggle" data-toggle="${i.id}">${open ? "▾" : "▸"}</span>` : ""}</span>
         <span class="mark ${esc(i.type)}">${mark(i.type)}</span><span class="id">${i.id}</span><span class="title">${esc(i.title)}</span>
         <i class="dot ${stateClass(i.state)}"></i></li>`).join("")
-    : `<li class="empty">${data.error ? "" : data.updated ? "Nothing here: all done." : "Asking Azure DevOps…"}</li>`;
+    : `<li class="empty">${data.error ? "" : !data.updated ? "Asking Azure DevOps…" : data.sprintOnly && data.items.length ? "Nothing of yours in the current sprint (i: every iteration's)." : "Nothing here: all done."}</li>`;
   $("list").querySelector(".cursor")?.scrollIntoView({ block: "nearest" });
   detail();
 }
@@ -103,7 +108,7 @@ function detail() {
     ${(p?.development ?? []).map((x) => `<li${x.url ? ` class="link" data-href="${esc(x.url)}"` : ""}><span class="td-muted">${esc(x.kind)}</span> ${esc(x.label)}</li>`).join("")}</ul>`;
   side = (p ? section("Planning", fields(p.planning)) : "") + section("Development", development) + side
     + section("Details", fields([...(p?.other ?? []), { label: "Project", value: it.project },
-      ...(p ? [{ label: "Created", value: `${p.createdBy} · ${valueText(p.created)}` }] : [])]));
+      ...(p?.createdBy ? [{ label: "Created", value: `${p.createdBy} · ${valueText(p.created)}` }] : [])]));
 
   box.innerHTML = `<header class="head"><i class="bar ${esc(it.type)}"></i>
       <div class="kind"><span class="type ${esc(it.type)}">${esc(it.type.toUpperCase())}</span> ${it.id}</div>
@@ -149,6 +154,142 @@ function pictures(box, id) {
     }
   }
 }
+
+/** Asks for a value in the view's own box: choices to pick from (typing narrows them), and/or
+ *  free text (multiline: a comment; Ctrl+Enter sends). Its answer, or null (Esc). */
+function ask({ label, value = "", choices = null, free = !choices, multiline = false, hint = "" }) {
+  const box = $("ask");
+  const field = multiline ? $("ask-text") : $("ask-input");
+  $("ask-input").hidden = multiline;
+  $("ask-text").hidden = !multiline;
+  $("ask-label").textContent = label;
+  $("ask-hint").textContent = hint || (multiline ? "Ctrl+Enter: send · Esc: cancel" : choices ? `↑↓ pick · Enter${free ? " (or what you typed)" : ""} · Esc: cancel` : "Enter: save · Esc: cancel");
+  box.hidden = false;
+  field.value = value;
+  let at = 0;
+  const matching = () => {
+    const w = field.value.trim().toLowerCase();
+    return (choices ?? []).filter((c) => !w || field.value === value || `${c.label} ${c.note ?? ""}`.toLowerCase().includes(w));
+  };
+  const draw = () => {
+    const list = matching();
+    at = Math.max(0, Math.min(at, list.length - 1));
+    $("ask-choices").innerHTML = list.map((c, n) => `<li class="${n === at ? "cursor" : ""}" data-pick="${n}">${esc(c.label)}${c.note && c.note !== c.label ? ` <span class="td-muted">${esc(c.note)}</span>` : ""}</li>`).join("");
+    $("ask-choices").querySelector(".cursor")?.scrollIntoView({ block: "nearest" });
+  };
+  draw();
+  field.focus();
+  if (!multiline) field.select();
+  return new Promise((resolve) => {
+    const done = (answer) => {
+      box.hidden = true;
+      field.removeEventListener("keydown", key);
+      field.removeEventListener("input", typed);
+      field.removeEventListener("blur", left);
+      $("ask-choices").onmousedown = null;
+      field.blur();
+      td.keys.take();
+      resolve(answer);
+    };
+    const pick = () => {
+      const list = matching();
+      if (list[at]) return done(list[at].value);
+      if (free) return done(field.value);
+    };
+    const key = (e) => {
+      if (e.key === "Escape") return e.preventDefault(), done(null);
+      if (multiline) return e.key === "Enter" && (e.ctrlKey || e.metaKey) && (e.preventDefault(), done(field.value));
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        at += e.key === "ArrowDown" ? 1 : -1;
+        return draw();
+      }
+      if (e.key === "Enter") return e.preventDefault(), pick();
+    };
+    const typed = () => ((at = 0), draw());
+    const left = () => setTimeout(() => !box.hidden && document.activeElement !== field && done(null), 150);
+    field.addEventListener("keydown", key);
+    field.addEventListener("input", typed);
+    field.addEventListener("blur", left);
+    $("ask-choices").onmousedown = (e) => {
+      const li = e.target.closest("[data-pick]");
+      if (!li) return;
+      e.preventDefault();
+      at = Number(li.dataset.pick);
+      pick();
+    };
+  });
+}
+
+/** Changes a work item (backend.js change): the list and its page follow */
+async function change(it, set, said) {
+  try {
+    const { error } = await td.backend.call("change", { id: it.id, set });
+    if (error) throw new Error(error);
+    fresh.delete(it.id);
+    td.ui.say(`${it.type} ${it.id}: ${said}`);
+  } catch (e) {
+    td.ui.say(e.message, { error: true });
+  }
+  await load();
+}
+
+async function options(it, field) {
+  try {
+    return await td.backend.call("options", { id: it.id, field });
+  } catch (e) {
+    td.ui.say(e.message, { error: true });
+    return null;
+  }
+}
+
+/** The changes, one per key */
+const edits = {
+  async state(it) {
+    const choices = await options(it, "state");
+    const to = choices && (await ask({ label: `State of ${it.type} ${it.id} (now ${it.state})`, choices: choices.filter((c) => c.value !== it.state) }));
+    if (to) await change(it, { state: to }, `state → ${to}`);
+  },
+  async assign(it) {
+    const choices = await options(it, "assignee");
+    if (!choices) return;
+    const to = await ask({ label: `Assign ${it.type} ${it.id} (now ${it.assignedTo || "nobody"}) to…`, choices, free: true, hint: "↑↓ pick · or type an email · Enter · Esc: cancel" });
+    if (to !== null) await change(it, { assignee: to }, to ? `assigned to ${choices.find((c) => c.value === to)?.label ?? to}` : "unassigned");
+  },
+  async comment(it) {
+    const typed = await ask({ label: `Comment on ${it.type} ${it.id}`, multiline: true });
+    if (!typed?.trim()) return;
+    try {
+      const { error } = await td.backend.call("comment", { id: it.id, text: typed });
+      if (error) throw new Error(error);
+      fresh.delete(it.id);
+      td.ui.say(`commented on ${it.type} ${it.id}`);
+    } catch (e) {
+      td.ui.say(e.message, { error: true });
+    }
+    await load();
+  },
+  async title(it) {
+    const to = (await ask({ label: `Title of ${it.type} ${it.id}`, value: it.title }))?.trim();
+    if (to && to !== it.title) await change(it, { title: to }, "title changed");
+  },
+  async tags(it) {
+    const typed = await ask({ label: `Tags of ${it.type} ${it.id} (separated by ;)`, value: it.tags.join("; ") });
+    if (typed === null) return;
+    const to = typed.split(/[;,]/).map((t) => t.trim()).filter(Boolean);
+    if (to.join(";") !== it.tags.join(";")) await change(it, { tags: to }, to.length ? `tags: ${to.join(", ")}` : "no tags");
+  },
+  async priority(it) {
+    const to = await ask({ label: `Priority of ${it.type} ${it.id}${it.priority ? ` (now ${it.priority})` : ""}`,
+      choices: [1, 2, 3, 4].map((n) => ({ value: String(n), label: String(n), note: ["", "highest", "", "", "lowest"][n] })) });
+    if (to) await change(it, { priority: Number(to) }, `priority ${to}`);
+  },
+  async iteration(it) {
+    const choices = await options(it, "iteration");
+    const to = choices && (await ask({ label: `Move ${it.type} ${it.id} (now ${it.iteration}) to…`, choices: choices.filter((c) => c.value !== it.iteration) }));
+    if (to) await change(it, { iteration: to }, `moved to ${to.split("\\").pop()}`);
+  },
+};
 
 /** Shows a work item of the list (opening what it's under); false: it isn't in the list */
 function select(id) {
@@ -236,6 +377,13 @@ td.on("key", ({ action }) => {
     case "page-down": return $("detail").scrollBy({ top: $("detail").clientHeight * 0.8 });
     case "page-up": return $("detail").scrollBy({ top: -$("detail").clientHeight * 0.8 });
     case "filter": return startFilter();
+    case "sprint":
+      return td.backend.call("sprint", { on: !data.sprintOnly }).then(({ sprintOnly: on }) => {
+        td.ui.say(on ? "only the current sprint's" : "every iteration's");
+        return load();
+      });
+    case "state": case "assign": case "comment": case "title": case "tags": case "priority": case "iteration":
+      return it && $("ask").hidden && edits[action](it);
     case "refresh":
       fresh.clear();
       td.ui.say("looking again…");

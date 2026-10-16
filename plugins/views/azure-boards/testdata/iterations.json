@@ -1,0 +1,7 @@
+{
+ "value": [
+  { "name": "Sprint 41", "path": "Shop\\Sprint 41", "attributes": { "timeFrame": "past", "startDate": "2026-09-01T00:00:00Z", "finishDate": "2026-09-14T00:00:00Z" } },
+  { "name": "Sprint 42", "path": "Shop\\Sprint 42", "attributes": { "timeFrame": "current", "startDate": "2026-09-15T00:00:00Z", "finishDate": "2026-09-28T00:00:00Z" } },
+  { "name": "Sprint 43", "path": "Shop\\Sprint 43", "attributes": { "timeFrame": "future", "startDate": "2026-09-29T00:00:00Z", "finishDate": "2026-10-12T00:00:00Z" } }
+ ]
+}

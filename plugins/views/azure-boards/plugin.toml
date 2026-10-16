@@ -1,8 +1,8 @@
 id = "azure-boards"
 name = "Azure Boards"
-version = "1.3.0"
+version = "1.4.0"
 api = 1
-description = "Your Azure DevOps work items as a tree, with what's under and above them: their pages as in Azure DevOps, branch names (with a token, read-only)"
+description = "Your Azure DevOps work items as a tree, with what's under and above them: their pages as in Azure DevOps, changes (state, assignee, comments…), notifications, the current sprint"
 homepage = "https://github.com/Nozeren/thumbdeck-plugins/tree/main/plugins/views/azure-boards"
 
 [view]
@@ -12,7 +12,7 @@ status = true
 
 [backend]
 command = "node backend.js"
-# It looks every few minutes, and tells you when a work item is assigned to you
+# It looks every few minutes, and tells you what changed on your work items
 autostart = true
 
 [[settings]]
@@ -27,7 +27,7 @@ key = "token"
 label = "Personal access token"
 type = "secret"
 default = ""
-help = "Azure DevOps › User settings › Personal access tokens › New token, with Work Items: Read. Kept in thumbdeck's settings file, which only you can read."
+help = "Azure DevOps › User settings › Personal access tokens › New token, with Work Items: Read & write (Read: to only look). Kept in thumbdeck's settings file, which only you can read."
 
 [[settings]]
 key = "show"
@@ -52,6 +52,31 @@ key = "hidden_states"
 label = "Leave out these states"
 type = "list"
 default = ["Closed", "Done", "Removed"]
+
+[[settings]]
+key = "team"
+label = "Team (for the current sprint)"
+type = "text"
+default = ""
+help = "Empty: each project's default team"
+
+[[settings]]
+key = "notify_assigned"
+label = "Tell me when a work item is assigned to me"
+type = "bool"
+default = true
+
+[[settings]]
+key = "notify_state"
+label = "Tell me when one of mine changes state (not by me)"
+type = "bool"
+default = true
+
+[[settings]]
+key = "notify_comments"
+label = "Tell me about new comments on mine (not mine)"
+type = "bool"
+default = true
 
 [[settings]]
 key = "branch_prefix"
@@ -82,5 +107,13 @@ bindings = [
   { keys = ["y"], action = "copy-branch", does = "copy a branch name for it (feature/1234-its-title)" },
   { keys = ["Y"], action = "copy-ref", does = "copy '#1234 its title' (for a commit or a message)" },
   { keys = ["/"], action = "filter", does = "filter by words in the title" },
+  { keys = ["i"], action = "sprint", does = "only the current sprint's / every iteration's" },
+  { keys = ["s"], action = "state", does = "change its state" },
+  { keys = ["a"], action = "assign", does = "assign it (to you, someone, nobody)" },
+  { keys = ["c"], action = "comment", does = "comment on it" },
+  { keys = ["e"], action = "title", does = "edit its title" },
+  { keys = ["t"], action = "tags", does = "edit its tags" },
+  { keys = ["p"], action = "priority", does = "change its priority" },
+  { keys = ["m"], action = "iteration", does = "move it to another iteration (sprint)" },
   { keys = ["r"], action = "refresh", does = "look again now" },
 ]

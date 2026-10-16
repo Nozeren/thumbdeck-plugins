@@ -1,7 +1,10 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { added, artifact, auth, branchName, childIds, gather, ids, item, orgUrl, page, problem, rows, wiql } from "./ado.js";
+import {
+  artifact, auth, branchName, changes, childIds, commentHtml, current, gather, ids, item, orgUrl, page, patch, problem, rows, snapshot, sprintOnly, text,
+  wiql, within,
+} from "./ado.js";
 
 const testdata = (f) => JSON.parse(readFileSync(new URL(`./testdata/${f}`, import.meta.url), "utf8"));
 
@@ -21,8 +24,9 @@ test("organizations, tokens and answers", () => {
   assert.match(problem(401, "x"), /refused the token/);
   assert.match(problem(404, "x"), /no organization "x"/);
   assert.deepEqual(ids(testdata("wiql.json")), [4211, 4198, 4175, 3990]);
-  assert.deepEqual(added(null, [1, 2]), [], "the first look isn't news");
-  assert.deepEqual(added([1, 2], [3, 1, 2]), [3]);
+  assert.match(problem(403, "x", { writing: true }), /Read & write/);
+  assert.match(problem(400, "x", { writing: true, message: "TF26071: This work item has been changed by someone else" }), /changed it meanwhile/);
+  assert.equal(problem(400, "x", { message: "The field is read only" }), "Azure DevOps: The field is read only");
 });
 
 test("work items as the view shows them", () => {
@@ -103,4 +107,46 @@ test("branch names", () => {
   assert.equal(branchName({ id: 7, title: "Crème brûlée: 50% off!" }, "fix/"), "fix/7-creme-brulee-50-off");
   assert.equal(branchName({ id: 8, title: "!!!" }), "feature/8");
   assert.ok(branchName({ id: 9, title: "a ".repeat(60) }).length <= "feature/9-".length + 48);
+});
+
+test("changes: a patch that doesn't undo someone else's", () => {
+  assert.deepEqual(patch({ state: "Resolved", priority: "2", tags: ["a", "b"] }, 7), [
+    { op: "test", path: "/rev", value: 7 },
+    { op: "add", path: "/fields/System.State", value: "Resolved" },
+    { op: "add", path: "/fields/Microsoft.VSTS.Common.Priority", value: 2 },
+    { op: "add", path: "/fields/System.Tags", value: "a; b" },
+  ]);
+  assert.deepEqual(patch({ assignee: "" }, null), [{ op: "add", path: "/fields/System.AssignedTo", value: "" }]);
+  assert.throws(() => patch({ "System.Rev": 1 }, 1), /can't be changed/);
+  assert.equal(commentHtml("Looks fine\nto me.\n\n<b>ship</b> & go"), "<p>Looks fine<br>to me.</p><p>&lt;b&gt;ship&lt;/b&gt; &amp; go</p>");
+});
+
+test("what changed on yours, not by you", () => {
+  const was = (o) => ({ id: 1, type: "Bug", title: "t", state: "Active", assignee: "me@x", changedBy: "bob@x", comments: 2, ...o });
+  const before = snapshot([was(), was({ id: 2, assignee: "ann@x" })]);
+  assert.deepEqual(changes(null, [was()], "me@x"), [], "the first look isn't news");
+  assert.deepEqual(changes(before, [was({ state: "Resolved", comments: 4 }), was({ id: 2 }), was({ id: 3 })], "ME@x"), [
+    { id: 1, kind: "state", from: "Active", to: "Resolved" },
+    { id: 1, kind: "comments", count: 2 },
+    { id: 2, kind: "assigned" },
+    { id: 3, kind: "assigned" },
+  ]);
+  assert.deepEqual(changes(before, [was({ state: "Closed", changedBy: "me@x" }), was({ id: 2, changedBy: "me@x" })], "me@x"), [], "your own changes");
+});
+
+test("the current sprint", () => {
+  const its = testdata("iterations.json").value;
+  assert.equal(current(its), "Shop\\Sprint 42");
+  assert.equal(current([]), null);
+  assert.ok(within("Shop\\Sprint 42", "Shop\\Sprint 42") && within("Shop\\Sprint 42\\Week 1", "Shop\\Sprint 42"));
+  assert.ok(!within("Shop\\Sprint 421", "Shop\\Sprint 42") && !within("Shop\\Sprint 42", null));
+  const items = [
+    { id: 1, parent: null, above: true }, { id: 2, parent: 1, mine: true, sprint: true }, { id: 3, parent: null, mine: true, sprint: false },
+    { id: 4, parent: 2, sprint: true }, { id: 5, parent: 3, sprint: false }, { id: 6, parent: null, above: true },
+  ];
+  assert.deepEqual(sprintOnly(items).map((i) => i.id), [1, 2, 4], "what's above stays only over the sprint's");
+});
+
+test("a comment as a notification's text", () => {
+  assert.equal(text("<div>Looks like the <b>state</b> param&nbsp;is lost.</div><p>Two &amp; three</p>"), "Looks like the state param is lost. Two & three");
 });

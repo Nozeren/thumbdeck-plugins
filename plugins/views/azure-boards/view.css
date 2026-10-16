@@ -63,6 +63,17 @@ body.td-keys .wi.cursor { box-shadow: inset 2px 0 var(--cursor, var(--orange)); 
 .rich .mention { color: var(--aqua); }
 .comment { margin: 0 0 12px; padding: 8px 10px; border-radius: 6px; background: var(--bg1); }
 .comment .by { margin-bottom: 4px; font-weight: 600; }
+/* Asking for a change (view.js ask): over the view, at the top */
+#ask { position: absolute; z-index: 2; top: 44px; left: 50%; transform: translateX(-50%); width: min(560px, calc(100% - 24px));
+  padding: 10px 12px; border: 1px solid var(--bg3); border-radius: 8px; background: var(--bg1); box-shadow: 0 8px 28px #0007; }
+#ask label { display: block; margin-bottom: 6px; font-weight: 600; }
+#ask input, #ask textarea { width: 100%; box-sizing: border-box; }
+#ask textarea { resize: vertical; font: 13px/1.5 var(--sans); }
+#ask ul { list-style: none; margin: 6px 0 0; padding: 0; max-height: 240px; overflow: auto; }
+#ask li { padding: 3px 8px; border-radius: 5px; cursor: pointer; }
+#ask li.cursor { background: var(--bg2); box-shadow: inset 2px 0 var(--cursor, var(--orange)); }
+#ask ul:empty { display: none; }
+#ask p { margin: 6px 0 0; font-size: 12px; }
 .empty { padding: 20px; color: var(--grey); line-height: 1.6; }
 /* A narrow window: the details below the list */
 @media (max-width: 640px) {
