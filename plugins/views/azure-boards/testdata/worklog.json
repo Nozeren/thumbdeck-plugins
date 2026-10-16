@@ -1,0 +1,705 @@
+{
+ "about": "The sample's work log: Custom.WorkLogData (an html field, quotes as &quot;), a JSON list of entries kept by a time tool. Each revision: who, when, and the whole list after it. Its days are moved so the last is today. Hours field setting: Custom.WorkLogData | date: startDate | amount: daysSpent (in days)",
+ "field": "Custom.WorkLogData",
+ "revisions": {
+  "4211": [
+   {
+    "by": "me@example.test",
+    "at": "2026-10-05T16:00:00Z",
+    "value": [
+     {
+      "_id": 1,
+      "activityType": "Coding",
+      "startDate": "2026-10-05T00:00:00.000Z",
+      "endDate": "2026-10-05T00:00:00.000Z",
+      "daysSpent": 0.5
+     }
+    ]
+   },
+   {
+    "by": "me@example.test",
+    "at": "2026-10-06T16:01:00Z",
+    "value": [
+     {
+      "_id": 1,
+      "activityType": "Coding",
+      "startDate": "2026-10-05T00:00:00.000Z",
+      "endDate": "2026-10-05T00:00:00.000Z",
+      "daysSpent": 0.5
+     },
+     {
+      "_id": 3,
+      "activityType": "Coding",
+      "startDate": "2026-10-06T00:00:00.000Z",
+      "endDate": "2026-10-06T00:00:00.000Z",
+      "daysSpent": 0.75
+     }
+    ]
+   },
+   {
+    "by": "me@example.test",
+    "at": "2026-10-08T16:02:00Z",
+    "value": [
+     {
+      "_id": 1,
+      "activityType": "Coding",
+      "startDate": "2026-10-05T00:00:00.000Z",
+      "endDate": "2026-10-05T00:00:00.000Z",
+      "daysSpent": 0.5
+     },
+     {
+      "_id": 3,
+      "activityType": "Coding",
+      "startDate": "2026-10-06T00:00:00.000Z",
+      "endDate": "2026-10-06T00:00:00.000Z",
+      "daysSpent": 0.75
+     },
+     {
+      "_id": 6,
+      "activityType": "Coding",
+      "startDate": "2026-10-08T00:00:00.000Z",
+      "endDate": "2026-10-08T00:00:00.000Z",
+      "daysSpent": 0.5
+     }
+    ]
+   },
+   {
+    "by": "ann@example.test",
+    "at": "2026-10-08T17:00:00Z",
+    "value": [
+     {
+      "_id": 1,
+      "activityType": "Coding",
+      "startDate": "2026-10-05T00:00:00.000Z",
+      "endDate": "2026-10-05T00:00:00.000Z",
+      "daysSpent": 0.5
+     },
+     {
+      "_id": 3,
+      "activityType": "Coding",
+      "startDate": "2026-10-06T00:00:00.000Z",
+      "endDate": "2026-10-06T00:00:00.000Z",
+      "daysSpent": 0.75
+     },
+     {
+      "_id": 6,
+      "activityType": "Coding",
+      "startDate": "2026-10-08T00:00:00.000Z",
+      "endDate": "2026-10-08T00:00:00.000Z",
+      "daysSpent": 0.5
+     },
+     {
+      "_id": 8,
+      "activityType": "Testing",
+      "startDate": "2026-10-08T00:00:00.000Z",
+      "endDate": "2026-10-08T00:00:00.000Z",
+      "daysSpent": 1
+     }
+    ]
+   },
+   {
+    "by": "me@example.test",
+    "at": "2026-10-09T16:04:00Z",
+    "value": [
+     {
+      "_id": 1,
+      "activityType": "Coding",
+      "startDate": "2026-10-05T00:00:00.000Z",
+      "endDate": "2026-10-05T00:00:00.000Z",
+      "daysSpent": 0.5
+     },
+     {
+      "_id": 3,
+      "activityType": "Coding",
+      "startDate": "2026-10-06T00:00:00.000Z",
+      "endDate": "2026-10-06T00:00:00.000Z",
+      "daysSpent": 0.75
+     },
+     {
+      "_id": 6,
+      "activityType": "Coding",
+      "startDate": "2026-10-08T00:00:00.000Z",
+      "endDate": "2026-10-08T00:00:00.000Z",
+      "daysSpent": 0.5
+     },
+     {
+      "_id": 8,
+      "activityType": "Testing",
+      "startDate": "2026-10-08T00:00:00.000Z",
+      "endDate": "2026-10-08T00:00:00.000Z",
+      "daysSpent": 1
+     },
+     {
+      "_id": 9,
+      "activityType": "Review",
+      "startDate": "2026-10-09T00:00:00.000Z",
+      "endDate": "2026-10-09T00:00:00.000Z",
+      "daysSpent": 0.25
+     }
+    ]
+   },
+   {
+    "by": "me@example.test",
+    "at": "2026-10-12T16:05:00Z",
+    "value": [
+     {
+      "_id": 1,
+      "activityType": "Coding",
+      "startDate": "2026-10-05T00:00:00.000Z",
+      "endDate": "2026-10-05T00:00:00.000Z",
+      "daysSpent": 0.5
+     },
+     {
+      "_id": 3,
+      "activityType": "Coding",
+      "startDate": "2026-10-06T00:00:00.000Z",
+      "endDate": "2026-10-06T00:00:00.000Z",
+      "daysSpent": 0.75
+     },
+     {
+      "_id": 6,
+      "activityType": "Coding",
+      "startDate": "2026-10-08T00:00:00.000Z",
+      "endDate": "2026-10-08T00:00:00.000Z",
+      "daysSpent": 0.5
+     },
+     {
+      "_id": 8,
+      "activityType": "Testing",
+      "startDate": "2026-10-08T00:00:00.000Z",
+      "endDate": "2026-10-08T00:00:00.000Z",
+      "daysSpent": 1
+     },
+     {
+      "_id": 9,
+      "activityType": "Review",
+      "startDate": "2026-10-09T00:00:00.000Z",
+      "endDate": "2026-10-09T00:00:00.000Z",
+      "daysSpent": 0.25
+     },
+     {
+      "_id": 11,
+      "activityType": "Coding",
+      "startDate": "2026-10-12T00:00:00.000Z",
+      "endDate": "2026-10-12T00:00:00.000Z",
+      "daysSpent": 1
+     }
+    ]
+   },
+   {
+    "by": "me@example.test",
+    "at": "2026-10-13T17:30:00Z",
+    "value": [
+     {
+      "_id": 1,
+      "activityType": "Coding",
+      "startDate": "2026-10-05T00:00:00.000Z",
+      "endDate": "2026-10-05T00:00:00.000Z",
+      "daysSpent": 0.5
+     },
+     {
+      "_id": 3,
+      "activityType": "Coding",
+      "startDate": "2026-10-06T00:00:00.000Z",
+      "endDate": "2026-10-06T00:00:00.000Z",
+      "daysSpent": 0.75
+     },
+     {
+      "_id": 6,
+      "activityType": "Coding",
+      "startDate": "2026-10-08T00:00:00.000Z",
+      "endDate": "2026-10-08T00:00:00.000Z",
+      "daysSpent": 0.5
+     },
+     {
+      "_id": 8,
+      "activityType": "Testing",
+      "startDate": "2026-10-08T00:00:00.000Z",
+      "endDate": "2026-10-08T00:00:00.000Z",
+      "daysSpent": 1
+     },
+     {
+      "_id": 9,
+      "activityType": "Review",
+      "startDate": "2026-10-09T00:00:00.000Z",
+      "endDate": "2026-10-09T00:00:00.000Z",
+      "daysSpent": 0.25
+     },
+     {
+      "_id": 11,
+      "activityType": "Coding",
+      "startDate": "2026-10-12T00:00:00.000Z",
+      "endDate": "2026-10-12T00:00:00.000Z",
+      "daysSpent": 0.75
+     }
+    ]
+   },
+   {
+    "by": "me@example.test",
+    "at": "2026-10-14T16:07:00Z",
+    "value": [
+     {
+      "_id": 1,
+      "activityType": "Coding",
+      "startDate": "2026-10-05T00:00:00.000Z",
+      "endDate": "2026-10-05T00:00:00.000Z",
+      "daysSpent": 0.5
+     },
+     {
+      "_id": 3,
+      "activityType": "Coding",
+      "startDate": "2026-10-06T00:00:00.000Z",
+      "endDate": "2026-10-06T00:00:00.000Z",
+      "daysSpent": 0.75
+     },
+     {
+      "_id": 6,
+      "activityType": "Coding",
+      "startDate": "2026-10-08T00:00:00.000Z",
+      "endDate": "2026-10-08T00:00:00.000Z",
+      "daysSpent": 0.5
+     },
+     {
+      "_id": 8,
+      "activityType": "Testing",
+      "startDate": "2026-10-08T00:00:00.000Z",
+      "endDate": "2026-10-08T00:00:00.000Z",
+      "daysSpent": 1
+     },
+     {
+      "_id": 9,
+      "activityType": "Review",
+      "startDate": "2026-10-09T00:00:00.000Z",
+      "endDate": "2026-10-09T00:00:00.000Z",
+      "daysSpent": 0.25
+     },
+     {
+      "_id": 11,
+      "activityType": "Coding",
+      "startDate": "2026-10-12T00:00:00.000Z",
+      "endDate": "2026-10-12T00:00:00.000Z",
+      "daysSpent": 0.75
+     },
+     {
+      "_id": 15,
+      "activityType": "Coding",
+      "startDate": "2026-10-14T00:00:00.000Z",
+      "endDate": "2026-10-14T00:00:00.000Z",
+      "daysSpent": 0.5
+     }
+    ]
+   },
+   {
+    "by": "me@example.test",
+    "at": "2026-10-15T16:08:00Z",
+    "value": [
+     {
+      "_id": 1,
+      "activityType": "Coding",
+      "startDate": "2026-10-05T00:00:00.000Z",
+      "endDate": "2026-10-05T00:00:00.000Z",
+      "daysSpent": 0.5
+     },
+     {
+      "_id": 3,
+      "activityType": "Coding",
+      "startDate": "2026-10-06T00:00:00.000Z",
+      "endDate": "2026-10-06T00:00:00.000Z",
+      "daysSpent": 0.75
+     },
+     {
+      "_id": 6,
+      "activityType": "Coding",
+      "startDate": "2026-10-08T00:00:00.000Z",
+      "endDate": "2026-10-08T00:00:00.000Z",
+      "daysSpent": 0.5
+     },
+     {
+      "_id": 8,
+      "activityType": "Testing",
+      "startDate": "2026-10-08T00:00:00.000Z",
+      "endDate": "2026-10-08T00:00:00.000Z",
+      "daysSpent": 1
+     },
+     {
+      "_id": 9,
+      "activityType": "Review",
+      "startDate": "2026-10-09T00:00:00.000Z",
+      "endDate": "2026-10-09T00:00:00.000Z",
+      "daysSpent": 0.25
+     },
+     {
+      "_id": 11,
+      "activityType": "Coding",
+      "startDate": "2026-10-12T00:00:00.000Z",
+      "endDate": "2026-10-12T00:00:00.000Z",
+      "daysSpent": 0.75
+     },
+     {
+      "_id": 15,
+      "activityType": "Coding",
+      "startDate": "2026-10-14T00:00:00.000Z",
+      "endDate": "2026-10-14T00:00:00.000Z",
+      "daysSpent": 0.5
+     },
+     {
+      "_id": 17,
+      "activityType": "Coding",
+      "startDate": "2026-10-15T00:00:00.000Z",
+      "endDate": "2026-10-15T00:00:00.000Z",
+      "daysSpent": 0.5
+     }
+    ]
+   }
+  ],
+  "4175": [
+   {
+    "by": "me@example.test",
+    "at": "2026-10-05T16:00:00Z",
+    "value": [
+     {
+      "_id": 2,
+      "activityType": "Review",
+      "startDate": "2026-10-05T00:00:00.000Z",
+      "endDate": "2026-10-05T00:00:00.000Z",
+      "daysSpent": 0.5
+     }
+    ]
+   },
+   {
+    "by": "me@example.test",
+    "at": "2026-10-07T16:01:00Z",
+    "value": [
+     {
+      "_id": 2,
+      "activityType": "Review",
+      "startDate": "2026-10-05T00:00:00.000Z",
+      "endDate": "2026-10-05T00:00:00.000Z",
+      "daysSpent": 0.5
+     },
+     {
+      "_id": 5,
+      "activityType": "Testing",
+      "startDate": "2026-10-07T00:00:00.000Z",
+      "endDate": "2026-10-07T00:00:00.000Z",
+      "daysSpent": 1
+     }
+    ]
+   },
+   {
+    "by": "me@example.test",
+    "at": "2026-10-09T16:02:00Z",
+    "value": [
+     {
+      "_id": 2,
+      "activityType": "Review",
+      "startDate": "2026-10-05T00:00:00.000Z",
+      "endDate": "2026-10-05T00:00:00.000Z",
+      "daysSpent": 0.5
+     },
+     {
+      "_id": 5,
+      "activityType": "Testing",
+      "startDate": "2026-10-07T00:00:00.000Z",
+      "endDate": "2026-10-07T00:00:00.000Z",
+      "daysSpent": 1
+     },
+     {
+      "_id": 10,
+      "activityType": "Testing",
+      "startDate": "2026-10-09T00:00:00.000Z",
+      "endDate": "2026-10-09T00:00:00.000Z",
+      "daysSpent": 0.5
+     }
+    ]
+   },
+   {
+    "by": "me@example.test",
+    "at": "2026-10-13T16:03:00Z",
+    "value": [
+     {
+      "_id": 2,
+      "activityType": "Review",
+      "startDate": "2026-10-05T00:00:00.000Z",
+      "endDate": "2026-10-05T00:00:00.000Z",
+      "daysSpent": 0.5
+     },
+     {
+      "_id": 5,
+      "activityType": "Testing",
+      "startDate": "2026-10-07T00:00:00.000Z",
+      "endDate": "2026-10-07T00:00:00.000Z",
+      "daysSpent": 1
+     },
+     {
+      "_id": 10,
+      "activityType": "Testing",
+      "startDate": "2026-10-09T00:00:00.000Z",
+      "endDate": "2026-10-09T00:00:00.000Z",
+      "daysSpent": 0.5
+     },
+     {
+      "_id": 14,
+      "activityType": "Meeting",
+      "startDate": "2026-10-13T00:00:00.000Z",
+      "endDate": "2026-10-13T00:00:00.000Z",
+      "daysSpent": 0.25
+     }
+    ]
+   },
+   {
+    "by": "me@example.test",
+    "at": "2026-10-14T16:04:00Z",
+    "value": [
+     {
+      "_id": 2,
+      "activityType": "Review",
+      "startDate": "2026-10-05T00:00:00.000Z",
+      "endDate": "2026-10-05T00:00:00.000Z",
+      "daysSpent": 0.5
+     },
+     {
+      "_id": 5,
+      "activityType": "Testing",
+      "startDate": "2026-10-07T00:00:00.000Z",
+      "endDate": "2026-10-07T00:00:00.000Z",
+      "daysSpent": 1
+     },
+     {
+      "_id": 10,
+      "activityType": "Testing",
+      "startDate": "2026-10-09T00:00:00.000Z",
+      "endDate": "2026-10-09T00:00:00.000Z",
+      "daysSpent": 0.5
+     },
+     {
+      "_id": 14,
+      "activityType": "Meeting",
+      "startDate": "2026-10-13T00:00:00.000Z",
+      "endDate": "2026-10-13T00:00:00.000Z",
+      "daysSpent": 0.25
+     },
+     {
+      "_id": 16,
+      "activityType": "Testing",
+      "startDate": "2026-10-14T00:00:00.000Z",
+      "endDate": "2026-10-14T00:00:00.000Z",
+      "daysSpent": 0.5
+     }
+    ]
+   },
+   {
+    "by": "me@example.test",
+    "at": "2026-10-15T17:30:00Z",
+    "value": [
+     {
+      "_id": 2,
+      "activityType": "Review",
+      "startDate": "2026-10-05T00:00:00.000Z",
+      "endDate": "2026-10-05T00:00:00.000Z",
+      "daysSpent": 0.5
+     },
+     {
+      "_id": 5,
+      "activityType": "Testing",
+      "startDate": "2026-10-07T00:00:00.000Z",
+      "endDate": "2026-10-07T00:00:00.000Z",
+      "daysSpent": 1
+     },
+     {
+      "_id": 10,
+      "activityType": "Testing",
+      "startDate": "2026-10-09T00:00:00.000Z",
+      "endDate": "2026-10-09T00:00:00.000Z",
+      "daysSpent": 0.5
+     },
+     {
+      "_id": 16,
+      "activityType": "Testing",
+      "startDate": "2026-10-14T00:00:00.000Z",
+      "endDate": "2026-10-14T00:00:00.000Z",
+      "daysSpent": 0.5
+     }
+    ]
+   },
+   {
+    "by": "me@example.test",
+    "at": "2026-10-16T16:06:00Z",
+    "value": [
+     {
+      "_id": 2,
+      "activityType": "Review",
+      "startDate": "2026-10-05T00:00:00.000Z",
+      "endDate": "2026-10-05T00:00:00.000Z",
+      "daysSpent": 0.5
+     },
+     {
+      "_id": 5,
+      "activityType": "Testing",
+      "startDate": "2026-10-07T00:00:00.000Z",
+      "endDate": "2026-10-07T00:00:00.000Z",
+      "daysSpent": 1
+     },
+     {
+      "_id": 10,
+      "activityType": "Testing",
+      "startDate": "2026-10-09T00:00:00.000Z",
+      "endDate": "2026-10-09T00:00:00.000Z",
+      "daysSpent": 0.5
+     },
+     {
+      "_id": 16,
+      "activityType": "Testing",
+      "startDate": "2026-10-14T00:00:00.000Z",
+      "endDate": "2026-10-14T00:00:00.000Z",
+      "daysSpent": 0.5
+     },
+     {
+      "_id": 19,
+      "activityType": "Testing",
+      "startDate": "2026-10-16T00:00:00.000Z",
+      "endDate": "2026-10-16T00:00:00.000Z",
+      "daysSpent": 0.375
+     }
+    ]
+   }
+  ],
+  "3990": [
+   {
+    "by": "me@example.test",
+    "at": "2026-10-06T16:00:00Z",
+    "value": [
+     {
+      "_id": 4,
+      "activityType": "Meeting",
+      "startDate": "2026-10-06T00:00:00.000Z",
+      "endDate": "2026-10-06T00:00:00.000Z",
+      "daysSpent": 0.25
+     }
+    ]
+   },
+   {
+    "by": "me@example.test",
+    "at": "2026-10-08T16:01:00Z",
+    "value": [
+     {
+      "_id": 4,
+      "activityType": "Meeting",
+      "startDate": "2026-10-06T00:00:00.000Z",
+      "endDate": "2026-10-06T00:00:00.000Z",
+      "daysSpent": 0.25
+     },
+     {
+      "_id": 7,
+      "activityType": "Design",
+      "startDate": "2026-10-08T00:00:00.000Z",
+      "endDate": "2026-10-08T00:00:00.000Z",
+      "daysSpent": 0.5
+     }
+    ]
+   },
+   {
+    "by": "me@example.test",
+    "at": "2026-10-12T17:00:00Z",
+    "value": [
+     {
+      "_id": 4,
+      "activityType": "Meeting",
+      "startDate": "2026-10-06T00:00:00.000Z",
+      "endDate": "2026-10-06T00:00:00.000Z",
+      "daysSpent": 0.25
+     },
+     {
+      "_id": 7,
+      "activityType": "Design",
+      "startDate": "2026-10-08T00:00:00.000Z",
+      "endDate": "2026-10-08T00:00:00.000Z",
+      "daysSpent": 0.5
+     },
+     {
+      "_id": 12,
+      "activityType": "Meeting",
+      "startDate": "2026-10-09T00:00:00.000Z",
+      "endDate": "2026-10-09T00:00:00.000Z",
+      "daysSpent": 0.25
+     }
+    ]
+   },
+   {
+    "by": "me@example.test",
+    "at": "2026-10-13T16:03:00Z",
+    "value": [
+     {
+      "_id": 4,
+      "activityType": "Meeting",
+      "startDate": "2026-10-06T00:00:00.000Z",
+      "endDate": "2026-10-06T00:00:00.000Z",
+      "daysSpent": 0.25
+     },
+     {
+      "_id": 7,
+      "activityType": "Design",
+      "startDate": "2026-10-08T00:00:00.000Z",
+      "endDate": "2026-10-08T00:00:00.000Z",
+      "daysSpent": 0.5
+     },
+     {
+      "_id": 12,
+      "activityType": "Meeting",
+      "startDate": "2026-10-09T00:00:00.000Z",
+      "endDate": "2026-10-09T00:00:00.000Z",
+      "daysSpent": 0.25
+     },
+     {
+      "_id": 13,
+      "activityType": "Design",
+      "startDate": "2026-10-13T00:00:00.000Z",
+      "endDate": "2026-10-13T00:00:00.000Z",
+      "daysSpent": 0.5
+     }
+    ]
+   },
+   {
+    "by": "me@example.test",
+    "at": "2026-10-15T16:04:00Z",
+    "value": [
+     {
+      "_id": 4,
+      "activityType": "Meeting",
+      "startDate": "2026-10-06T00:00:00.000Z",
+      "endDate": "2026-10-06T00:00:00.000Z",
+      "daysSpent": 0.25
+     },
+     {
+      "_id": 7,
+      "activityType": "Design",
+      "startDate": "2026-10-08T00:00:00.000Z",
+      "endDate": "2026-10-08T00:00:00.000Z",
+      "daysSpent": 0.5
+     },
+     {
+      "_id": 12,
+      "activityType": "Meeting",
+      "startDate": "2026-10-09T00:00:00.000Z",
+      "endDate": "2026-10-09T00:00:00.000Z",
+      "daysSpent": 0.25
+     },
+     {
+      "_id": 13,
+      "activityType": "Design",
+      "startDate": "2026-10-13T00:00:00.000Z",
+      "endDate": "2026-10-13T00:00:00.000Z",
+      "daysSpent": 0.5
+     },
+     {
+      "_id": 18,
+      "activityType": "Review",
+      "startDate": "2026-10-15T00:00:00.000Z",
+      "endDate": "2026-10-15T00:00:00.000Z",
+      "daysSpent": 0.25
+     }
+    ]
+   }
+  ]
+ }
+}

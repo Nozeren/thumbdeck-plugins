@@ -49,6 +49,12 @@ Your Azure DevOps work items in thumbdeck: to see them, change them and be told 
   just the number ("4", "2.5" or "2,5"; empty is 0). A text field with anything else in it (a
   work log in JSON…) is said, not counted. If your organization logs Completed Work in days (0.5
   for half a day), set **Hours field is in** to Days: each day then counts as a working day's hours.
+  If its time tool keeps a work log in a field instead (a JSON list of entries, each with its day
+  and amount), name the field and its entries' keys: `Custom.WorkLogData | date: startDate |
+  amount: daysSpent`, with **Hours field is in** set to the amount's unit. Each entry you add
+  counts on its own day (a day you forgot, logged later, lands on that day), and one you change
+  or take out is corrected on its day. With the `demo` organization, that setting (in Days)
+  shows a sample work log.
 - **How many are open**, next to its name in the Plugins pane.
 - **Notifications** (it looks every 5 minutes): a work item assigned to you, a state changed on
   yours, new comments on yours; not your own changes. What it saw last is remembered, so what

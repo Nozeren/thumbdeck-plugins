@@ -29,6 +29,11 @@
    "referenceName": "Contoso.WorkaroundNotes",
    "name": "Workaround Notes",
    "type": "plainText"
+  },
+  {
+   "referenceName": "Custom.WorkLogData",
+   "name": "Work Log Data",
+   "type": "html"
   }
  ]
 }

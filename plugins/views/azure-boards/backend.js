@@ -11,12 +11,12 @@ import { serve } from "../../../packages/backend/index.js";
 import {
   auth, changes, commentHtml, current, fieldSettings, gather, history, ids, isMe, item, orgUrl, page, patch, problem, snapshot, text, wiql, within,
 } from "./ado.js";
-import { HOURS_FIELD, fieldUse, hoursWiql, logged, notHours } from "./hours.js";
+import { HOURS_FIELD, entries as logEntries, fieldUse, hoursSetting, hoursWiql, logged, loggedLog, notHours, notLog } from "./hours.js";
 import { richHtml } from "./markdown.js";
 
 const demoFile = (f) => JSON.parse(readFileSync(new URL(`./testdata/${f}`, import.meta.url), "utf8"));
 const DEMO_ME = "me@example.test";
-let demo = null; // { items, comments, iterations, fields, updates }: the sample, as changed in memory
+let demo = null; // { items, comments, iterations, fields, updates, worklog }: the sample, as changed in memory
 let settings = {
   organization: "", token: "", show: "assigned", projects: [], hidden_states: ["Closed", "Done", "Removed"], refresh_minutes: 5,
   branch_prefix: "feature/", team: "", notify_assigned: true, notify_state: true, notify_comments: true, fields: [],
@@ -34,7 +34,7 @@ let sprints = {}; // project -> its current iteration's path (null: none)
 let sprintOnly = false; // only the current sprint's (kept in storage)
 const iterationsOf = new Map(); // project -> the team's iterations
 let types = null; // the organization's fields: ref (lowercase) -> { name, type } (once a start)
-const logs = new Map(); // id -> { rev, field, scale, entries: [{ at, hours }] }: what you logged on it, at that revision
+const logs = new Map(); // id -> { rev, how, scale, entries: [{ at, hours }] }: what you logged on it, at that revision (how: the Hours field setting)
 const MAX_LOGGED = 400; // work items looked into for the hours, the most recently changed
 
 const isDemo = () => settings.organization.trim() === "demo";
@@ -237,7 +237,7 @@ function start() {
   demo = isDemo()
     ? {
       items: demoFile("workitems.json").value, comments: demoFile("comments.json"), iterations: demoFile("iterations.json").value,
-      fields: demoFile("fields.json").value, updates: demoFile("updates.json"),
+      fields: demoFile("fields.json").value, updates: demoFile("updates.json"), worklog: demoFile("worklog.json"),
     }
     : null;
   if (demo) demoHours();
@@ -273,6 +273,31 @@ function demoHours() {
     }
   }
   for (const w of demo.items) if (done.has(w.id)) w.fields[HOURS_FIELD] = done.get(w.id) / unit;
+  demoLog();
+}
+
+/** The sample's work log (testdata/worklog.json), its days moved so the last is today: each
+ *  revision the whole list, kept as an html field keeps it (quotes as &quot;) */
+function demoLog() {
+  const { field, revisions } = demo.worklog;
+  const last = Object.values(revisions).flat().map((r) => r.at.slice(0, 10)).sort().at(-1);
+  const today = new Date();
+  const shift = Math.round((Date.UTC(today.getFullYear(), today.getMonth(), today.getDate()) - Date.parse(`${last}T00:00:00Z`)) / 86_400_000);
+  const moved = (iso) => new Date(Date.parse(iso) + shift * 86_400_000).toISOString();
+  const html = (list) => JSON.stringify(list.map((e) => ({ ...e, startDate: moved(e.startDate), endDate: moved(e.endDate) }))).replace(/"/g, "&quot;");
+  for (const [id, revs] of Object.entries(revisions)) {
+    let was;
+    for (const r of revs) {
+      const now = html(r.value);
+      (demo.updates[id] ??= []).push({
+        rev: 200 + demo.updates[id].length, revisedBy: { displayName: r.by === DEMO_ME ? "Me" : "Ann", uniqueName: r.by }, revisedDate: "9999-01-01T00:00:00Z",
+        fields: { "System.ChangedDate": { newValue: moved(r.at) }, [field]: { oldValue: was, newValue: now } },
+      });
+      was = now;
+    }
+    const w = demo.items.find((x) => x.id === Number(id));
+    if (w) w.fields[field] = was;
+  }
 }
 
 const known = (id) => {
@@ -312,13 +337,15 @@ serve({
    *  until it changes) */
   async hours({ since }) {
     const org = settings.organization.trim();
-    const field = String(settings.hours_field ?? "").trim() || HOURS_FIELD;
+    const how = String(settings.hours_field ?? "").trim();
+    const { field, log, problem } = hoursSetting(how);
     const perDay = Number(settings.hours_per_day) || 8;
     try {
       if (!/^\d{4}-\d\d-\d\d$/.test(String(since))) throw new Error("since: a day, YYYY-MM-DD");
       if (!org || (!isDemo() && !settings.token.trim())) throw new Error("Set your organization and a token in Settings (,) › Plugins › Azure Boards");
       await whoAmI();
       if (!me) throw new Error("Azure DevOps didn't say who you are, so your hours can't be told from others'");
+      if (problem) throw new Error(problem);
       const scale = hoursIn();
       // A field of the organization's own: a number, or text with one (which can't be compared with 0)
       let compare = true;
@@ -327,25 +354,30 @@ serve({
         const f = known.get(field.toLowerCase());
         if (known.size && !f) throw new Error(`There's no field ${field} in your organization: check the Hours field setting (its reference name, e.g. Custom.HoursSpent)`);
         if (f && !fieldUse(f.type)) throw new Error(`The Hours field ${field} (${f.name}) is a ${f.type} field: hours need a number field, or a text one with just the number in it`);
-        compare = !f || fieldUse(f.type) === "number";
+        if (log && f && fieldUse(f.type) !== "text") throw new Error(`The Hours field ${field} (${f.name}) is a ${f.type} field: a work log is kept in a text one`);
+        compare = !log && (!f || fieldUse(f.type) === "number");
       }
       let found;
       let note = "";
       if (isDemo()) found = demo.items;
       else {
-        const ask = (compare) => ado("/_apis/wit/wiql?api-version=7.1", { method: "POST", body: JSON.stringify({ query: hoursWiql({ field, since, projects: settings.projects ?? [], compare }) }) });
+        const ask = (compare) => ado("/_apis/wit/wiql?api-version=7.1", { method: "POST", body: JSON.stringify({ query: hoursWiql({ field, since, projects: settings.projects ?? [], compare, log: !!log }) }) });
         // A type it couldn't know (the fields unread): a text field's refusal (TF212023), asked again without the comparison
         const all = ids(await ask(compare).catch((e) => (compare && /TF212023/.test(e.message) ? ask(false) : Promise.reject(e))));
         if (all.length > MAX_LOGGED) note = `Only the ${MAX_LOGGED} most recently changed work items are counted: older days may miss some hours`;
         found = await workItems(all.slice(0, MAX_LOGGED));
       }
-      // The first value says if the field holds hours, before any history is read
-      const first = found.map((w) => w.fields?.[field]).find((v) => v != null && String(v).trim() !== "");
-      const why = first === undefined ? "" : notHours(first, field);
+      // The first value says if the field holds hours (a work log: the first with entries, or
+      // the first value if none is a JSON list), before any history is read
+      const values = found.map((w) => w.fields?.[field]).filter((v) => v != null && String(v).trim() !== "");
+      const why = !values.length ? ""
+        : log ? notLog(values.find((v) => logEntries(v)?.length) ?? (values.some((v) => logEntries(v)) ? "[]" : values[0]), field, log)
+        : notHours(values[0], field);
       if (why) throw new Error(why);
-      const stale = (k, w) => !k || k.rev !== w.rev || k.field !== field || k.scale !== scale;
+      const count = (u) => (log ? loggedLog(u, me, field, log, scale) : logged(u, me, field, scale));
+      const stale = (k, w) => !k || k.rev !== w.rev || k.how !== how || k.scale !== scale;
       await each(found.filter((w) => stale(logs.get(w.id), w)), async (w) => {
-        logs.set(w.id, { rev: w.rev, field, scale, entries: logged(await updates(w.id), me, field, scale) });
+        logs.set(w.id, { rev: w.rev, how, scale, entries: count(await updates(w.id)) });
       });
       const entries = found.flatMap((w) => {
         const it = item(w, org);
