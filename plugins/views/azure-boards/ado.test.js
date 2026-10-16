@@ -170,6 +170,9 @@ test("what changed on yours, not by you", () => {
     { id: 3, kind: "assigned" },
   ]);
   assert.deepEqual(changes(before, [was({ state: "Closed", changedBy: "me@x" }), was({ id: 2, changedBy: "me@x" })], "me@x"), [], "your own changes");
+  assert.deepEqual(changes(before, [was({ state: "Closed", assignee: "ann@x", assignedTo: "Ann" })], "me@x"), [
+    { id: 1, kind: "unassigned", to: "Ann" }, { id: 1, kind: "state", from: "Active", to: "Closed" },
+  ], "one that left the list: taken off you, closed");
 });
 
 test("the current sprint", () => {

@@ -84,6 +84,7 @@ export function item(w, org, mine = true, above = false) {
     assignedTo: f["System.AssignedTo"]?.displayName ?? "",
     assignee: f["System.AssignedTo"]?.uniqueName ?? "", // for "is it mine" and assigning
     changedBy: f["System.ChangedBy"]?.uniqueName ?? "",
+    changedByName: f["System.ChangedBy"]?.displayName ?? "",
     rev: w.rev ?? null,
     comments: f["System.CommentCount"] ?? 0,
     changed: f["System.ChangedDate"] ?? "",
@@ -373,7 +374,9 @@ export const snapshot = (items) =>
   Object.fromEntries(items.map((i) => [i.id, { state: i.state, assignee: i.assignee, comments: i.comments, title: i.title, type: i.type }]));
 
 /** What changed on your work items since the last look, not by you: [{ id, kind, … }] (kind:
- *  assigned, state, comments). before: null on the very first look (nothing is news). */
+ *  assigned, unassigned: someone took it off you, state, comments). before: null on the very
+ *  first look (nothing is news). items: the ones watched now, and the ones that left the list
+ *  since (closed, given to someone else…), looked at once more. */
 export function changes(before, items, me) {
   if (!before) return [];
   const out = [];
@@ -381,6 +384,7 @@ export function changes(before, items, me) {
     const was = before[i.id];
     if (isMe(i.assignee, me) && !isMe(was?.assignee, me) && !isMe(i.changedBy, me)) out.push({ id: i.id, kind: "assigned" });
     if (!was) continue;
+    if (isMe(was.assignee, me) && !isMe(i.assignee, me) && !isMe(i.changedBy, me)) out.push({ id: i.id, kind: "unassigned", to: i.assignedTo });
     if (was.state !== i.state && !isMe(i.changedBy, me)) out.push({ id: i.id, kind: "state", from: was.state, to: i.state });
     if (i.comments > was.comments) out.push({ id: i.id, kind: "comments", count: i.comments - was.comments });
   }

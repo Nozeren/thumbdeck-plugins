@@ -88,7 +88,25 @@ async function iterations(project) {
   return (await ado(`/${encodeURIComponent(project)}${team}/_apis/work/teamsettings/iterations?api-version=7.1`)).value ?? [];
 }
 
-async function load(tb) {
+// One look at a time: one asked for meanwhile waits, then runs once after it (two at once would
+// both tell what changed, from the same last look)
+let looking = null;
+let again = false;
+function load(tb) {
+  if (looking) {
+    again = true;
+    return looking;
+  }
+  looking = (async () => {
+    do {
+      again = false;
+      await look(tb);
+    } while (again);
+  })().finally(() => (looking = null));
+  return looking;
+}
+
+async function look(tb) {
   const org = settings.organization.trim();
   try {
     if (!org) throw new Error("Set your organization and a token in Settings (,) › Plugins › Azure Boards");
@@ -135,12 +153,18 @@ async function tell(tb, watched) {
   const kept = await tb.storage.get("seen").catch(() => undefined);
   const before = kept?.key === key ? kept.items : null;
   const since = kept?.at ?? ""; // the last look: only comments after it are news
+  // The ones that left the list since (closed, given to someone else…): once more, to tell why
+  const gone = before ? Object.keys(before).map(Number).filter((id) => !watched.some((i) => i.id === id)) : [];
+  const left = gone.length ? (await workItems(gone.slice(0, 200)).catch(() => [])).map((w) => item(w, settings.organization.trim(), false)) : [];
+  const all = [...watched, ...left];
   const said = [];
-  for (const c of changes(before, watched, me)) {
-    const it = watched.find((i) => i.id === c.id);
+  for (const c of changes(before, all, me)) {
+    const it = all.find((i) => i.id === c.id);
     const name = `${it.type} ${it.id}`;
+    const by = it.changedByName ? ` (by ${it.changedByName})` : "";
     if (c.kind === "assigned" && settings.notify_assigned) said.push([`${name} is yours`, it.title]);
-    if (c.kind === "state" && settings.notify_state) said.push([`${name}: ${c.from} → ${c.to}`, it.title]);
+    if (c.kind === "unassigned" && settings.notify_assigned) said.push([`${name} ${c.to ? `was reassigned to ${c.to}` : "was unassigned"}`, `${it.title}${by}`]);
+    if (c.kind === "state" && settings.notify_state) said.push([`${name}: ${c.from} → ${c.to}`, `${it.title}${by}`]);
     if (c.kind === "comments" && settings.notify_comments) {
       const latest = (await comments(it).catch(() => [])).filter((x) => x.createdDate > since && !isMe(x.createdBy?.uniqueName, me));
       if (latest.length) said.push([`${latest.length > 1 ? `${latest.length} comments` : "A comment"} on ${name}`, `${latest[0].createdBy?.displayName ?? ""}: ${text(latest[0].text).slice(0, 160)}`]);

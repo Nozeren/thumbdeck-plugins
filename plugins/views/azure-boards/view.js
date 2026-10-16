@@ -236,7 +236,7 @@ function fold(box) {
 }
 
 /** Opens or folds a long text (field: its name; none: all of the page's, opened if one is folded) */
-function unfold(field) {
+function foldText(field) {
   const all = [...document.querySelectorAll("#detail [data-fold]")].map((b) => b.dataset.fold);
   if (!all.length) return;
   const fields = field ? [field] : all;
@@ -560,7 +560,7 @@ function act(action) {
     case "page-down": return $("detail").scrollBy({ top: $("detail").clientHeight * 0.8 });
     case "page-up": return $("detail").scrollBy({ top: -$("detail").clientHeight * 0.8 });
     case "filter": return startFilter();
-    case "fold": return unfold();
+    case "fold": return foldText();
     case "sprint": return toggleSprint();
     case "state": case "assign": case "comment": case "title": case "tags": case "priority": case "iteration":
       return it && $("ask").hidden && edits[action](it);
@@ -591,10 +591,10 @@ document.addEventListener("click", (e) => {
   if (e.target.closest("#sprint")) return toggleSprint();
   if (e.target.closest("#compose-send")) return current() && sendComment(current());
   const folding = e.target.closest("[data-fold]");
-  if (folding) return unfold(folding.dataset.fold);
-  const unfold = e.target.closest("[data-unfold]");
-  if (unfold) {
-    unfolded.add(Number(unfold.dataset.unfold));
+  if (folding) return foldText(folding.dataset.fold);
+  const earlier = e.target.closest("[data-unfold]");
+  if (earlier) {
+    unfolded.add(Number(earlier.dataset.unfold));
     return detail();
   }
   const button = e.target.closest("[data-edit]");
