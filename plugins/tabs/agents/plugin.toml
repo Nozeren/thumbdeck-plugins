@@ -1,9 +1,10 @@
 id = "agents"
 name = "Agents"
-version = "1.0.1"
+version = "1.0.2"
 api = 1
 description = "Claude Code sessions in this project, their subagents, and the subagents and skills it defines"
 homepage = "https://github.com/Nozeren/thumbdeck-plugins/tree/main/plugins/tabs/agents"
+icon = "icon.svg"
 
 [backend]
 command = "node backend.js"

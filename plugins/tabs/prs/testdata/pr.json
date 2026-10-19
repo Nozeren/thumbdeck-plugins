@@ -1,0 +1,24 @@
+{"data":{"repository":{"pullRequest":{
+  "body":"Members get **10% off**, and carts of 5 items or more get 5.00 off: the bigger one wins.\n\nThe discount comes off before tax, as the shop's terms say. `item.qty` is now `item.quantity` everywhere.",
+  "url":"https://github.com/acme/app/pull/3","headRefOid":"a9c2f04","headRefName":"feature/discounts","baseRefName":"main",
+  "author":{"login":"carla_corp"},
+  "labels":{"nodes":[{"name":"feature"},{"name":"checkout"}]},
+  "reviewRequests":{"nodes":[{"requestedReviewer":{"login":"me_corp"}}]},
+  "latestReviews":{"nodes":[{"author":{"login":"ann_corp"},"state":"COMMENTED"},{"author":{"login":"bob_corp"},"state":"APPROVED"},{"author":{"login":"copilot-pull-request-reviewer"},"state":"COMMENTED"}]},
+  "commits":{"nodes":[{"commit":{"statusCheckRollup":{"contexts":{"nodes":[
+    {"__typename":"CheckRun","name":"lint","status":"COMPLETED","conclusion":"SUCCESS"},
+    {"__typename":"CheckRun","name":"unit tests","status":"COMPLETED","conclusion":"SUCCESS"},
+    {"__typename":"CheckRun","name":"behave","status":"IN_PROGRESS","conclusion":null},
+    {"__typename":"StatusContext","context":"deploy/preview","state":"SUCCESS"}]}}}}]},
+  "reviewThreads":{"nodes":[
+    {"id":"T1","isResolved":false,"isOutdated":false,"path":"src/checkout.py","line":10,"startLine":null,"diffSide":"RIGHT",
+     "comments":{"nodes":[{"author":{"login":"ann_corp"},"body":"Should a member's discount come off **before** tax? Right now it does.","createdAt":"2026-10-19T08:10:00Z"},
+                          {"author":{"login":"carla_corp"},"body":"Yes, the shop's terms say so. I'll add a scenario for it.","createdAt":"2026-10-19T09:02:00Z"}]}},
+    {"id":"T2","isResolved":false,"isOutdated":false,"path":"src/discounts.py","line":8,"startLine":null,"diffSide":"RIGHT",
+     "comments":{"nodes":[{"author":{"login":"bob_corp"},"body":"`cart.subtotal` doesn't exist on `Cart` yet, does it?\n\n```suggestion\n        offers.append(sum(i.price * i.quantity for i in cart.items) * Decimal(\"0.10\"))\n```","createdAt":"2026-10-18T16:40:00Z"}]}},
+    {"id":"T3","isResolved":true,"isOutdated":false,"path":"features/checkout.feature","line":6,"startLine":null,"diffSide":"RIGHT",
+     "comments":{"nodes":[{"author":{"login":"ann_corp"},"body":"Clearer, thanks.","createdAt":"2026-10-17T11:00:00Z"}]}},
+    {"id":"T4","isResolved":false,"isOutdated":true,"path":"src/checkout.py","line":null,"startLine":null,"diffSide":"RIGHT",
+     "comments":{"nodes":[{"author":{"login":"bob_corp"},"body":"Typo: \"wih tax\".","createdAt":"2026-10-16T10:00:00Z"}]}}
+  ]}
+}}}}

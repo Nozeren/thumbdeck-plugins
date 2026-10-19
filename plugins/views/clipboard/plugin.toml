@@ -1,9 +1,10 @@
 id = "clipboard"
 name = "Clipboard"
-version = "1.0.1"
+version = "1.0.2"
 api = 1
 description = "What you copied: the last 100 texts, searchable, copied again with one key; pin the ones you reuse"
 homepage = "https://github.com/Nozeren/thumbdeck-plugins/tree/main/plugins/views/clipboard"
+icon = "icon.svg"
 
 [view]
 name = "Clipboard"

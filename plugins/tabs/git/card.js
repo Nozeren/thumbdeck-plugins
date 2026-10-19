@@ -52,6 +52,12 @@ function reviewChanges() {
   td.ui.openReview({
     title: "Uncommitted changes", subtitle: `${project?.name ?? ""} · ${status.branch.name ?? "detached HEAD"}`,
     diff: () => review("changes"), viewedKey: `changes:${project?.path}`,
+    // The working tree's text, for the review page's hidden lines (f)
+    file: async (path) => {
+      const r = await td.exec(["cat", "--", path]);
+      if (r.code !== 0) throw new Error(r.stderr.trim() || `can't read ${path}`);
+      return r.stdout;
+    },
   });
 }
 

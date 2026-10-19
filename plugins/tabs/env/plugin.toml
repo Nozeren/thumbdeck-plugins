@@ -1,9 +1,10 @@
 id = "env"
 name = "Env check"
-version = "1.0.1"
+version = "1.0.2"
 api = 1
 description = "Compares the project's .env with its .env.example: what's missing, empty or still the example's (values hidden)"
 homepage = "https://github.com/Nozeren/thumbdeck-plugins/tree/main/plugins/tabs/env"
+icon = "icon.svg"
 
 [detect]
 files = [".env.example", ".env.sample", ".env.template", ".env.dist", "example.env"]

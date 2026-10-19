@@ -13,7 +13,8 @@ body { display: flex; flex-direction: column; font: 12.5px var(--mono); overflow
 body.td-keys .row.cursor { box-shadow: inset 2px 0 var(--cursor, var(--orange)); }
 .bell { flex: none; width: 18px; }
 .cat { flex: none; width: 76px; }
-.author { flex: none; width: 150px; color: var(--grey); overflow: hidden; text-overflow: ellipsis; }
+.repo { flex: none; width: 150px; color: var(--purple); overflow: hidden; text-overflow: ellipsis; }
+.author { flex: none; width: 110px; color: var(--grey); overflow: hidden; text-overflow: ellipsis; text-align: right; }
 .num { flex: none; width: 56px; font-weight: 600; }
 .title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .title.draft { color: var(--grey); }
@@ -32,5 +33,10 @@ body.td-keys .row.cursor { box-shadow: inset 2px 0 var(--cursor, var(--orange));
 .state.APPROVED { color: var(--green); } .state.CHANGES_REQUESTED { color: var(--red); }
 .state.COMMENTED { color: var(--aqua); } .state.PENDING { color: var(--yellow); }
 .url { margin-top: 10px; word-break: break-all; }
-.link { padding: 0; border: 0; background: none; color: var(--orange); font: inherit; }
-.link:hover { text-decoration: underline; }
+.actions { display: flex; gap: 10px; }
+.link { padding: 2px 8px; border: 1px solid var(--bg3); border-radius: 6px; background: var(--bg1); color: var(--fg); font: inherit; }
+.details .repo { width: auto; }
+/* A key's badge, beside what it does (as in Azure Boards) */
+kbd { display: inline-block; min-width: 9px; padding: 0 4px; margin-left: 4px; border: 1px solid var(--grey-dim); border-bottom-width: 2px; border-radius: 4px;
+  font: 10.5px/1.45 var(--mono); color: var(--fg); text-align: center; vertical-align: 1px; background: var(--bg0); }
+.link:hover { border-color: var(--grey); }

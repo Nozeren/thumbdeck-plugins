@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { checksText, isStale, repoFromUrl, reviewText, sortPrs } from "./prs.js";
+import { aboutFrom, checksText, contentsPath, isStale, repoFromUrl, reviewPayload, reviewText, searches, sortPrs, threadsFrom } from "./prs.js";
 
 const testdata = (file) => JSON.parse(readFileSync(new URL(`./testdata/${file}`, import.meta.url), "utf8"));
 const setup = { bots: ["copilot-pull-request-reviewer"], trim_suffix: "_corp" };
@@ -42,4 +42,48 @@ test("states in words", () => {
   assert.equal(checksText(""), "no checks");
   assert.equal(reviewText("CHANGES_REQUESTED"), "✘ changes requested");
   assert.equal(reviewText("NEW_STATE"), "new_state");
+});
+
+test("the searches: every repo you're in, or the ones set", () => {
+  assert.deepEqual(searches(""), {
+    a: "is:pr is:open archived:false involves:@me",
+    b: "is:pr is:open archived:false review-requested:@me",
+    c: "is:pr is:open archived:false reviewed-by:@me",
+  });
+  assert.equal(searches("acme, other/lib").b, "is:pr is:open archived:false user:acme repo:other/lib review-requested:@me");
+});
+
+test("PRs from the three searches: each once, with its repo, in the same groups", () => {
+  const prs = sortPrs(testdata("search.json"), testdata("notifications.json"), "me_corp", setup);
+  assert.deepEqual(prs.map((p) => [p.number, p.category, p.repo]), [[2, "re-review", "acme/api"], [3, "review", "acme/app"], [4, "reviewed", "acme/docs"], [1, "mine", "acme/app"]]);
+  assert.equal(prs[0].notification, "333", "its notification is from its own repo");
+  assert.equal(prs[1].head, "feature/pr-3");
+});
+
+test("about a PR: checks, reviewers (no bots, the asked ones too), labels", () => {
+  const a = aboutFrom(testdata("pr.json"), setup);
+  assert.equal(a.author, "carla");
+  assert.deepEqual([a.head, a.base], ["feature/discounts", "main"]);
+  assert.deepEqual(a.checks.map((c) => [c.name, c.state]), [["lint", "success"], ["unit tests", "success"], ["behave", "pending"], ["deploy/preview", "success"]]);
+  assert.deepEqual(a.reviewers, [{ name: "ann", state: "commented" }, { name: "bob", state: "approved" }, { name: "me", state: "asked" }]);
+  assert.deepEqual(a.labels, ["feature", "checkout"]);
+});
+
+test("review threads: where they sit, outdated ones without a line", () => {
+  const t = threadsFrom(testdata("pr.json"), setup);
+  assert.deepEqual(t.map((x) => [x.id, x.path, x.line, x.side, x.resolved]), [
+    ["T1", "src/checkout.py", 10, "RIGHT", false], ["T2", "src/discounts.py", 8, "RIGHT", false],
+    ["T3", "features/checkout.feature", 6, "RIGHT", true], ["T4", "src/checkout.py", null, "RIGHT", false],
+  ]);
+  assert.deepEqual(t[0].comments.map((c) => c.author), ["ann", "carla"]);
+});
+
+test("a review as GitHub takes it", () => {
+  const comments = [{ path: "a.py", line: 5, side: "RIGHT", body: "x" }, { path: "a.py", line: 9, side: "RIGHT", startLine: 7, startSide: "LEFT", body: "y" }];
+  assert.deepEqual(reviewPayload({ event: "REQUEST_CHANGES", body: "see below", comments }, "abc"), {
+    commit_id: "abc", event: "REQUEST_CHANGES", body: "see below",
+    comments: [{ path: "a.py", line: 5, side: "RIGHT", body: "x" }, { path: "a.py", line: 9, side: "RIGHT", body: "y", start_line: 7, start_side: "LEFT" }],
+  });
+  assert.deepEqual(reviewPayload({ event: "APPROVE", body: "", comments: [] }, "abc"), { commit_id: "abc", event: "APPROVE" });
+  assert.equal(contentsPath("src/a b/c#d.py"), "src/a%20b/c%23d.py");
 });

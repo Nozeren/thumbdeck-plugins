@@ -76,8 +76,8 @@ page = "releases.html"
 </html>
 ```
 
-Save both, then add the tab to a project: the **+** at the end of the tab bar lists
-**Releases**. `window.thumbdeck` (the page API) is there before your script runs: files,
+Save both, then add the tab to a project: the Toolkit's Pages end with a dashed
+**+ Releases**. `window.thumbdeck` (the page API) is there before your script runs: files,
 commands, storage, the status line, notifications, thumbdeck's review page, and more (see
 [the page API](SPEC.md#the-page-api-windowthumbdeck)). With `/// <reference types="@thumbdeck/plugin" />`
 (`npm install -D @thumbdeck/plugin`) your editor explains each call as you type.

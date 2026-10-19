@@ -206,18 +206,25 @@ function reviewRow() {
     if (!st?.changes.length) return td.ui.say("Nothing to review: the working tree is clean.");
     td.ui.openReview({
       title: "Uncommitted changes", subtitle: `${name} · ${st.branch.name ?? "detached HEAD"}`, diff: () => review("changes"),
-      viewedKey: `changes:${project?.path}`, startFile: r?.kind === "file" ? r.file.change.path : undefined,
+      viewedKey: `changes:${project?.path}`, startFile: r?.kind === "file" ? r.file.change.path : undefined, file: fileAt(null),
     });
   } else if (r?.kind === "commit") {
     const c = r.commit;
-    td.ui.openReview({ title: `${c.short} ${c.subject}`, subtitle: `${c.author} · ${ago(c.date)} · ${name}`, diff: () => review(c.hash), viewedKey: `commit:${c.hash}` });
+    td.ui.openReview({ title: `${c.short} ${c.subject}`, subtitle: `${c.author} · ${ago(c.date)} · ${name}`, diff: () => review(c.hash), viewedKey: `commit:${c.hash}`, file: fileAt(c.hash) });
   } else if (r?.kind === "stash") {
     const s = r.stash;
-    td.ui.openReview({ title: `${s.name} ${s.subject}`, subtitle: name, diff: () => review(s.name), viewedKey: `stash:${project?.path}:${s.subject}` });
+    td.ui.openReview({ title: `${s.name} ${s.subject}`, subtitle: name, diff: () => review(s.name), viewedKey: `stash:${project?.path}:${s.subject}`, file: fileAt(s.name) });
   } else if (r?.kind === "branch") {
     td.ui.say("A branch has no diff of its own: review its commits in Commits (Tab)");
   }
 }
+
+/** A file's whole text, for the review page's hidden lines (f): in a commit, or in the working tree */
+const fileAt = (rev) => async (path) => {
+  const r = await td.exec(rev ? ["git", "show", `${rev}:${path}`] : ["cat", "--", path]);
+  if (r.code !== 0) throw new Error(r.stderr.trim() || `can't read ${path}`);
+  return r.stdout;
+};
 
 const scrollDetail = (pages) => $("detail").scrollBy({ top: pages * ($("detail").clientHeight * 0.8) });
 

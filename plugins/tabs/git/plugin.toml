@@ -1,9 +1,10 @@
 id = "git"
 name = "Git"
-version = "1.1.0"
+version = "1.2.0"
 api = 1
 description = "The repo at a glance: changes and their diffs, the branch, commits, branches and stashes (read-only)"
 homepage = "https://github.com/Nozeren/thumbdeck-plugins/tree/main/plugins/tabs/git"
+icon = "icon.svg"
 
 # Only for git repositories
 [detect]

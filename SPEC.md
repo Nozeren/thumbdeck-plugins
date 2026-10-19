@@ -89,7 +89,8 @@ folder…**), and it reloads whenever you save a file.
 my-plugin/
   plugin.toml        required: what the plugin is and adds
   README.md          shown in Settings › Plugins
-  icon.svg           optional: the plugin's icon in Settings (and its projects' icon, see detect)
+  icon.svg           optional: the plugin's icon in Settings, the Toolkit's Pages and the Plugins pane
+                     (draw it in the colour it shows in: an Everforest one; see detect for projects' icons)
   *.html, *.js, …    its pages and whatever they load
   backend/…          optional: the backend program
 ```
@@ -178,10 +179,10 @@ description = "The project's log files: levels, search, errors, live tail"
 page = "tab.html"
 ```
 
-A tab is turned on per project, from the tab bar's **+**, and each one has its own **setup**
+A tab (a page, in the Toolkit's Pages) is turned on per project, from its dashed **+** there, and each one has its own **setup**
 (see [Settings and tab setup](#settings-and-tab-setup)). The same tab can be added twice to one
-project with different setups (e.g. two Logs tabs for two folders). Tabs are numbered at the
-bottom of the center; `1`–`9` show them.
+project with different setups (e.g. two Logs tabs for two folders). A project's tabs are listed
+A–Z in the Toolkit's Pages, after Overview and README, with the plugin's icon; `1`–`9` show them.
 
 ### Panels
 
@@ -489,12 +490,45 @@ td.ui.openReview({                           // thumbdeck's review page for a di
   diff: string | (() => Promise<string>),    // a function: read again on r
   viewedKey,                                 // where files marked viewed are remembered (per plugin)
   startFile?,
+  file?: (path) => Promise<string>,          // a file's whole text (new version): f shows it all
+  review?: {                                 // a pull request: what can be done on its page
+    about?: { description?, author?, head?, base?, url?, checks?, reviewers?, labels? },
+    threads?: () => Promise<Thread[]>,       // the review threads, read again after each change
+    submit?: ({ event, body, comments }) => Promise<void>,   // the review: COMMENT, APPROVE or REQUEST_CHANGES
+    reply?: (threadId, body) => Promise<void>,
+    resolve?: (threadId, resolved) => Promise<void>,
+  },
 }): void
 td.ui.badge(text | number | null): void      // next to the tab's or panel's title (null: none)
 td.ui.status(text | null): void              // the view: next to its name in the Plugins pane
 td.ui.mood(signal, value): void              // tell the avatar what's going on (below)
 td.escape(text): string                      // for putting text into HTML
 ```
+
+### The review page
+
+`td.ui.openReview` shows a diff over the whole window: a file tree, the changes with a line
+cursor, side by side or in one column. With `file`, the unchanged parts the diff leaves out can be
+opened (`Enter` on one, `f` for the whole file). With `review.submit` it's a pull request's review:
+`c` comments on the line, `V` selects lines to comment on together, `Ctrl+g` writes a suggested
+change; the comments wait until the review is posted (`P`, or `A` approve, `R` request changes),
+and `submit` gets them as GitHub takes them:
+
+```ts
+{ event: "COMMENT" | "APPROVE" | "REQUEST_CHANGES", body: string,
+  comments: { path, line, side: "LEFT" | "RIGHT", startLine?, startSide?, body }[] }
+```
+
+`threads` gives the discussions to show under their lines (`Enter` replies through `reply`, `z`
+resolves through `resolve`):
+
+```ts
+{ id, path, line: number | null /* null: outdated */, startLine?, side: "LEFT" | "RIGHT",
+  resolved: boolean, comments: { author, body /* Markdown */, createdAt? }[] }[]
+```
+
+Without `review` the page is read-only (the Git tab's changes, commits and stashes).
+`plugins/tabs/prs` does all of it with `gh`.
 
 ### The avatar
 

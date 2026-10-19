@@ -107,6 +107,42 @@ declare namespace Thumbdeck {
     viewedKey: string;
     /** Open at this file */
     startFile?: string;
+    /** A file's whole text in the new version: the unchanged parts can then be opened (f) */
+    file?: (path: string) => Promise<string>;
+    /** A pull request: what can be done on its review page (without it: read-only) */
+    review?: {
+      about?: {
+        description?: string; author?: string; head?: string; base?: string; url?: string;
+        checks?: { name: string; state: "success" | "failure" | "pending" | "neutral"; detail?: string }[];
+        reviewers?: { name: string; state: string }[];
+        labels?: string[];
+      };
+      threads?: () => Promise<ReviewThread[]>;
+      submit?: (review: { event: "COMMENT" | "APPROVE" | "REQUEST_CHANGES"; body: string; comments: ReviewComment[] }) => Promise<void>;
+      reply?: (threadId: string, body: string) => Promise<void>;
+      resolve?: (threadId: string, resolved: boolean) => Promise<void>;
+    };
+  }
+
+  /** A discussion on lines of a pull request (line null: outdated) */
+  interface ReviewThread {
+    id: string;
+    path: string;
+    line: number | null;
+    startLine?: number | null;
+    side: "LEFT" | "RIGHT";
+    resolved: boolean;
+    comments: { author: string; body: string; createdAt?: string }[];
+  }
+
+  /** A line comment of the review being posted, as GitHub takes it */
+  interface ReviewComment {
+    path: string;
+    line: number;
+    side: "LEFT" | "RIGHT";
+    startLine?: number;
+    startSide?: "LEFT" | "RIGHT";
+    body: string;
   }
 
   /** The avatar's signals (see SPEC.md, The avatar); null takes one back */
