@@ -303,7 +303,9 @@ async function usage({ dir, hidden }) {
   }
   const { entries } = await list({ dir });
   const items = entries.filter((e) => hidden || !e.hidden).map((e) => ({ ...e, size: sizes.get(e.path) ?? e.size }));
-  return { dir, total: sizes.get(dir) ?? items.reduce((s, e) => s + e.size, 0), items: items.sort((a, b) => b.size - a.size), partial: !r.ok };
+  // The total of what's listed (hidden folders count only when they're shown)
+  const total = hidden ? (sizes.get(dir) ?? items.reduce((s, e) => s + e.size, 0)) : items.reduce((s, e) => s + e.size, 0);
+  return { dir, total, items: items.sort((a, b) => b.size - a.size), partial: !r.ok };
 }
 
 // ------------------------------------------------------------ opening
