@@ -1,77 +1,19 @@
+/* The list and its details come from thumbdeck's kit (td-split, td-rows, td-row, td-pane, …):
+   only what's this plugin's own is here */
 body { display: flex; flex-direction: column; font: 12.5px var(--mono); overflow: hidden; }
 .spacer { flex: 1; }
 .dim { color: var(--grey); }
-.red { color: var(--red); } .yellow { color: var(--yellow); } .green { color: var(--green); } .blue { color: var(--blue); }
+.yellow { color: var(--yellow); }
 .tool { padding: 2px 8px; border: 0; background: none; border-radius: 6px; color: var(--grey); font: 12px var(--mono); }
 .tool:hover { background: var(--bg2); color: var(--fg); }
 #error { margin: 6px 12px; }
-/* A key's badge, beside what it does (as in Azure Boards) */
-kbd { display: inline-block; min-width: 9px; padding: 0 4px; margin-left: 4px; border: 1px solid var(--grey-dim); border-bottom-width: 2px; border-radius: 4px;
-  font: 10.5px/1.45 var(--mono); color: var(--fg); text-align: center; vertical-align: 1px; background: var(--bg0); }
-
-/* The filters, with how many each has */
-.chips { display: flex; align-items: center; gap: 6px; }
-.chip { border: 1px solid var(--bg3); border-radius: 12px; padding: 0 8px; background: none; color: var(--grey); font: 11.5px var(--mono); white-space: nowrap; cursor: pointer; }
-.chip b { color: var(--fg); font-weight: 600; }
-.chip.on { border-color: var(--yellow); color: var(--yellow); }
-
-/* The list and the details share the full height */
-main { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); }
-.rows { list-style: none; margin: 0; padding: 4px 8px 12px; overflow: auto; min-width: 0; }
-.grp { display: flex; align-items: baseline; gap: 8px; padding: 10px 8px 4px; font: 600 11px var(--mono); letter-spacing: 0.05em; text-transform: uppercase; }
-.grp .n { color: var(--grey); font-weight: 400; letter-spacing: 0; }
-.re-review { color: var(--red); } .review { color: var(--yellow); } .reviewed { color: var(--purple); } .mine { color: var(--green); }
-/* A PR: its title, then repo · number · author · age; its state on the right */
-.row { display: grid; grid-template-columns: 14px minmax(0, 1fr) auto; gap: 2px 10px; align-items: center; padding: 6px 10px; border-radius: 8px; cursor: default; }
-.row:hover { background: var(--bg1); }
-.row.cursor { background: var(--bg2); }
-body.td-keys .row.cursor { box-shadow: inset 2px 0 var(--cursor, var(--orange)); }
-.row .l1 { display: flex; gap: 8px; align-items: baseline; min-width: 0; }
-.row .l2 { grid-column: 2; }
-.row .side { grid-row: 1 / span 2; grid-column: 3; display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
-.title { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-.draft { flex: none; color: var(--grey); border: 1px solid var(--bg3); border-radius: 4px; padding: 0 4px; font-size: 10.5px; }
-.meta { display: flex; gap: 8px; align-items: center; color: var(--grey); font-size: 11.5px; white-space: nowrap; overflow: hidden; }
 .repo { color: var(--purple); }
 .bell { font-size: 10px; }
+.draft { flex: none; color: var(--grey); border: 1px solid var(--bg3); border-radius: 4px; padding: 0 4px; font-size: 10.5px; }
+.state { display: flex; gap: 8px; align-items: center; }
 .cmi { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.4; stroke-linejoin: round; vertical-align: -2px; margin-right: 3px; }
-.ck-pass { color: var(--green); } .ck-run { color: var(--blue); } .ck-fail { color: var(--red); } .ck-none { color: var(--grey-dim); }
-.conflict { color: var(--red); } .stale { color: var(--yellow); }
-/* Reviewers as faces, with a dot for their verdict */
-.faces { display: inline-flex; }
-.face { position: relative; width: 16px; height: 16px; margin-left: -4px; border-radius: 50%; border: 2px solid var(--bg0); display: grid; place-items: center;
-  font: 700 8.5px var(--mono); color: var(--bg-dim); }
-.face:first-child { margin-left: 0; }
-.row.cursor .face { border-color: var(--bg2); }
-.face::after { content: ""; position: absolute; right: -3px; bottom: -3px; width: 7px; height: 7px; border-radius: 50%; border: 1.5px solid var(--bg0); }
-.face.APPROVED::after { background: var(--green); } .face.CHANGES_REQUESTED::after { background: var(--red); }
-.face.COMMENTED::after { background: var(--blue); } .face.PENDING::after { background: var(--yellow); } .face.DISMISSED::after { background: var(--grey); }
-.empty { padding: 14px 10px; color: var(--grey); }
-
-/* The highlighted PR: what you act on first */
-.details { border-left: 1px solid var(--bg2); overflow: auto; padding: 14px 18px; display: flex; flex-direction: column; gap: 14px; min-width: 0; }
-.details h3 { margin: 0; font: 600 15px/1.35 var(--mono); }
-.sub { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; margin-top: 4px; color: var(--grey); font-size: 12px; }
 .branch { color: var(--aqua); background: color-mix(in srgb, var(--aqua) 10%, transparent); border-radius: 4px; padding: 0 5px; }
-.pills { display: flex; flex-wrap: wrap; gap: 6px; }
-.pill { border: 1px solid currentColor; border-radius: 10px; padding: 1px 9px; font-size: 11.5px; }
-.sect h5 { margin: 0 0 6px; font: 600 10.5px var(--mono); letter-spacing: 0.07em; text-transform: uppercase; color: var(--grey); }
-.it { display: flex; gap: 8px; align-items: center; padding: 2px 0; white-space: nowrap; }
-.it .r { margin-left: auto; font-size: 11.5px; }
 .desc { font: 13px/1.55 var(--sans); }
 .desc p { margin: 0 0 8px; }
-.desc code { font: 12px var(--mono); background: var(--bg2); padding: 0 4px; border-radius: 3px; }
-.labels { display: flex; flex-wrap: wrap; gap: 5px; }
-.label { border-radius: 10px; padding: 0 8px; font-size: 11px; background: color-mix(in srgb, var(--blue) 16%, transparent); color: var(--blue); }
-.actions { display: flex; flex-wrap: wrap; gap: 8px; }
-.btn { border: 1px solid var(--bg3); background: var(--bg1); border-radius: 7px; padding: 4px 10px; font: 12px var(--mono); color: var(--fg); cursor: pointer; }
-.btn:hover { border-color: var(--grey); }
-.btn.main { background: var(--green); color: var(--bg-dim); border-color: var(--green); font-weight: 700; }
-.btn.main kbd { background: color-mix(in srgb, var(--bg-dim) 20%, transparent); border-color: color-mix(in srgb, var(--bg-dim) 35%, transparent); color: var(--bg-dim); }
+.desc code { font-size: 12px; }
 .url { word-break: break-all; font-size: 11.5px; }
-
-/* A narrow window: the details below the list */
-@media (max-width: 720px) {
-  main { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); }
-  .details { border-left: 0; border-top: 1px solid var(--bg2); }
-}

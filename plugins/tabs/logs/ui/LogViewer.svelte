@@ -559,7 +559,7 @@
             {/if}
             <p class="chips">
               {#each summary.levels as [level, n]}
-                {#if n}<span class="chip" style="--c: var(--{levelColor(level)})">{LEVEL_NAMES[level] ?? level} <b>{n}</b></span>{/if}
+                {#if n}<span class="td-chip" style="--c: var(--{levelColor(level)})">{LEVEL_NAMES[level] ?? level} <b>{n}</b></span>{/if}
               {/each}
             </p>
             {#if summary.first_error}
@@ -580,7 +580,7 @@
       <strong class="fname">{file.name}</strong>
       <span class="levels">
         {#each LEVELS as level}
-          <button class="chip" class:off={hidden.has(level)} style="--c: var(--{levelColor(level)})"
+          <button class="td-chip" class:off={hidden.has(level)} style="--c: var(--{levelColor(level)})"
                   title="Show / hide {level} (f, then {level[0]})" onclick={() => toggleLevel(level)}>{LEVEL_NAMES[level]} <b>{counts[level]}</b></button>
         {/each}
         <kbd>f</kbd>
@@ -687,14 +687,10 @@
   .mode.search { color: var(--orange); }
   .fname { overflow: hidden; text-overflow: ellipsis; }
   .levels { display: flex; gap: 2px; }
-  .chip { border: 1px solid var(--bg3); border-radius: 12px; padding: 0 7px; background: none; color: var(--grey); font: 11px var(--mono); white-space: nowrap; cursor: pointer; }
-  .chip b { color: var(--c); font-weight: 600; }
-  .chip.off { opacity: 0.4; text-decoration: line-through; }
+  /* the chips (td-chip) and key badges (kbd) come from thumbdeck's kit */
   .chips { display: flex; flex-wrap: wrap; gap: 5px; }
   .tool.on { color: var(--fg); }
   .tool.follow { color: var(--green); }
-  kbd { display: inline-block; min-width: 9px; padding: 0 4px; margin-left: 3px; border: 1px solid var(--bg3); border-bottom-width: 2px; border-radius: 4px;
-        font: 10.5px/1.45 var(--mono); color: var(--grey); text-align: center; vertical-align: 1px; background: var(--bg1); }
   .warn { color: var(--yellow); }
   .search { margin: 6px 12px; border-color: var(--orange); }
 

@@ -260,3 +260,11 @@ export function descriptionHtml(text, escape, max = 700) {
     .replace(/\*\*([^*\n]+)\*\*/g, "<b>$1</b>")
     .replace(/\n/g, "<br>")}</p>`).join("");
 }
+
+/** Whether version `a` is newer than `b` ("0.8.0" vs "0.7.0"); an unknown `b` counts as old */
+export function newer(a, b) {
+  const parts = (v) => String(v ?? "0").split(".").map((x) => parseInt(x, 10) || 0);
+  const [x, y] = [parts(a), parts(b)];
+  for (let i = 0; i < 3; i++) if ((x[i] ?? 0) !== (y[i] ?? 0)) return (x[i] ?? 0) > (y[i] ?? 0);
+  return false;
+}

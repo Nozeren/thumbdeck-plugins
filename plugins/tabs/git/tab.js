@@ -102,7 +102,7 @@ async function load(which = view) {
 }
 
 // ------------------------------------------------------------ drawing
-const counts = (stat) => (stat === null ? `<span class="dim">binary</span>` : stat ? `<span class="plus">+${stat[0]}</span> <span class="minus">−${stat[1]}</span>` : "");
+const counts = (stat) => (stat === null ? `<span class="td-muted">binary</span>` : stat ? `<span class="td-green">+${stat[0]}</span> <span class="td-red">−${stat[1]}</span>` : "");
 const statOf = (f) => (f.group === "untracked" ? undefined : st?.stats?.[f.group === "staged" ? "staged" : "changes"]?.get(f.change.path));
 const splitPath = (p) => (p.includes("/") ? [p.slice(0, p.lastIndexOf("/") + 1), p.slice(p.lastIndexOf("/") + 1)] : ["", p]);
 
@@ -113,51 +113,51 @@ function renderBar() {
     html += `<strong class="branch">⎇ ${esc(b.name ?? "detached HEAD")}</strong>`;
     if (b.upstream) {
       html += `<span class="dim">→ ${esc(b.upstream)}</span>`;
-      html += b.gone ? `<span class="chip gone">upstream gone</span>` : track(b.ahead, b.behind) ? `<span class="chip up">${track(b.ahead, b.behind)}</span>` : `<span class="chip">up to date</span>`;
-    } else if (b.name) html += `<span class="chip">no upstream</span>`;
+      html += b.gone ? `<span class="td-chip td-red">upstream gone</span>` : track(b.ahead, b.behind) ? `<span class="td-chip td-yellow">${track(b.ahead, b.behind)}</span>` : `<span class="td-chip">up to date</span>`;
+    } else if (b.name) html += `<span class="td-chip">no upstream</span>`;
     if (st.fetched) html += `<span class="dim">fetched ${ago(new Date(st.fetched).toISOString())}</span>`;
   }
   html += `<span class="spacer"></span>`;
   const g = groupChanges(st?.changes ?? []);
   const n = { changes: st ? g.length : null, commits: commits?.length ?? null, branches: refs ? refs.branches.length : null };
-  for (const v of views) html += `<button class="seg${v === view ? " on" : ""}" data-view="${v}">${viewName[v]}${n[v] !== null ? `<b>${n[v]}</b>` : ""}</button>`;
+  for (const v of views) html += `<button class="td-chip" aria-pressed="${v === view}" data-view="${v}">${viewName[v]}${n[v] !== null ? ` <b>${n[v]}</b>` : ""}</button>`;
   html += `<kbd title="Tab: the next list">Tab</kbd><button class="tool" id="setup" title="Set up this tab (S)">⚙ <kbd>S</kbd></button>`;
   $("bar").innerHTML = html;
 }
 
 function rowHtml(r, i) {
-  const cls = `row${i === cursor ? " cursor" : ""}`;
+  const sel = `aria-selected="${i === cursor}" data-i="${i}"`;
   if (r.kind === "file") {
     const f = r.file;
     const s = f.state === "?" ? "N" : f.state;
     const [dir, name] = splitPath(f.change.path);
     const from = f.change.from ? `<span class="dim"> ← ${esc(f.change.from)}</span>` : "";
-    return `<li class="${cls} one" data-i="${i}"><span class="state s${s}" title="${stateWord[f.state] ?? f.state}">${f.state === "?" ? "+" : f.state}</span>
-      <span class="l1"><span class="title"><span class="dir">${esc(dir)}</span>${esc(name)}${from}</span></span>
-      <span class="side">${f.group === "untracked" ? `<span class="dim">new</span>` : counts(statOf(f))}</span></li>`;
+    return `<li class="td-row one" ${sel}><span class="state s${s}" title="${stateWord[f.state] ?? f.state}">${f.state === "?" ? "+" : f.state}</span>
+      <span class="td-l1"><span class="td-title"><span class="dir">${esc(dir)}</span>${esc(name)}${from}</span></span>
+      <span class="td-side">${f.group === "untracked" ? "new" : counts(statOf(f))}</span></li>`;
   }
   if (r.kind === "commit") {
     const c = r.commit;
     const chips = refNames(c.refs).map((n) => `<span class="ref${n === st?.branch?.name ? " head" : n.startsWith("tag: ") ? " tag" : ""}">${esc(n.replace(/^tag: /, "🏷 "))}</span>`).join("");
-    return `<li class="${cls}" data-i="${i}"><span></span>
-      <span class="l1"><span class="title">${esc(c.subject)}</span>${chips}</span>
-      <span class="side">${c.stat.files ? `<span class="dim">${c.stat.files} file${c.stat.files === 1 ? "" : "s"}</span><span><span class="plus">+${c.stat.added}</span> <span class="minus">−${c.stat.removed}</span></span>` : ""}</span>
-      <span class="l2"><span class="hash">${esc(c.short)}</span><span>${esc(c.author)}</span><span>${ago(c.date)}</span></span></li>`;
+    return `<li class="td-row" ${sel}><span></span>
+      <span class="td-l1"><span class="td-title">${esc(c.subject)}</span>${chips}</span>
+      <span class="td-side">${c.stat.files ? `<span>${c.stat.files} file${c.stat.files === 1 ? "" : "s"}</span><span><span class="td-green">+${c.stat.added}</span> <span class="td-red">−${c.stat.removed}</span></span>` : ""}</span>
+      <span class="td-l2"><span class="hash">${esc(c.short)}</span><span>${esc(c.author)}</span><span>${ago(c.date)}</span></span></li>`;
   }
   if (r.kind === "branch") {
     const b = r.branch;
     const vsMain = refs?.main && b.name !== refs.main && b.ahead !== undefined
-      ? `<span class="chip" title="against ${esc(refs.main)}">↑${b.ahead} ↓${b.behind}</span>${b.merged ? `<span class="chip merged">merged</span>` : ""}` : "";
-    const up = b.upstream ? `<span class="dim" title="against ${esc(b.upstream)}">${esc(b.track.replace(/[[\]]/g, "")) || "↔ " + esc(b.upstream)}</span>` : "";
-    return `<li class="${cls}" data-i="${i}"><span class="state green">${b.current ? "●" : ""}</span>
-      <span class="l1"><span class="title${b.current ? " current" : ""}">${esc(b.name)}</span>${b.name === refs?.main ? `<span class="chip">main</span>` : ""}</span>
-      <span class="side">${vsMain || up}</span>
-      <span class="l2"><span>${esc(b.subject)}</span><span>${ago(b.date)}</span></span></li>`;
+      ? `<span class="td-chip" title="against ${esc(refs.main)}">↑${b.ahead} ↓${b.behind}</span>${b.merged ? `<span class="td-chip td-purple">merged</span>` : ""}` : "";
+    const up = b.upstream ? `<span title="against ${esc(b.upstream)}">${esc(b.track.replace(/[[\]]/g, "")) || "↔ " + esc(b.upstream)}</span>` : "";
+    return `<li class="td-row" ${sel}><span class="state td-green">${b.current ? "●" : ""}</span>
+      <span class="td-l1"><span class="td-title${b.current ? " current" : ""}">${esc(b.name)}</span>${b.name === refs?.main ? `<span class="td-chip">main</span>` : ""}</span>
+      <span class="td-side">${vsMain || up}</span>
+      <span class="td-l2"><span>${esc(b.subject)}</span><span>${ago(b.date)}</span></span></li>`;
   }
   const s = r.stash;
-  return `<li class="${cls}" data-i="${i}"><span class="state dim">≡</span>
-    <span class="l1"><span class="title">${esc(s.subject)}</span></span><span class="side"></span>
-    <span class="l2"><span>${esc(s.name)}</span><span>${ago(s.date)}</span></span></li>`;
+  return `<li class="td-row" ${sel}><span class="state td-grey">≡</span>
+    <span class="td-l1"><span class="td-title">${esc(s.subject)}</span></span><span class="td-side"></span>
+    <span class="td-l2"><span>${esc(s.name)}</span><span>${ago(s.date)}</span></span></li>`;
 }
 
 function render() {
@@ -169,18 +169,18 @@ function render() {
   list.forEach((r, i) => {
     const prev = list[i - 1];
     if (r.kind === "file" && (prev?.kind !== "file" || prev.file.group !== r.file.group)) {
-      html += `<li class="group">${groupTitle[r.file.group]} <span class="n">${list.filter((x) => x.kind === "file" && x.file.group === r.file.group).length}</span></li>`;
-    } else if (r.kind === "branch" && i === 0) html += `<li class="group">Branches <span class="n">${refs.branches.length}</span></li>`;
-    else if (r.kind === "stash" && prev?.kind !== "stash") html += `<li class="group">Stashes <span class="n">${refs.stashes.length}</span></li>`;
+      html += `<li class="td-group">${groupTitle[r.file.group]} <span class="n">${list.filter((x) => x.kind === "file" && x.file.group === r.file.group).length}</span></li>`;
+    } else if (r.kind === "branch" && i === 0) html += `<li class="td-group">Branches <span class="n">${refs.branches.length}</span></li>`;
+    else if (r.kind === "stash" && prev?.kind !== "stash") html += `<li class="td-group">Stashes <span class="n">${refs.stashes.length}</span></li>`;
     html += rowHtml(r, i);
   });
   if (!list.length) {
     const looking = view === "changes" ? !st : view === "commits" ? !commits : !refs;
     const none = { changes: "Nothing to commit: the working tree is clean.", commits: "No commits yet.", branches: "No branches yet." }[view];
-    html = `<li class="empty">${looking ? "Looking…" : none}</li>`;
+    html = `<li class="td-empty">${looking ? "Looking…" : none}</li>`;
   }
   $("rows").innerHTML = html;
-  $("rows").querySelector(".cursor")?.scrollIntoView({ block: "nearest" });
+  $("rows").querySelector('[aria-selected="true"]')?.scrollIntoView({ block: "nearest" });
   $("preview").hidden = !list[cursor];
   const key = rowKey(list[cursor]);
   if (key !== shownKey) {
@@ -199,15 +199,15 @@ let asked = 0; // only the latest answer is shown
 /** A diff drawn like the review page: line numbers, added and removed lines, no git headers */
 function diffHtml(text) {
   return diffLines(text).map((l) => {
-    if (l.kind === "file") return `<div class="dfile">${esc(l.text)}</div>`;
-    if (l.kind === "hunk") return `<div class="dhunk">@@ ${esc(l.text)}</div>`;
+    if (l.kind === "file") return `<div class="td-dfile">${esc(l.text)}</div>`;
+    if (l.kind === "hunk") return `<div class="td-hunk">@@ ${esc(l.text)}</div>`;
     if (l.kind === "meta") return `<div class="dmeta">${esc(l.text)}</div>`;
     const sign = l.kind === "add" ? "+" : l.kind === "del" ? "−" : "";
-    return `<div class="dl ${l.kind}"><span class="n">${l.old ?? ""}</span><span class="n">${l.new ?? ""}</span><span class="s">${sign}</span><code>${esc(l.text)}</code></div>`;
+    return `<div class="td-dl ${l.kind}"><span>${l.old ?? ""}</span><span>${l.new ?? ""}</span><span>${sign}</span><code>${esc(l.text)}</code></div>`;
   }).join("") || `<div class="dmeta">No changes to show.</div>`;
 }
 const filesHtml = (stats) => `<div class="files">${[...stats].map(([p, s]) => `<div class="f"><span class="p">${esc(p)}</span>${counts(s)}</div>`).join("")}</div>`;
-const reviewButton = (what) => `<div class="actions"><button class="btn main" id="review">Review ${what} <kbd>v</kbd></button></div>`;
+const reviewButton = (what) => `<div class="td-actions"><button class="primary" id="review">Review ${what} <kbd>v</kbd></button></div>`;
 
 async function loadDetail(fromTop = true) {
   const r = rows()[cursor];
@@ -221,7 +221,7 @@ async function loadDetail(fromTop = true) {
       html = `<div class="phead"><h3>${esc(f.change.path)}</h3>
           <div class="sub"><span class="s${f.state === "?" ? "N" : f.state}">${stateWord[f.state] ?? f.state}</span><span>${groupTitle[f.group].toLowerCase()}</span>${counts(statOf(f))}${f.change.from ? `<span>from ${esc(f.change.from)}</span>` : ""}</div>
           ${reviewButton("the changes")}</div>
-        <div class="diff">${text ? diffHtml(text) : `<div class="dmeta">${f.change.from ? `Renamed from ${esc(f.change.from)}` : "No changes to show."}</div>`}</div>`;
+        <div class="td-diff">${text ? diffHtml(text) : `<div class="dmeta">${f.change.from ? `Renamed from ${esc(f.change.from)}` : "No changes to show."}</div>`}</div>`;
     } else if (r.kind === "commit") {
       const c = r.commit;
       const [message, numstat, patch] = await Promise.all([
@@ -233,9 +233,9 @@ async function loadDetail(fromTop = true) {
       html = `<div class="phead"><h3>${esc(c.subject)}</h3>
           <div class="sub"><span class="hash">${esc(c.short)}</span><span>${esc(c.author)}</span><span>${ago(c.date)}</span>${refNames(c.refs).map((n) => `<span class="ref">${esc(n)}</span>`).join("")}</div>
           ${body ? `<p class="message">${esc(body)}</p>` : ""}
-          <div class="sect"><h5>${c.stat.files} file${c.stat.files === 1 ? "" : "s"} · <span class="plus">+${c.stat.added}</span> <span class="minus">−${c.stat.removed}</span></h5>${filesHtml(parseNumstat(numstat))}</div>
+          <div class="td-sect"><h5>${c.stat.files} file${c.stat.files === 1 ? "" : "s"} · <span class="td-green">+${c.stat.added}</span> <span class="td-red">−${c.stat.removed}</span></h5>${filesHtml(parseNumstat(numstat))}</div>
           ${reviewButton("the commit")}</div>
-        <div class="diff">${diffHtml(patch)}</div>`;
+        <div class="td-diff">${diffHtml(patch)}</div>`;
     } else if (r.kind === "stash") {
       const s = r.stash;
       const [numstat, patch] = await Promise.all([
@@ -243,8 +243,8 @@ async function loadDetail(fromTop = true) {
         git(["stash", "show", "--patch", s.name]).then(cut),
       ]);
       html = `<div class="phead"><h3>${esc(s.subject)}</h3><div class="sub"><span>${esc(s.name)}</span><span>${ago(s.date)}</span></div>
-          <div class="sect"><h5>Files</h5>${filesHtml(parseNumstat(numstat))}</div>${reviewButton("the stash")}</div>
-        <div class="diff">${diffHtml(patch)}</div>`;
+          <div class="td-sect"><h5>Files</h5>${filesHtml(parseNumstat(numstat))}</div>${reviewButton("the stash")}</div>
+        <div class="td-diff">${diffHtml(patch)}</div>`;
     } else {
       const b = r.branch;
       const main = refs?.main;
@@ -252,9 +252,9 @@ async function loadDetail(fromTop = true) {
       const list = own.trim() ? own.trim().split("\n").map((l) => l.split("\x1f")) : [];
       html = `<div class="phead"><h3>${b.current ? "● " : ""}${esc(b.name)}</h3>
           <div class="sub">${b.upstream ? `<span>→ ${esc(b.upstream)}</span><span>${esc(b.track.replace(/[[\]]/g, "")) || "up to date"}</span>` : `<span>no upstream</span>`}
-            ${main && b.name !== main ? `<span class="chip">↑${b.ahead} ↓${b.behind} against ${esc(main)}</span>${b.merged ? `<span class="chip merged">merged into ${esc(main)}</span>` : ""}` : ""}</div>
-          <div class="sect"><h5>Last commit</h5><div>${esc(b.subject)} <span class="dim">· ${ago(b.date)}</span></div></div>
-          ${list.length ? `<div class="sect"><h5>Not in ${esc(main)} yet · ${list.length}</h5><div class="files">${list.map(([h, s, d]) => `<div class="f"><span class="hash">${esc(h)}</span><span class="p">${esc(s)}</span><span class="dim">${ago(d)}</span></div>`).join("")}</div></div>` : ""}
+            ${main && b.name !== main ? `<span class="td-chip">↑${b.ahead} ↓${b.behind} against ${esc(main)}</span>${b.merged ? `<span class="td-chip td-purple">merged into ${esc(main)}</span>` : ""}` : ""}</div>
+          <div class="td-sect"><h5>Last commit</h5><div>${esc(b.subject)} <span class="dim">· ${ago(b.date)}</span></div></div>
+          ${list.length ? `<div class="td-sect"><h5>Not in ${esc(main)} yet · ${list.length}</h5><div class="files">${list.map(([h, s, d]) => `<div class="f"><span class="hash">${esc(h)}</span><span class="p">${esc(s)}</span><span class="dim">${ago(d)}</span></div>`).join("")}</div></div>` : ""}
           <p class="dim">A branch has no diff of its own: review its commits in Commits (Tab).</p></div>`;
     }
   } catch (e) {
@@ -346,6 +346,10 @@ document.addEventListener("click", (e) => {
   if (row) move(Number(row.dataset.i));
 });
 document.addEventListener("dblclick", (e) => e.target.closest("[data-i]") && reviewRow());
+
+// The list's look comes from thumbdeck's kit (0.8.0 on); an older thumbdeck draws it plainer
+const older = (v) => { const [a, b] = String(v ?? "0").split(".").map(Number); return a === 0 && (b ?? 0) < 8; };
+if (older(td.context.thumbdeck)) td.ui.say("Git looks its best in thumbdeck 0.8 or newer: update thumbdeck");
 
 // The branch line is always shown; the changes follow edits: look again every 3 seconds
 render();

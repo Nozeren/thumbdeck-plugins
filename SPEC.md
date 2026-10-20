@@ -677,6 +677,25 @@ The kit styles `body`, headings, links, `button`, `input`, `select`, `textarea`,
 | `td-error` | an error message |
 | `td-toolbar` | a row of buttons and fields at the top |
 
+Since thumbdeck **0.8.0** the kit also has the pieces of a list beside its details, the way
+Pull requests, Git and Logs look (check `td.context.thumbdeck` if your plugin must look right
+in older versions too):
+
+| class | for |
+| --- | --- |
+| `kbd` (no class) | a key's badge beside what it does: `<button>Review <kbd>v</kbd></button>` |
+| `td-split` | a list and the highlighted item's details side by side at full height (stacked when narrow) |
+| `td-rows`, `td-group` | the list, and a heading in it with its count (`<li class="td-group">Yours <span class="n">3</span></li>`; `--c` colours it) |
+| `td-row` | a row of two lines: `td-l1` (title), `td-l2` (details), `td-side` (state, on the right); `td-row one` is one line. Mark the current one with `aria-selected="true"` |
+| `td-title` | text cut with … when it doesn't fit |
+| `td-chip`, `td-chips` | a filter with its count (`<button class="td-chip" aria-pressed="true">Yours <b>3</b></button>`; `off` strikes it) |
+| `td-pill` | a state in a few words, outlined (`td-pill td-green`) |
+| `td-tag` | a label |
+| `td-pane`, `td-sub`, `td-sect`, `td-item`, `td-actions` | the details: a title (`h3`), a line under it, sections with an `h5`, rows in them, buttons |
+| `td-face`, `td-faces` | a person's initial in a circle; `--dot` adds a dot for their state |
+| `td-diff`, `td-dl`, `td-hunk`, `td-dfile` | a diff drawn like the review page: `<div class="td-dl add"><span>old</span><span>new</span><span>+</span><code>text</code></div>` |
+| `td-red`, `td-green`, … `td-grey` | a word or a sign in that colour |
+
 To start from nothing, put `<meta name="thumbdeck-kit" content="off">` in the page; the
 variables stay.
 

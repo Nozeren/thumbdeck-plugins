@@ -105,3 +105,11 @@ test("a description is escaped, with a little Markdown, and cut when long", asyn
   assert.equal(descriptionHtml("<!-- template -->", esc), "");
   assert.ok(descriptionHtml("word ".repeat(400), esc, 50).endsWith(" …</p>"));
 });
+
+test("versions", async () => {
+  const { newer } = await import("./prs.js");
+  assert.equal(newer("0.8.0", "0.7.0"), true);
+  assert.equal(newer("0.8.0", "0.8.0"), false);
+  assert.equal(newer("0.8.0", "0.10.1"), false);
+  assert.equal(newer("0.8.0", undefined), true);
+});

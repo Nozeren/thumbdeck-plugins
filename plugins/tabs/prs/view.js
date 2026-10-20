@@ -3,7 +3,7 @@
 // a preview. Its review page can comment, suggest, answer threads and approve or request
 // changes. Read and written with the GitHub CLI (gh), so it uses your gh login.
 import {
-  aboutFrom, ago, checkSign, contentsPath, descriptionHtml, filterPrs, FILTERS, isStale, PR_QUERY, REPLY_MUTATION, RESOLVE_MUTATION,
+  aboutFrom, ago, checkSign, newer, contentsPath, descriptionHtml, filterPrs, FILTERS, isStale, PR_QUERY, REPLY_MUTATION, RESOLVE_MUTATION,
   reviewPayload, reviewText, SEARCH_QUERY, searches, sortPrs, threadsFrom, UNRESOLVE_MUTATION,
 } from "./prs.js";
 
@@ -86,22 +86,25 @@ async function refresh() {
 
 // ------------------------------------------------------------ drawing
 const GROUPS = [["re-review", "To review again"], ["review", "To review"], ["reviewed", "Reviewed by you"], ["mine", "Yours"]];
+const GROUP_COLOR = { "re-review": "var(--red)", review: "var(--yellow)", reviewed: "var(--purple)", mine: "var(--green)" };
 const SIGN = { pass: "✓", run: "●", fail: "✗", none: "○" };
 const SIGN_WORDS = { pass: "checks pass", run: "checks running", fail: "checks fail", none: "no checks" };
-const VERDICT = { APPROVED: ["approved", "green"], CHANGES_REQUESTED: ["changes requested", "red"], COMMENTED: ["commented", "blue"], PENDING: ["asked", "yellow"], DISMISSED: ["dismissed", "dim"] };
+const VERDICT = { APPROVED: ["approved", "green"], CHANGES_REQUESTED: ["changes requested", "red"], COMMENTED: ["commented", "blue"], PENDING: ["asked", "yellow"], DISMISSED: ["dismissed", "grey"] };
 const FACE_COLORS = ["purple", "blue", "orange", "aqua", "yellow", "green", "red"];
 const faceColor = (name) => `var(--${FACE_COLORS[[...name].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7) % FACE_COLORS.length]})`;
 const COMMENTS_ICON = `<svg class="cmi" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2z"/></svg>`;
 const shown = () => filterPrs(data?.prs ?? [], filter);
-const faces = (reviewers) => `<span class="faces">${reviewers.map((r) =>
-  `<span class="face ${esc(r.state)}" style="background: ${faceColor(r.name)}" title="@${esc(r.name)}: ${esc(reviewText(r.state))}">${esc(r.name[0]?.toUpperCase() ?? "?")}</span>`).join("")}</span>`;
+const DOT = { APPROVED: "var(--green)", CHANGES_REQUESTED: "var(--red)", COMMENTED: "var(--blue)", PENDING: "var(--yellow)", DISMISSED: "var(--grey)" };
+const faces = (reviewers) => `<span class="td-faces">${reviewers.map((r) =>
+  `<span class="td-face" style="background: ${faceColor(r.name)}; --dot: ${DOT[r.state] ?? "transparent"}" title="@${esc(r.name)}: ${esc(reviewText(r.state))}">${esc(r.name[0]?.toUpperCase() ?? "?")}</span>`).join("")}</span>`;
+const SIGN_COLOR = { pass: "td-green", run: "td-blue", fail: "td-red", none: "td-grey" };
 
 function render() {
   const where = demo() ? "sample PRs, not from GitHub" : String(settings.repos ?? "").trim() || "every repo you're in";
   const all = data?.prs ?? [];
   $("bar").innerHTML = `<strong>Pull requests</strong>
     <span class="${demo() ? "yellow" : "dim"}">${esc(where)}${data ? ` · ${all.length} for @${esc(data.user)}` : ""}</span>
-    <span class="chips">${FILTERS.map(([id, name]) => `<button class="chip${filter === id ? " on" : ""}" data-filter="${id}">${esc(name)} <b>${filterPrs(all, id).length}</b></button>`).join("")}<kbd>f</kbd></span>
+    <span class="td-chips">${FILTERS.map(([id, name]) => `<button class="td-chip" aria-pressed="${filter === id}" data-filter="${id}">${esc(name)} <b>${filterPrs(all, id).length}</b></button>`).join("")}<kbd>f</kbd></span>
     <span class="spacer"></span>
     <span class="dim">${loading ? "refreshing…" : fetchedAt ? ago(new Date(fetchedAt).toISOString()) : ""}</span>
     <button class="tool" id="refresh" title="Refresh (r)">↻ <kbd>r</kbd></button>`;
@@ -110,7 +113,7 @@ function render() {
 
   const list = shown();
   if (!list.length) {
-    $("rows").innerHTML = `<li class="empty">${data ? (all.length ? "Nothing here: f shows the others." : "No open PRs that concern you.") : error ? "" : "Asking GitHub…"}</li>`;
+    $("rows").innerHTML = `<li class="td-empty">${data ? (all.length ? "Nothing here: f shows the others." : "No open PRs that concern you.") : error ? "" : "Asking GitHub…"}</li>`;
     $("details").hidden = true;
     return;
   }
@@ -118,19 +121,19 @@ function render() {
   for (const [g, name] of GROUPS) {
     const items = list.filter((p) => p.category === g);
     if (!items.length) continue;
-    html += `<li class="grp ${g}">${name} <span class="n">${items.length}</span></li>`;
+    html += `<li class="td-group" style="--c: ${GROUP_COLOR[g]}">${name} <span class="n">${items.length}</span></li>`;
     for (const p of items) {
       const i = list.indexOf(p);
       const sign = checkSign(p.checks);
-      html += `<li class="row${i === cursor ? " cursor" : ""}" data-i="${i}">
+      html += `<li class="td-row" aria-selected="${i === cursor}" data-i="${i}">
         <span class="bell" title="${p.notification ? "unread notification" : ""}">${p.notification ? "🔔" : ""}</span>
-        <span class="l1"><span class="title">${esc(p.title)}</span>${p.draft ? `<span class="draft">draft</span>` : ""}</span>
-        <span class="side"><span class="meta"><span class="ck-${sign}" title="${SIGN_WORDS[sign]}">${SIGN[sign]}</span><span title="comments">${COMMENTS_ICON}${p.comments}</span>${p.mergeable === "CONFLICTING" ? `<span class="conflict" title="merge conflicts">⚠</span>` : ""}${isStale(p.updated, settings.stale_days) ? `<span class="stale" title="stale">⏳</span>` : ""}</span>${faces(p.reviewers)}</span>
-        <span class="l2 meta"><span class="repo">${esc(p.repo)}</span><span>#${p.number}</span><span>@${esc(p.author)}</span><span>${ago(p.updated)}</span></span></li>`;
+        <span class="td-l1"><span class="td-title">${esc(p.title)}</span>${p.draft ? `<span class="draft">draft</span>` : ""}</span>
+        <span class="td-side"><span class="state"><span class="${SIGN_COLOR[sign]}" title="${SIGN_WORDS[sign]}">${SIGN[sign]}</span><span title="comments">${COMMENTS_ICON}${p.comments}</span>${p.mergeable === "CONFLICTING" ? `<span class="td-red" title="merge conflicts">⚠</span>` : ""}${isStale(p.updated, settings.stale_days) ? `<span class="td-yellow" title="stale">⏳</span>` : ""}</span>${faces(p.reviewers)}</span>
+        <span class="td-l2"><span class="repo">${esc(p.repo)}</span><span>#${p.number}</span><span>@${esc(p.author)}</span><span>${ago(p.updated)}</span></span></li>`;
     }
   }
   $("rows").innerHTML = html;
-  $("rows").querySelector(".cursor")?.scrollIntoView({ block: "nearest" });
+  $("rows").querySelector('[aria-selected="true"]')?.scrollIntoView({ block: "nearest" });
   renderDetails(list[cursor]);
 }
 
@@ -142,31 +145,31 @@ function renderDetails(p) {
   if (!more) loadDetails(p);
   const sign = checkSign(p.checks);
   const pills = [
-    `<span class="pill ck-${sign}">${SIGN[sign]} ${SIGN_WORDS[sign]}</span>`,
-    p.mergeable === "CONFLICTING" ? `<span class="pill conflict">⚠ merge conflicts</span>` : "",
-    isStale(p.updated, settings.stale_days) ? `<span class="pill stale">⏳ stale</span>` : "",
-    p.notification ? `<span class="pill yellow">🔔 unread</span>` : "",
-    `<span class="pill dim">${COMMENTS_ICON}${p.comments}${p.lastComment ? ` · last @${esc(p.lastComment.author)} ${ago(p.lastComment.updated)}` : ""}</span>`,
+    `<span class="td-pill ${SIGN_COLOR[sign]}">${SIGN[sign]} ${SIGN_WORDS[sign]}</span>`,
+    p.mergeable === "CONFLICTING" ? `<span class="td-pill td-red">⚠ merge conflicts</span>` : "",
+    isStale(p.updated, settings.stale_days) ? `<span class="td-pill td-yellow">⏳ stale</span>` : "",
+    p.notification ? `<span class="td-pill td-yellow">🔔 unread</span>` : "",
+    `<span class="td-pill td-grey">${COMMENTS_ICON}${p.comments}${p.lastComment ? ` · last @${esc(p.lastComment.author)} ${ago(p.lastComment.updated)}` : ""}</span>`,
   ].join("");
   const reviewers = p.reviewers.length
-    ? p.reviewers.map((r) => { const [word, color] = VERDICT[r.state] ?? [r.state.toLowerCase(), "dim"];
-        return `<div class="it">${faces([r])}@${esc(r.name)}<span class="r ${color}">${esc(word)}</span></div>`; }).join("")
-    : `<div class="dim">No reviewers asked</div>`;
+    ? p.reviewers.map((r) => { const [word, color] = VERDICT[r.state] ?? [r.state.toLowerCase(), "grey"];
+        return `<div class="td-item">${faces([r])}@${esc(r.name)}<span class="r td-${color}">${esc(word)}</span></div>`; }).join("")
+    : `<div class="td-muted">No reviewers asked</div>`;
   const checks = more?.about?.checks?.length
     ? more.about.checks.map((c) => { const s = { success: "pass", failure: "fail", pending: "run", neutral: "none" }[c.state] ?? "none";
-        return `<div class="it"><span class="ck-${s}">${SIGN[s]}</span>${esc(c.name)}${c.detail ? `<span class="r dim">${esc(c.detail)}</span>` : ""}</div>`; }).join("")
-    : `<div class="dim">${more?.error ? esc(more.error) : more ? "No checks" : "Reading…"}</div>`;
-  const description = more?.about ? descriptionHtml(more.about.description, esc) || `<p class="dim">No description.</p>` : `<p class="dim">${more?.error ? "" : "Reading…"}</p>`;
-  $("details").innerHTML = `<div><h3>${esc(p.title)}${p.draft ? ` <span class="draft">draft</span>` : ""}</h3>
-      <div class="sub"><span class="repo">${esc(p.repo)}</span><span>#${p.number}</span><span>@${esc(p.author)}</span><span>${ago(p.updated)}</span>
-        ${p.head ? `<span class="branch">${esc(p.head)}</span>→<span class="branch">${esc(p.base)}</span>` : ""}</div></div>
-    <div class="pills">${pills}</div>
-    <div class="sect"><h5>Reviewers</h5>${reviewers}</div>
-    <div class="sect"><h5>Checks</h5>${checks}</div>
-    <div class="sect"><h5>Description</h5><div class="desc">${description}</div></div>
-    ${p.labels.length ? `<div class="sect"><h5>Labels</h5><div class="labels">${p.labels.map((l) => `<span class="label">${esc(l)}</span>`).join("")}</div></div>` : ""}
-    <div class="actions"><button class="btn main" id="review">Review it <kbd>v</kbd></button><button class="btn" id="open">Open in the browser <kbd>o</kbd></button></div>
-    <div class="dim url">${esc(p.url)}</div>`;
+        return `<div class="td-item"><span class="${SIGN_COLOR[s]}">${SIGN[s]}</span>${esc(c.name)}${c.detail ? `<span class="r td-muted">${esc(c.detail)}</span>` : ""}</div>`; }).join("")
+    : `<div class="td-muted">${more?.error ? esc(more.error) : more ? "No checks" : "Reading…"}</div>`;
+  const description = more?.about ? descriptionHtml(more.about.description, esc) || `<p class="td-muted">No description.</p>` : `<p class="td-muted">${more?.error ? "" : "Reading…"}</p>`;
+  $("details").innerHTML = `<h3>${esc(p.title)}${p.draft ? ` <span class="draft">draft</span>` : ""}</h3>
+    <div class="td-sub"><span class="repo">${esc(p.repo)}</span><span>#${p.number}</span><span>@${esc(p.author)}</span><span>${ago(p.updated)}</span>
+      ${p.head ? `<span class="branch">${esc(p.head)}</span>→<span class="branch">${esc(p.base)}</span>` : ""}</div>
+    <div class="td-actions">${pills}</div>
+    <div class="td-sect"><h5>Reviewers</h5>${reviewers}</div>
+    <div class="td-sect"><h5>Checks</h5>${checks}</div>
+    <div class="td-sect"><h5>Description</h5><div class="desc">${description}</div></div>
+    ${p.labels.length ? `<div class="td-sect"><h5>Labels</h5><div class="td-actions">${p.labels.map((l) => `<span class="td-tag">${esc(l)}</span>`).join("")}</div></div>` : ""}
+    <div class="td-actions"><button class="primary" id="review">Review it <kbd>v</kbd></button><button id="open">Open in the browser <kbd>o</kbd></button></div>
+    <div class="td-muted url">${esc(p.url)}</div>`;
 }
 
 /** A PR's description and checks, read once (a moment after it's highlighted, so moving fast doesn't ask for each) */
@@ -312,6 +315,9 @@ document.addEventListener("click", (e) => {
   if (row) move(Number(row.dataset.i));
 });
 document.addEventListener("dblclick", (e) => e.target.closest("[data-i]") && reviewPr(shown()[cursor]));
+
+// The list's look comes from thumbdeck's kit (0.8.0 on); an older thumbdeck draws it plainer
+if (newer("0.8.0", td.context.thumbdeck)) td.ui.say("Pull requests looks its best in thumbdeck 0.8 or newer: update thumbdeck");
 
 // Fetch now, then every few minutes while the view is shown
 refresh();
