@@ -28,7 +28,6 @@ let clip = null; // { mode: "copy" | "cut", paths }
 let renaming = null; // a path
 let usage = null; // { dir, total, items, cursor }
 let layer = null; // "find" | "grep" | "buffer" | "command" | "make"
-let letterFor = null; // "jump" | "mark", waiting for the bookmark's letter
 let undoLabel = null;
 let unwatch = null;
 
@@ -122,7 +121,7 @@ function row(e, { cur, main } = {}) {
 function render() {
   const t = T();
   $("tabs").innerHTML = tabs.map((x, i) => `<div class="tab" aria-selected="${i === tab}" data-tab="${i}">${esc(nameOf(x.dir) || "/")}</div>`).join("") +
-    `<span class="spacer"></span><span class="hint">T new tab · [ ] switch · W close</span>`;
+    `<span class="spacer"></span><span class="hint">:tabnew · ]b [b switch · :tabclose</span>`;
   const shownPath = tilde(t.dir, home);
   const parts = shownPath === "/" ? [""] : shownPath.split("/");
   // "/" at the start is the root, so no separator after it
@@ -156,12 +155,12 @@ function render() {
       }
     }
   }
-  const mode = letterFor ? (letterFor === "jump" ? "go to which bookmark? (its letter)" : "bookmark this folder as? (a letter)") : "";
+  const mode = anchor ? "VISUAL: j / k extend, y copies, d deletes, c renames" : "";
   $("status").innerHTML = [
     `<span>${shown.length} items${hidden ? " · hidden shown" : ""} · by ${sort}</span>`,
     selected.size ? `<span class="sel">${selected.size} selected${anchor ? " (V)" : ""}</span>` : "",
     clip ? `<span class="clip">${clip.mode === "cut" ? "cut" : "copied"}: ${clip.paths.length === 1 ? esc(nameOf(clip.paths[0])) : `${clip.paths.length} items`} · p pastes</span>` : "",
-    undoLabel ? `<span>U undoes the ${esc(undoLabel)}</span>` : "",
+    undoLabel ? `<span>u undoes the ${esc(undoLabel)}</span>` : "",
     mode ? `<span class="clip">${mode}</span>` : "",
   ].filter(Boolean).join("");
   td.ui.status(clip ? `${clip.paths.length} ${clip.mode === "cut" ? "cut" : "copied"}` : null);
@@ -237,13 +236,13 @@ function previewHtml(p) {
       `<div class="pbody" style="padding:4px 6px">${list.length ? list.slice(0, 300).map((e) => row(e)).join("") : '<div class="empty">Empty folder.</div>'}</div>`;
   }
   const base = `${human(p.size)} · changed ${ago(p.mtime)} ago`;
-  if (p.diff && !wholeFile) return head(`${base} · <span class="td-yellow">changed</span> · ${kb("l")} the whole file · ${kb("v")} review`) + `<div class="pbody">${diffLines(p.diff)}</div>`;
+  if (p.diff && !wholeFile) return head(`${base} · <span class="td-yellow">changed</span> · ${kb("l")} the whole file · ${kb("gd")} review`) + `<div class="pbody">${diffLines(p.diff)}</div>`;
   switch (p.type) {
     case "image":
       return head(`${base}`) + `<div class="pbody">${p.data ? `<div class="pimg"><img alt="" src="data:${MIME[p.name.split(".").pop().toLowerCase()] ?? "image/png"};base64,${p.data}"></div>` : '<div class="empty">Too big to preview: o opens it.</div>'}</div>`;
     case "video":
     case "audio":
-      return head(`${base}${p.duration ? ` · ${duration(p.duration)}` : ""}${p.res ? ` · ${esc(p.res)}` : ""}`) + `<div class="pbody"><dl class="facts">${p.duration ? `<dt>Length</dt><dd>${duration(p.duration)}</dd>` : ""}${p.res ? `<dt>Video</dt><dd>${esc(p.res)}</dd>` : ""}<dt>Open</dt><dd>${kb("o")} with the default player</dd></dl>${p.duration ? "" : '<div class="empty">Install ffmpeg to see its length.</div>'}</div>`;
+      return head(`${base}${p.duration ? ` · ${duration(p.duration)}` : ""}${p.res ? ` · ${esc(p.res)}` : ""}`) + `<div class="pbody"><dl class="facts">${p.duration ? `<dt>Length</dt><dd>${duration(p.duration)}</dd>` : ""}${p.res ? `<dt>Video</dt><dd>${esc(p.res)}</dd>` : ""}<dt>Open</dt><dd>${kb("gx")} with the default player</dd></dl>${p.duration ? "" : '<div class="empty">Install ffmpeg to see its length.</div>'}</div>`;
     case "pdf":
       return head(`${base}${p.info?.Pages ? ` · ${esc(p.info.Pages)} pages` : ""}`) + `<div class="pbody">${p.info ? `<dl class="facts">${Object.entries(p.info).map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join("")}</dl>` : ""}${p.text ? `<div class="plain">${esc(p.text)}</div>` : '<div class="empty">Install poppler (pdfinfo, pdftotext) to see what it says.</div>'}</div>`;
     case "zip":
@@ -259,7 +258,7 @@ function previewHtml(p) {
     const lines = p.text.split("\n").length;
     return head(`${base} · ${lines}${p.cut ? "+" : ""} lines${p.git === "U" ? ' · <span class="td-green">new</span>' : ""}`) + `<div class="pbody">${codeLines(p.text, p.type === "md" ? "md" : "code")}</div>`;
   }
-  return head(base) + `<div class="pbody"><dl class="facts"><dt>Type</dt><dd>binary</dd><dt>Open</dt><dd>${kb("o")} with the default app</dd></dl></div>`;
+  return head(base) + `<div class="pbody"><dl class="facts"><dt>Type</dt><dd>binary</dd><dt>Open</dt><dd>${kb("gx")} with the default app</dd></dl></div>`;
 }
 
 // ------------------------------------------------------------ disk usage
@@ -278,7 +277,7 @@ function renderUsage() {
   const u = usage;
   if (u.loading) return ($("usage").innerHTML = `<div class="total">Adding up ${esc(tilde(u.dir, home))}…</div>`);
   const max = u.items[0]?.size || 1;
-  $("usage").innerHTML = `<div class="total"><span><b>${esc(tilde(u.dir, home))}</b> · ${human(u.total)} in ${u.items.length} items${u.partial ? " (some folders couldn't be read)" : ""}</span><span>l into a folder · h up · X to the Trash · Esc back</span></div>` +
+  $("usage").innerHTML = `<div class="total"><span><b>${esc(tilde(u.dir, home))}</b> · ${human(u.total)} in ${u.items.length} items${u.partial ? " (some folders couldn't be read)" : ""}</span><span>l into a folder · h up · dd to the Trash · Esc back</span></div>` +
     u.items.map((e, i) => `<div class="row${i === u.cursor ? " cur" : ""}" data-usage="${i}">${icon(e)}<span class="nm ${e.dir ? "dir" : ""}">${esc(e.name)}${e.dir ? "/" : ""}</span><span class="sz">${human(e.size)}</span><span class="bar"><i style="width:${Math.max(1.5, (e.size / max) * 100)}%;background:${COLOR[e.kind] ?? COLOR.file}"></i></span></div>`).join("");
   $("usage").querySelector(".row.cur")?.scrollIntoView({ block: "nearest" });
 }
@@ -293,8 +292,8 @@ async function onUsage(action) {
     case "last": u.cursor = u.items.length - 1; break;
     case "open": if (e?.dir) return openUsage(e.path); break;
     case "parent": if (u.dir !== "/") return openUsage(dirOf(u.dir)); break;
-    case "trash":
-      if (e) await act(() => call("trash", { paths: [e.path] }), `${e.name} (${human(e.size)}) is in the Trash · U brings it back`);
+    case "delete":
+      if (e) await act(() => call("trash", { paths: [e.path] }), `${e.name} (${human(e.size)}) is in the Trash · u brings it back`);
       return openUsage(u.dir);
     case "undo":
       await act(() => call("undo"), (l) => `undid the ${l}`);
@@ -360,7 +359,7 @@ function copyOrCut(mode) {
   if (!items.length) return;
   clip = { mode, paths: items.map((e) => e.path) };
   selected.clear();
-  anchor = null;
+  if (anchor) (anchor = null), td.keys.use("list");
   say(`${mode === "cut" ? "cut" : "copied"} ${items.length === 1 ? items[0].name : `${items.length} items`}: go somewhere and press p`);
   render();
 }
@@ -378,16 +377,19 @@ async function trash() {
   if (!items.length) return;
   const i = shown.indexOf(current());
   const next = shown.slice(i + 1).find((e) => !items.includes(e)) ?? shown.slice(0, i).reverse().find((e) => !items.includes(e));
-  const n = await act(() => call("trash", { paths: items.map((e) => e.path) }), () => `${items.length === 1 ? items[0].name : `${items.length} items`} in the Trash · U brings ${items.length === 1 ? "it" : "them"} back`);
-  if (n === undefined) return;
-  if (clip) clip.paths = clip.paths.filter((p) => !items.some((e) => e.path === p));
+  const res = await act(() => call("trash", { paths: items.map((e) => e.path) }), () => `${items.length === 1 ? items[0].name : `${items.length} items`} in the Trash · p elsewhere moves ${items.length === 1 ? "it" : "them"} there, u brings ${items.length === 1 ? "it" : "them"} back`);
+  if (res === undefined) return;
+  // Like vim's dd, what's deleted is in the register: p puts it where you are
+  clip = res.moved?.length ? { mode: "cut", paths: res.moved } : clip && { ...clip, paths: clip.paths.filter((p) => !items.some((e) => e.path === p)) };
   selected.clear();
-  anchor = null;
+  if (anchor) (anchor = null), td.keys.use("list");
   if (next) T().cursor.set(T().dir, next.name);
   await load();
 }
 async function undo() {
   await act(() => call("undo"), (l) => `undid the ${l}`);
+  // what the register held may be gone (back where it was)
+  if (clip && !(await call("exists", { path: clip.paths[0] }).catch(() => true))) clip = null;
   await load();
 }
 function startRename() {
@@ -415,8 +417,8 @@ function openLayer(kind, extra = {}) {
   makeFolder = !!extra.folder;
   const dir = tilde(T().dir, home);
   const html = {
-    find: () => dialog("find", "a file's name, fuzzy", `under ${dir}`, "↑ ↓ move · Enter goes there · Ctrl+g searches inside files · Esc closes"),
-    grep: () => dialog("grep", "text inside the files", `under ${dir}`, "↑ ↓ move · Enter goes there · Ctrl+e opens the editor at the line · Ctrl+f finds by name · Esc closes"),
+    find: () => dialog("find", "a file's name, fuzzy", `under ${dir}`, "↑ ↓ move · Enter goes there · Ctrl+g searches inside files instead · Esc closes"),
+    grep: () => dialog("grep", "text inside the files", `under ${dir}`, "↑ ↓ move · Enter goes there · Ctrl+e opens the editor at the line · Ctrl+f finds by name instead · Esc closes"),
     command: () => dialog("!", "a command; {} is the files (otherwise they go at the end)", `on ${targets().length} in ${dir}`, "Enter runs it in thumbdeck (output in a tab) · Esc closes"),
     make: () => dialog(extra.folder ? "new folder" : "new file", "its name", `in ${dir}`, "Enter makes it · Esc closes"),
     buffer: () => bufferHtml(extra.names),
@@ -483,15 +485,15 @@ async function saveBuffer() {
   }
   closeLayer();
   if (!plan.changes.length) return say("No names changed");
-  await act(() => call("renameMany", { dir: T().dir, changes: plan.changes }), (n) => `renamed ${n} · U undoes`);
+  await act(() => call("renameMany", { dir: T().dir, changes: plan.changes }), (n) => `renamed ${n} · u undoes`);
   selected.clear();
   await load();
 }
 
-async function runCommand() {
-  const command = $("q").value.trim();
+async function runCommand(text) {
+  const command = (text ?? $("q").value).trim();
   const items = targets();
-  closeLayer();
+  if (layer) closeLayer();
   if (!command) return;
   const full = await call("command", { command, paths: items.map((e) => e.path) });
   await act(() => td.run(full, { label: command.split(" ")[0], cwd: T().dir }), `running: ${full}`);
@@ -527,67 +529,73 @@ async function review() {
 
 // ------------------------------------------------------------ keys
 
-async function onList(action) {
+async function onList(action, arg, count) {
   const e = current();
+  const n = Math.max(1, count ?? 1);
+  const pageRows = Math.max(1, Math.floor($("main").clientHeight / 48));
   switch (action) {
-    case "down": return move(1);
-    case "up": return move(-1);
+    case "down": case "next-match": return move(n);
+    case "up": case "previous-match": return move(-n);
     case "first": return move(0, 0);
-    case "last": return move(0, shown.length - 1);
-    case "page-down": return move(Math.max(1, Math.floor($("main").clientHeight / 48)));
-    case "page-up": return move(-Math.max(1, Math.floor($("main").clientHeight / 48)));
+    case "last": return move(0, count ? count - 1 : shown.length - 1);
+    case "page-down": return move(pageRows * n);
+    case "page-up": return move(-pageRows * n);
+    case "full-down": return move(2 * pageRows * n);
+    case "full-up": return move(-2 * pageRows * n);
     case "open": return open();
+    case "main": return e?.dir ? open() : e && editFile(e.path);
     case "parent": return parent();
-    case "filter":
+    case "search":
       filtering = true;
       return render();
-    case "select":
+    case "find-letter": case "find-letter-back": {
+      const back = action === "find-letter-back";
+      const at = shown.indexOf(e);
+      for (let k = 1; k <= shown.length; k++) {
+        const x = shown[(((at + (back ? -k : k)) % shown.length) + shown.length) % shown.length];
+        if (x.name.toLowerCase().startsWith(String(arg ?? "").toLowerCase())) return setCursor(x.name);
+      }
+      return say(`Nothing here starts with ${arg}`);
+    }
+    case "tick":
+      if (anchor) return (anchor = null), say(`${selected.size} selected`), render();
       if (!e) return;
       selected.has(e.path) ? selected.delete(e.path) : selected.add(e.path);
       return move(1);
-    case "visual":
-      if (anchor) {
-        anchor = null;
-        say(`${selected.size} selected`);
-        return render();
-      }
+    case "visual": case "visual-line":
+      if (anchor) return endVisual(true);
       if (!e) return;
       anchor = e.path;
+      td.keys.use("visual");
       return setCursor(e.name);
-    case "copy": return copyOrCut("copy");
-    case "cut": return copyOrCut("cut");
-    case "paste": return paste();
-    case "trash": return trash();
+    case "yank": case "yank-selection": return copyOrCut("copy");
+    case "delete": case "delete-selection": return trash();
+    case "paste": case "paste-before": return paste();
     case "undo": return undo();
-    case "rename": return startRename();
-    case "rename-many": return startBuffer();
-    case "new-file": return openLayer("make", { folder: false });
-    case "new-folder": return openLayer("make", { folder: true });
+    case "change": return startRename();
+    case "change-selection": return startBuffer();
+    case "new": return openLayer("make", { folder: false });
+    case "new-above": return openLayer("make", { folder: true });
     case "copy-path": {
       const ps = targets().map((x) => x.path);
       if (ps.length) await act(() => call("copyText", { text: ps.join("\n") }), ps.length === 1 ? `copied ${tilde(ps[0], home)}` : `copied ${ps.length} paths`);
       return;
     }
-    case "edit": return e && !e.dir ? editFile(e.path) : say("e opens a file in the editor");
+    case "editor": return e && !e.dir ? editFile(e.path) : say("Space e opens a file in the editor");
     case "outside": return e && act(() => call("open", { path: e.path }), `opening ${e.name}`);
     case "terminal": return act(() => td.tmux(`cd ${quote(T().dir)}`, { window: "files", show: true }), (m) => m || `a terminal in ${tilde(T().dir, home)}`);
-    case "command": return openLayer("command");
-    case "review": return review();
-    case "find": return openLayer("find");
+    case "diff": return review();
+    case "search-wide": return openLayer("find");
     case "grep": return openLayer("grep");
     case "usage": return openUsage(T().dir);
-    case "jump":
-    case "mark":
-      letterFor = action;
-      td.keys.use("letter");
-      return render();
-    case "home": return go(home);
+    case "mark": return mark(arg);
+    case "jump": return jump(arg);
     case "hidden":
       hidden = !hidden;
       arrange();
       render();
       return schedulePreview();
-    case "sort":
+    case "order":
       sort = { name: "size", size: "date", date: "name" }[sort];
       arrange();
       say(`sorted by ${sort}`);
@@ -595,72 +603,78 @@ async function onList(action) {
     case "info":
       if (e) say(`${e.name} · ${e.dir ? `${e.count ?? 0} items` : human(e.size)} · ${(e.mode & 0o777).toString(8)} · changed ${new Date(e.mtime).toLocaleString()}`);
       return;
-    case "new-tab":
-      tabs.push({ dir: T().dir, cursor: new Map(T().cursor) });
-      tab = tabs.length - 1;
-      return render();
-    case "close-tab":
-      if (tabs.length === 1) return say("It's the only tab");
-      tabs.splice(tab, 1);
-      tab = Math.min(tab, tabs.length - 1);
-      return load();
     case "next-tab":
     case "previous-tab":
-      tab = (tab + (action === "next-tab" ? 1 : -1) + tabs.length) % tabs.length;
+      tab = (tab + (action === "next-tab" ? n : -n) + tabs.length * n) % tabs.length;
       return load();
     case "refresh":
       previewCache.clear();
       return load();
     case "leave":
-      if (selected.size || anchor || filter || clip) {
+      if (anchor) return endVisual(false);
+      if (selected.size || filter || clip) {
         selected.clear();
-        anchor = null;
         if (filter) {
           filter = "";
           arrange();
-        } else if (!selected.size) clip = null;
+        } else clip = null;
         return render();
       }
       return td.keys.release();
   }
 }
 
-async function letter(k) {
-  const was = letterFor;
-  letterFor = null;
+/** Leave visual mode: keep the range selected (v again) or drop it (Esc) */
+function endVisual(keep) {
+  anchor = null;
+  if (!keep) selected.clear();
   td.keys.use("list");
-  if (!/^[a-zA-Z]$/.test(k)) return render();
-  if (was === "mark") {
-    marks = { ...marks, [k]: tilde(T().dir, home) };
-    await td.storage.set("bookmarks", marks);
-    say(`'${k} goes to ${tilde(T().dir, home)}`);
+  if (keep && selected.size) say(`${selected.size} selected`);
+  render();
+}
+
+/** :tabnew, :tabclose, :!command (thumbdeck's command line) */
+function command({ name, arg }) {
+  if (name === "tabnew") {
+    tabs.push({ dir: T().dir, cursor: new Map(T().cursor) });
+    tab = tabs.length - 1;
     return render();
   }
+  if (name === "tabclose") {
+    if (tabs.length === 1) return say("It's the only tab");
+    tabs.splice(tab, 1);
+    tab = Math.min(tab, tabs.length - 1);
+    return load();
+  }
+  if (name === "!") return runCommand(arg);
+  if (name === "home") return go(home);
+  say(`There's no :${name} in Files (:tabnew, :tabclose, :!command)`);
+}
+
+async function mark(k) {
+  if (!/^[a-zA-Z]$/.test(k ?? "")) return say("m, then a letter");
+  marks = { ...marks, [k]: tilde(T().dir, home) };
+  await td.storage.set("bookmarks", marks);
+  say(`'${k} goes to ${tilde(T().dir, home)}`);
+  render();
+}
+
+function jump(k) {
   const to = bookmarks()[k];
-  if (!to) {
-    say(`No bookmark '${k} (m${k} sets one)`);
-    return render();
-  }
+  if (!to) return say(`No bookmark '${k} (m${k} sets one)`);
   go(expand(to));
 }
 
-td.on("key", ({ action }) => {
-  if (letterFor) return action === "leave" ? ((letterFor = null), td.keys.use("list"), render()) : null;
+td.on("command", command);
+
+td.on("key", ({ action, arg, count }) => {
   if (layer) {
     if (action === "leave") return closeLayer();
     if (action === "save" && layer === "buffer") return saveBuffer();
     return;
   }
   if (usage) return onUsage(action);
-  return onList(action);
-});
-
-// Keys outside the keymap: a bookmark's letter
-document.addEventListener("keydown", (e) => {
-  if (letterFor && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.target.closest?.("input, textarea")) {
-    e.preventDefault();
-    letter(e.key);
-  }
+  return onList(action, arg, count);
 });
 
 // Fields: the filter, renaming, the dialogs
@@ -735,7 +749,7 @@ document.addEventListener("click", (e) => {
     for (let i = 0; i < +d.depth; i++) dir = dirOf(dir);
     return go(dir);
   }
-  if (d.bm) return (letterFor = "jump"), letter(d.bm);
+  if (d.bm) return jump(d.bm);
   if (d.usage !== undefined) return (usage.cursor = +d.usage), render();
   const path = d.path;
   if (dirOf(path) === T().dir) setCursor(nameOf(path));

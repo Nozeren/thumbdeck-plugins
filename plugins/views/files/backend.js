@@ -153,6 +153,8 @@ async function paste({ paths, to, move }) {
     const name = uniqueName(basename(from), taken);
     taken.push(name);
     const dest = join(to, name);
+    // Out of the Trash (dd, then p): its .trashinfo goes too
+    const fromTrash = !mac && dirname(from) === join(trashBase(), "files");
     if (move) {
       await rename(from, dest).catch(async (e) => {
         if (e.code !== "EXDEV") throw e;
@@ -160,27 +162,44 @@ async function paste({ paths, to, move }) {
         await rm(from, { recursive: true, force: true });
       });
     } else await cp(from, dest, { recursive: true, preserveTimestamps: true, errorOnExist: true });
-    done.push({ from, dest });
+    let info = null; // the .trashinfo it had, for undo
+    if (move && fromTrash) {
+      const file = join(trashBase(), "info", `${basename(from)}.trashinfo`);
+      info = await readFile(file, "utf8").catch(() => null);
+      await rm(file, { force: true });
+    }
+    done.push({ from, dest, info });
   }
   const n = done.length;
   undo.push({
     label: `${move ? "move" : "copy"} of ${n === 1 ? basename(done[0].from) : `${n} items`}`,
-    steps: done.map(({ from, dest }) => (move ? () => rename(dest, from) : () => trash({ paths: [dest], quiet: true }))),
+    steps: done.map(({ from, dest, info }) =>
+      move
+        ? async () => {
+            await rename(dest, from);
+            if (info) await writeFile(join(trashBase(), "info", `${basename(from)}.trashinfo`), info);
+          }
+        : () => trash({ paths: [dest], quiet: true }),
+    ),
   });
   return done.map((d) => d.dest);
 }
 
 /** The Trash: the freedesktop one in your home (so it can be undone), ~/.Trash on macOS, gio elsewhere */
+const trashBase = () => join(process.env.XDG_DATA_HOME || join(HOME, ".local/share"), "Trash");
+
 async function trash({ paths, quiet }) {
   const steps = [];
+  const moved = []; // where each went (so p can move it out again, like vim's dd then p)
   for (const path of paths) {
     if (mac) {
       const dest = join(HOME, ".Trash", uniqueName(basename(path), await readdir(join(HOME, ".Trash")).catch(() => [])));
       await rename(path, dest);
       steps.push(() => rename(dest, path));
+      moved.push(dest);
       continue;
     }
-    const base = join(process.env.XDG_DATA_HOME || join(HOME, ".local/share"), "Trash");
+    const base = trashBase();
     mkdirSync(join(base, "files"), { recursive: true });
     mkdirSync(join(base, "info"), { recursive: true });
     const name = uniqueName(basename(path), await readdir(join(base, "files")));
@@ -188,6 +207,7 @@ async function trash({ paths, quiet }) {
     await writeFile(info, `[Trash Info]\nPath=${encodeURI(path)}\nDeletionDate=${new Date().toISOString().slice(0, 19)}\n`);
     try {
       await rename(path, join(base, "files", name));
+      moved.push(join(base, "files", name));
       steps.push(async () => {
         await rename(join(base, "files", name), path);
         await rm(info, { force: true });
@@ -201,7 +221,7 @@ async function trash({ paths, quiet }) {
     }
   }
   if (!quiet) undo.push({ label: `trash of ${paths.length === 1 ? basename(paths[0]) : `${paths.length} items`}`, steps });
-  return steps.length;
+  return { count: steps.length, moved };
 }
 
 async function renameOne({ path, name }) {

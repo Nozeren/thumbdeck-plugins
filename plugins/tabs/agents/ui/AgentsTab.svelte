@@ -206,7 +206,7 @@
       return;
     }
     if (open) {
-      if (action === "type") taskBox?.focus();
+      if (action === "edit") taskBox?.focus();
       else if (action === "back") back();
       return;
     }

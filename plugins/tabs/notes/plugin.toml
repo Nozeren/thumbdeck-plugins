@@ -1,7 +1,7 @@
 id = "notes"
 name = "Notes"
-version = "1.1.1"
-api = 1
+version = "2.0.0"
+api = 2
 description = "A notes tab for each project: a scratchpad and checklist kept by thumbdeck, not in the repository"
 homepage = "https://github.com/Nozeren/thumbdeck-plugins/tree/main/plugins/tabs/notes"
 icon = "icon.svg"
@@ -22,7 +22,8 @@ opens = "notes"
 name = "NOTES"
 surface = "tab:notes"
 bindings = [
-  { keys = ["i", "Enter"], action = "type", does = "write (Esc stops)" },
+  { keys = ["i", "a", "Enter"], action = "edit", does = "write (Esc stops)" },
+  { keys = ["o"], action = "new", does = "write on a new line at the end" },
   { keys = ["x"], action = "tick", does = "tick or untick the checklist item where the cursor was (or the first open one)" },
-  { keys = ["o"], action = "outside", does = "open the notes in the project's tmux (nvim); they come back when saved" },
+  { keys = ["gx"], action = "outside", does = "open the notes in the project's tmux (nvim); they come back when saved" },
 ]

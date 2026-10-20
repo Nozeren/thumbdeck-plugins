@@ -1,7 +1,7 @@
 id = "chrome"
 name = "Chrome"
-version = "1.0.0"
-api = 1
+version = "2.0.0"
+api = 2
 description = "Chrome profiles grouped by tenant: open the right one with a key, make, edit and delete them, and open thumbdeck's links in the profile signed in there"
 homepage = "https://github.com/Nozeren/thumbdeck-plugins/tree/main/plugins/views/chrome"
 icon = "icon.svg"
@@ -36,24 +36,24 @@ surface = "view"
 bindings = [
   { keys = ["j", "ArrowDown"], action = "down", does = "next profile" },
   { keys = ["k", "ArrowUp"], action = "up", does = "previous" },
-  { keys = ["g"], action = "first", does = "first" },
+  { keys = ["gg"], action = "first", does = "first" },
   { keys = ["G"], action = "last", does = "last" },
   { keys = ["l", "Enter"], action = "open", does = "open its window (or bring it forward)" },
-  { keys = ["a"], action = "short-1", does = "open its first shortcut" },
-  { keys = ["b"], action = "short-2", does = "its second shortcut" },
-  { keys = ["c"], action = "short-3", does = "its third shortcut" },
+  { keys = ["'{x}"], action = "jump", does = "'a, 'b, 'c…: open its shortcut with that letter" },
   { keys = ["/"], action = "search", does = "search names and accounts" },
-  { keys = ["f"], action = "filter", does = "only one tenant (again: the next one)" },
-  { keys = ["Space"], action = "fold", does = "fold or unfold its tenant" },
-  { keys = ["n"], action = "new", does = "a new profile" },
-  { keys = ["e"], action = "edit", does = "edit it: name, account, tenant, role, colour, shortcuts" },
-  { keys = ["m"], action = "move", does = "move it to another tenant" },
-  { keys = ["x"], action = "delete", does = "hide it, or delete it from the browser (asks first)" },
-  { keys = ["N"], action = "new-tenant", does = "a new tenant" },
-  { keys = ["E"], action = "edit-tenant", does = "edit its tenant: name and domains (or delete it)" },
-  { keys = ["H"], action = "hidden", does = "show or leave out hidden profiles" },
-  { keys = ["y"], action = "copy", does = "copy its account" },
-  { keys = ["r"], action = "refresh", does = "read the browser's profiles again" },
+  { keys = ["Space f"], action = "filter", does = "only one tenant (again: the next one)" },
+  { keys = ["za"], action = "fold-toggle", does = "fold or unfold its tenant" },
+  { keys = ["zM"], action = "fold-all", does = "fold every tenant" },
+  { keys = ["zR"], action = "unfold-all", does = "unfold every tenant" },
+  { keys = ["o"], action = "new", does = "a new profile" },
+  { keys = ["i", "a"], action = "edit", does = "edit it: name, account, tenant, role, colour, shortcuts" },
+  { keys = ["Space m"], action = "move", does = "move it to another tenant" },
+  { keys = ["dd"], action = "delete", does = "hide it, or delete it from the browser (asks first)" },
+  { keys = ["Space n"], action = "new-tenant", does = "a new tenant" },
+  { keys = ["Space E"], action = "edit-tenant", does = "edit its tenant: name and domains (or delete it)" },
+  { keys = ["Space h"], action = "hidden", does = "show or leave out hidden profiles" },
+  { keys = ["yy", "Y"], action = "yank", does = "copy its account" },
+  { keys = ["R"], action = "refresh", does = "read the browser's profiles again" },
   { keys = ["Tab"], action = "next-list", does = "link rules" },
 ]
 
@@ -63,14 +63,14 @@ surface = "view"
 bindings = [
   { keys = ["j", "ArrowDown"], action = "down", does = "next rule" },
   { keys = ["k", "ArrowUp"], action = "up", does = "previous" },
-  { keys = ["g"], action = "first", does = "first" },
+  { keys = ["gg"], action = "first", does = "first" },
   { keys = ["G"], action = "last", does = "last" },
   { keys = ["l", "Enter"], action = "open", does = "edit it" },
-  { keys = ["n"], action = "new", does = "a new rule" },
-  { keys = ["x"], action = "delete", does = "delete it (asks first)" },
-  { keys = ["J"], action = "rule-down", does = "move it down (the first rule that matches wins)" },
-  { keys = ["K"], action = "rule-up", does = "move it up" },
-  { keys = ["t"], action = "try", does = "try a link: which profile it opens in" },
+  { keys = ["o"], action = "new", does = "a new rule" },
+  { keys = ["dd"], action = "delete", does = "delete it (asks first)" },
+  { keys = ["Alt+j"], action = "rule-down", does = "move it down (the first rule that matches wins)" },
+  { keys = ["Alt+k"], action = "rule-up", does = "move it up" },
+  { keys = ["Space l"], action = "try", does = "try a link: which profile it opens in" },
   { keys = ["Tab"], action = "next-list", does = "profiles" },
 ]
 
@@ -79,7 +79,7 @@ name = "EDIT"
 surface = "view"
 bindings = [
   { keys = ["Escape", "q"], action = "leave", does = "close without saving" },
-  { keys = ["Ctrl+Enter"], action = "save", does = "save" },
+  { keys = ["Ctrl+s", "Ctrl+Enter"], action = "save", does = "save (or :w)" },
 ]
 
 [keys.ask]

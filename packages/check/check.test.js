@@ -18,7 +18,7 @@ test("every plugin, example and the template in this repo is fine", () => {
 });
 
 test("who it is", () => {
-  const p = check('id = "My Plugin"\nname = " "\nversion = "1.0"\napi = 2\n');
+  const p = check('id = "My Plugin"\nname = " "\nversion = "1.0"\napi = 3\n');
   assert.equal(p.length, 4, JSON.stringify(p));
   assert.match(p[0], /lowercase/);
   assert.match(p[3], /update thumbdeck/);
@@ -64,3 +64,14 @@ test("cards", () => {
 });
 
 test.after(() => rmSync(dir, { recursive: true }));
+
+test("keys follow their plugin API's rules", async () => {
+  const { keymapProblems } = await import("./index.js");
+  const map = (bindings) => ({ name: "X", surface: "view", bindings: bindings.map(([keys, action]) => ({ keys, action, does: "x" })) });
+  assert.deepEqual(keymapProblems(map([[["dd"], "delete"], [["Space x"], "mine"], [["gx"], "outside"], [["yy", "Y"], "yank"]]), "m", 2), []);
+  assert.match(keymapProblems(map([[["R"], "reload"]]), "m", 2)[0], /R means refresh/);
+  assert.match(keymapProblems(map([[["Space Space"], "x"]]), "m", 2)[0], /thumbdeck's/);
+  assert.match(keymapProblems(map([[["5"], "x"]]), "m", 2)[0], /thumbdeck's/);
+  assert.deepEqual(keymapProblems(map([[["d"], "page-down"], [["r"], "refresh"]]), "m", 1), [], "API 1 keeps the old keys");
+  assert.match(keymapProblems(map([[["z"], "x"]]), "m", 1)[0], /thumbdeck's/);
+});

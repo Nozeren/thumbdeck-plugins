@@ -51,14 +51,14 @@ async function paste() {
 
 td.on("key", ({ action }) => {
   switch (action) {
-    case "type": return input.focus();
+    case "edit": return input.focus();
     case "paste": return paste();
     case "down": return move(cursor + 1);
     case "up": return move(cursor - 1);
     case "first": return move(0);
     case "last": return move(results.length - 1);
-    case "copy": return copy();
-    case "clear":
+    case "yank": return copy();
+    case "delete":
       input.value = "";
       cursor = 0;
       return update();

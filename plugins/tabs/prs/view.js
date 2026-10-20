@@ -104,10 +104,10 @@ function render() {
   const all = data?.prs ?? [];
   $("bar").innerHTML = `<strong>Pull requests</strong>
     <span class="${demo() ? "yellow" : "dim"}">${esc(where)}${data ? ` · ${all.length} for @${esc(data.user)}` : ""}</span>
-    <span class="td-chips">${FILTERS.map(([id, name]) => `<button class="td-chip" aria-pressed="${filter === id}" data-filter="${id}">${esc(name)} <b>${filterPrs(all, id).length}</b></button>`).join("")}<kbd>f</kbd></span>
+    <span class="td-chips">${FILTERS.map(([id, name]) => `<button class="td-chip" aria-pressed="${filter === id}" data-filter="${id}">${esc(name)} <b>${filterPrs(all, id).length}</b></button>`).join("")}<kbd>Space f</kbd></span>
     <span class="spacer"></span>
     <span class="dim">${loading ? "refreshing…" : fetchedAt ? ago(new Date(fetchedAt).toISOString()) : ""}</span>
-    <button class="tool" id="refresh" title="Refresh (r)">↻ <kbd>r</kbd></button>`;
+    <button class="tool" id="refresh" title="Refresh (R)">↻ <kbd>R</kbd></button>`;
   $("error").hidden = !error;
   $("error").textContent = error;
 
@@ -168,7 +168,7 @@ function renderDetails(p) {
     <div class="td-sect"><h5>Checks</h5>${checks}</div>
     <div class="td-sect"><h5>Description</h5><div class="desc">${description}</div></div>
     ${p.labels.length ? `<div class="td-sect"><h5>Labels</h5><div class="td-actions">${p.labels.map((l) => `<span class="td-tag">${esc(l)}</span>`).join("")}</div></div>` : ""}
-    <div class="td-actions"><button class="primary" id="review">Review it <kbd>v</kbd></button><button id="open">Open in the browser <kbd>o</kbd></button></div>
+    <div class="td-actions"><button class="primary" id="review">Review it <kbd>Enter</kbd></button><button id="open">Open in the browser <kbd>gx</kbd></button></div>
     <div class="td-muted url">${esc(p.url)}</div>`;
 }
 
@@ -290,7 +290,10 @@ td.on("key", ({ action }) => {
     case "first": return move(0);
     case "last": return move(shown().length - 1);
     case "filter": return nextFilter();
-    case "open": case "review": return reviewPr(p);
+    case "open": case "review": case "diff": return reviewPr(p);
+    case "yank":
+      if (!p?.url) return td.ui.say("No pull request here");
+      return (td.ui.copy ? td.ui.copy(p.url) : navigator.clipboard.writeText(p.url)).then(() => td.ui.say(`copied ${p.url}`), () => td.ui.say("couldn't copy", { error: true }));
     case "outside": return openPr(p);
     case "page-down": return scrollDetails(1);
     case "page-up": return scrollDetails(-1);

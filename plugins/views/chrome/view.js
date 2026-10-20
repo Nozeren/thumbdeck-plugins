@@ -63,10 +63,10 @@ function render() {
   $("bar").innerHTML = `
     <button class="seg" aria-pressed="${page === "list"}" data-page="list">Profiles <b>${visible.length}</b></button>
     <button class="seg" aria-pressed="${page === "rules"}" data-page="rules">Link rules <b>${data.rules.length}</b></button><kbd>Tab</kbd>
-    ${page === "list" && data.tenants.length > 1 ? `<span class="td-chips">${data.tenants.map((t) => `<button class="td-chip" aria-pressed="${only === t.id}" data-only="${esc(t.id)}">${esc(t.name)} <b>${counts(t.id)}</b></button>`).join("")}<kbd>f</kbd></span>` : ""}
+    ${page === "list" && data.tenants.length > 1 ? `<span class="td-chips">${data.tenants.map((t) => `<button class="td-chip" aria-pressed="${only === t.id}" data-only="${esc(t.id)}">${esc(t.name)} <b>${counts(t.id)}</b></button>`).join("")}<kbd>Space f</kbd></span>` : ""}
     <span class="spacer"></span>
-    ${data.profiles.some((p) => p.hidden) && page === "list" ? `<button class="tool" data-act="hidden">${showHidden ? "Leave out" : "Show"} hidden <kbd>H</kbd></button>` : ""}
-    <button data-act="new">+ New <kbd>n</kbd></button>`;
+    ${data.profiles.some((p) => p.hidden) && page === "list" ? `<button class="tool" data-act="hidden">${showHidden ? "Leave out" : "Show"} hidden <kbd>Space h</kbd></button>` : ""}
+    <button data-act="new">+ New <kbd>o</kbd></button>`;
   $("error").hidden = !data.problem;
   $("error").textContent = data.problem;
   $("profiles").hidden = page !== "list";
@@ -88,7 +88,7 @@ function renderProfiles() {
         <span class="td-l2">${p.email ? mark(p.email) : '<span class="td-muted">not signed in</span>'}</span></li>`;
     }
   }
-  $("rows").innerHTML = html || `<li class="td-empty">${data.found ? (words || only ? "No profile matches." : "No profiles.") : `${esc(data.browser)} isn't set up here.`} n makes one.</li>`;
+  $("rows").innerHTML = html || `<li class="td-empty">${data.found ? (words || only ? "No profile matches." : "No profiles.") : `${esc(data.browser)} isn't set up here.`} o makes one.</li>`;
   $("rows").querySelector('[aria-selected="true"]')?.scrollIntoView({ block: "nearest" });
 
   const p = current();
@@ -103,14 +103,14 @@ function renderProfiles() {
       <dt>${esc(data.browser)}</dt><dd>${esc(p.dir)}${p.name !== p.chromeName && !p.pending ? ` <span class="td-muted">“${esc(p.chromeName)}”</span>` : ""}${p.open ? ' <span class="td-green">· window open</span>' : ""}${p.pending ? ' <span class="td-muted">· shows its account once you sign in</span>' : ""}</dd>
       ${p.used ? `<dt>Last used</dt><dd>${esc(ago(p.used))}</dd>` : ""}
     </dl>
-    <div class="td-sect"><h5>Shortcuts <span class="r">e to change</span></h5>
-      ${p.shortcuts.length ? p.shortcuts.map(([name, url], k) => `<div class="td-item short" data-short="${k}">${k < 3 ? `<kbd style="margin:0">${"abc"[k]}</kbd>` : '<span style="width:17px"></span>'}${esc(name)}<span class="u">${esc(url.replace(/^https?:\/\//, ""))}</span></div>`).join("") : '<div class="td-muted">None yet: the pages you open in this profile, one key each.</div>'}</div>
+    <div class="td-sect"><h5>Shortcuts <span class="r">i to change</span></h5>
+      ${p.shortcuts.length ? p.shortcuts.map(([name, url], k) => `<div class="td-item short" data-short="${k}">${k < 26 ? `<kbd style="margin:0">'${"abcdefghijklmnopqrstuvwxyz"[k]}</kbd>` : '<span style="width:17px"></span>'}${esc(name)}<span class="u">${esc(url.replace(/^https?:\/\//, ""))}</span></div>`).join("") : '<div class="td-muted">None yet: the pages you open in this profile, one key each.</div>'}</div>
     <div class="td-sect"><h5>Links that open here <span class="r">Tab: all rules</span></h5>
       ${rules.length ? rules.map((r) => `<div class="td-item pat">${esc(r.pattern)}</div>`).join("") : '<div class="td-muted">None.</div>'}</div>
     <div class="td-actions">
       <button class="primary" data-act="open">Open the window <kbd>Enter</kbd></button>
-      <button data-act="edit">Edit <kbd>e</kbd></button><button data-act="move">Move <kbd>m</kbd></button>
-      <button class="danger" data-act="delete">${p.hidden ? "Unhide" : "Delete"} <kbd>x</kbd></button>
+      <button data-act="edit">Edit <kbd>i</kbd></button><button data-act="move">Move <kbd>Space m</kbd></button>
+      <button class="danger" data-act="delete">${p.hidden ? "Unhide" : "Delete"} <kbd>dd</kbd></button>
     </div>`;
 }
 
@@ -121,11 +121,11 @@ function renderRules() {
       <span class="to">${p ? `${avatar(p, "small")}${esc(p.name)}` : `<span class="td-red">${esc(r.dir)} is gone</span>`}</span><span class="td-muted">${p ? esc(tenant(p.tenant).name) : ""}</span></div>`;
   }).join("");
   $("rules").innerHTML = `
-    <div class="try">Try a link <kbd>t</kbd><input id="try" placeholder="https://dev.azure.com/contoso/…" value="${esc(tryUrl)}"><span id="tried"></span></div>
-    ${list || '<p class="td-empty">No rules yet. n adds one: links like <code>dev.azure.com/contoso/*</code> open in the profile you pick.</p>'}
-    <p class="td-muted">The first rule that matches wins (J / K move a rule); links no rule matches open in your default browser.
+    <div class="try">Try a link <kbd>Space l</kbd><input id="try" placeholder="https://dev.azure.com/contoso/…" value="${esc(tryUrl)}"><span id="tried"></span></div>
+    ${list || '<p class="td-empty">No rules yet. o adds one: links like <code>dev.azure.com/contoso/*</code> open in the profile you pick.</p>'}
+    <p class="td-muted">The first rule that matches wins (Alt+j / Alt+k move a rule); links no rule matches open in your default browser.
     ${routes ? "thumbdeck's links (Pull requests, Azure Boards, Calendar, the review page) open through these." : "This thumbdeck is older than 0.9: its links open in the default browser; update it to have them follow these rules."}</p>
-    <div class="td-actions"><button data-act="new">New rule <kbd>n</kbd></button>${data.rules.length ? '<button data-act="open">Edit <kbd>Enter</kbd></button><button class="danger" data-act="delete">Delete <kbd>x</kbd></button>' : ""}</div>`;
+    <div class="td-actions"><button data-act="new">New rule <kbd>o</kbd></button>${data.rules.length ? '<button data-act="open">Edit <kbd>Enter</kbd></button><button class="danger" data-act="delete">Delete <kbd>dd</kbd></button>' : ""}</div>`;
   $("rules").querySelector('[aria-selected="true"]')?.scrollIntoView({ block: "nearest" });
   tried();
 }
@@ -169,7 +169,7 @@ function layerHtml() {
       <label>Role <input name="role" value="${esc(p.role)}" list="roles" placeholder="dev, admin, test…"><datalist id="roles">${Object.keys(ROLE_COLOR).map((r) => `<option value="${r}">`).join("")}</datalist></label>
       <label>Colour ${swatches(p.color)}</label>
       <label>Shortcuts <textarea name="shortcuts" placeholder="Azure portal | portal.azure.com">${esc(p.shortcuts.map(([n, u]) => `${n} | ${u}`).join("\n"))}</textarea></label>
-      <div class="hint">One per line: name | address. a, b and c open the first three.</div>
+      <div class="hint">One per line: name | address. 'a, 'b, 'c… open them in that order.</div>
       ${foot(l.isNew ? "" : "Delete…", l.isNew)}</div>`;
   }
   if (l.kind === "move") {
@@ -199,7 +199,7 @@ function layerHtml() {
     : p.pending ? "Sign in to it once, so the browser lists it"
     : data.running ? `Quit ${data.browser} first (every window): it rewrites its profile list when it quits` : "";
   return `<div class="dialog"><h4>Delete ${esc(p.name)}?</h4>
-    <button class="opt" data-f="hide"><b>Hide it in thumbdeck <kbd>h</kbd></b><small>The browser keeps it; H shows hidden ones, x on one brings it back.</small></button>
+    <button class="opt" data-f="hide"><b>Hide it in thumbdeck <kbd>h</kbd></b><small>The browser keeps it; Space h shows hidden ones, dd on one brings it back.</small></button>
     <button class="opt bad" data-f="remove"${why ? " disabled" : ""}><b>Delete it from ${esc(data.browser)} <kbd>X</kbd></b><small>${esc(why || `${p.dir} with its bookmarks, passwords, cookies and history goes to the Trash; its rules go too.`)}</small></button>
     <div class="foot"><span class="spacer"></span><button data-f="cancel">Never mind <kbd>Esc</kbd></button></div></div>`;
 }
@@ -299,7 +299,7 @@ async function ask(action) {
   const p = profile(layer.dir);
   if (action === "hide") {
     closeLayer();
-    return call("hide", { dir: p.dir, hidden: true }, `${p.name} is hidden (H shows hidden ones)`);
+    return call("hide", { dir: p.dir, hidden: true }, `${p.name} is hidden (Space h shows hidden ones)`);
   }
   if (action === "remove") {
     if ($("layer").querySelector('[data-f="remove"]').disabled) return td.ui.say($("layer").querySelector('[data-f="remove"] small').textContent, { error: true });
@@ -357,11 +357,11 @@ $("search").addEventListener("keydown", (e) => {
 async function openShortcut(k) {
   const p = current();
   const s = p?.shortcuts[k];
-  if (!s) return td.ui.say(p ? `${p.name} has no shortcut ${"abc"[k]} (e adds shortcuts)` : "No profile");
+  if (!s) return td.ui.say(p ? `${p.name} has no shortcut '${"abcdefghijklmnopqrstuvwxyz"[k]} (i adds shortcuts)` : "No profile");
   await call("open", { dir: p.dir, url: s[1] }, `${s[0]} in ${p.name}`);
 }
 
-async function onList(action) {
+async function onList(action, arg) {
   const p = current();
   switch (action) {
     case "down": return move(1);
@@ -369,9 +369,10 @@ async function onList(action) {
     case "first": return move(0, 0);
     case "last": return move(0, rows().length - 1);
     case "open": return p && call("open", { dir: p.dir }, `${p.name}${p.open ? "" : ` · ${data.browser} opens it`}`);
-    case "short-1": return openShortcut(0);
-    case "short-2": return openShortcut(1);
-    case "short-3": return openShortcut(2);
+    case "jump": {
+      const k = "abcdefghijklmnopqrstuvwxyz".indexOf(String(arg ?? "").toLowerCase());
+      return k < 0 ? td.ui.say("A shortcut is 'a, 'b, 'c…") : openShortcut(k);
+    }
     case "search": return startSearch();
     case "filter": {
       const ids = [null, ...data.tenants.map((t) => t.id)];
@@ -380,7 +381,13 @@ async function onList(action) {
       if (!r.some((x) => x.dir === cursor)) cursor = r[0]?.dir ?? null;
       return render();
     }
-    case "fold": {
+    case "fold-all":
+      for (const t of data.tenants) folded.add(t.id);
+      return render();
+    case "unfold-all":
+      folded.clear();
+      return render();
+    case "fold-toggle": {
       if (!p) return;
       folded.has(p.tenant) ? folded.delete(p.tenant) : folded.add(p.tenant);
       if (folded.has(p.tenant)) cursor = rows().find((x) => x.tenant !== p.tenant)?.dir ?? cursor;
@@ -396,14 +403,18 @@ async function onList(action) {
     case "new-tenant": return openLayer({ kind: "tenant", isNew: true });
     case "edit-tenant":
       if (!p) return;
-      if (p.tenant === "none") return td.ui.say("Ungrouped isn't a tenant: N makes one, m moves the profile there");
+      if (p.tenant === "none") return td.ui.say("Ungrouped isn't a tenant: Space n makes one, Space m moves the profile there");
       return openLayer({ kind: "tenant", id: p.tenant });
     case "hidden":
       showHidden = !showHidden;
       return render();
-    case "copy":
+    case "yank":
       if (!p?.email) return td.ui.say("No account");
-      await navigator.clipboard.writeText(p.email).catch(() => {});
+      try {
+        await (td.ui.copy ? td.ui.copy(p.email) : navigator.clipboard.writeText(p.email));
+      } catch {
+        return td.ui.say("couldn't copy", { error: true });
+      }
       return td.ui.say(`copied ${p.email}`);
     case "refresh": return load();
     case "next-list": return switchPage();
@@ -432,10 +443,10 @@ async function onRules(action) {
   }
 }
 
-td.on("key", ({ action }) => {
+td.on("key", ({ action, arg }) => {
   if (layer?.kind === "ask") return ask(action);
   if (layer) return action === "save" ? saveLayer() : action === "leave" ? closeLayer() : null;
-  return page === "list" ? onList(action) : onRules(action);
+  return page === "list" ? onList(action, arg) : onRules(action);
 });
 
 // In a field keys go to it, not to the keymap: the dialog's own Enter, Ctrl+Enter and Esc

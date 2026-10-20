@@ -62,7 +62,7 @@ function reviewChanges() {
 }
 
 td.on("key", ({ action }) => {
-  if (action === "review") reviewChanges();
+  if (action === "review" || action === "diff") reviewChanges();
   else if (action === "refresh") draw();
 });
 

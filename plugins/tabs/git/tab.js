@@ -121,7 +121,7 @@ function renderBar() {
   const g = groupChanges(st?.changes ?? []);
   const n = { changes: st ? g.length : null, commits: commits?.length ?? null, branches: refs ? refs.branches.length : null };
   for (const v of views) html += `<button class="td-chip" aria-pressed="${v === view}" data-view="${v}">${viewName[v]}${n[v] !== null ? ` <b>${n[v]}</b>` : ""}</button>`;
-  html += `<kbd title="Tab: the next list">Tab</kbd><button class="tool" id="setup" title="Set up this tab (S)">⚙ <kbd>S</kbd></button>`;
+  html += `<kbd title="Tab: the next list">Tab</kbd><button class="tool" id="setup" title="Set up this tab (Space S)">⚙ <kbd>Space S</kbd></button>`;
   $("bar").innerHTML = html;
 }
 
@@ -207,7 +207,7 @@ function diffHtml(text) {
   }).join("") || `<div class="dmeta">No changes to show.</div>`;
 }
 const filesHtml = (stats) => `<div class="files">${[...stats].map(([p, s]) => `<div class="f"><span class="p">${esc(p)}</span>${counts(s)}</div>`).join("")}</div>`;
-const reviewButton = (what) => `<div class="td-actions"><button class="primary" id="review">Review ${what} <kbd>v</kbd></button></div>`;
+const reviewButton = (what) => `<div class="td-actions"><button class="primary" id="review">Review ${what} <kbd>Enter</kbd></button></div>`;
 
 async function loadDetail(fromTop = true) {
   const r = rows()[cursor];
@@ -316,7 +316,7 @@ td.on("key", ({ action }) => {
     case "up": return move(cursor - 1);
     case "first": return move(0);
     case "last": return move(rows().length - 1);
-    case "open": case "review": return reviewRow();
+    case "open": case "review": case "diff": return reviewRow();
     case "next-list": return showView(views[(i + 1) % views.length]);
     case "previous-list": return showView(views[(i + views.length - 1) % views.length]);
     case "page-down": return scrollDetail(1);

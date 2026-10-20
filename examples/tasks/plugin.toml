@@ -3,7 +3,7 @@
 id = "tasks"
 name = "Tasks"
 version = "0.1.0"
-api = 1
+api = 2
 description = "Buttons for the commands in the project's tasks.txt"
 
 [detect]
@@ -26,5 +26,5 @@ bindings = [
   { keys = ["j", "ArrowDown"], action = "down", does = "down" },
   { keys = ["k", "ArrowUp"], action = "up", does = "up" },
   { keys = ["l", "Enter"], action = "open", does = "run the task (its output in a tab)" },
-  { keys = ["r"], action = "refresh", does = "read tasks.txt again" },
+  { keys = ["R"], action = "refresh", does = "read tasks.txt again" },
 ]

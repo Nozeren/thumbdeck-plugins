@@ -93,6 +93,8 @@
   let hidden = $state(new Set());
   let cursorKey = $state(null);
   let cursorLine = 0; // where the cursor was, for when its row goes away (a level hidden)
+  /** Where V was pressed: the selection runs from that row to the cursor (y copies it) */
+  let anchorKey = $state(null);
   let tailing = $state(false);
   let status = $state(""); // search status
   let searching = $state(false);
@@ -127,6 +129,8 @@
     const next = list.findIndex((r) => lineOf(r) >= cursorLine);
     return next >= 0 ? next : Math.max(0, list.length - 1);
   });
+  const anchor = $derived(anchorKey === null ? -1 : list.findIndex((r) => r.key === anchorKey));
+  const picked = $derived(anchor < 0 ? [-1, -1] : [Math.min(anchor, cursor), Math.max(anchor, cursor)]);
   const first = $derived(Math.max(0, Math.floor(scrollTop / ROW) - 10));
   const shown = $derived(list.slice(first, first + Math.ceil(height / ROW) + 20));
 
@@ -257,7 +261,8 @@
 
   async function copy(text, what) {
     try {
-      await navigator.clipboard.writeText(text);
+      // thumbdeck 0.9.1 copies for the frame; navigator.clipboard where it's older
+      await (td.ui.copy ? td.ui.copy(text) : navigator.clipboard.writeText(text));
       say(`copied ${what}`);
     } catch {
       say("couldn't copy to the clipboard", true);
@@ -339,10 +344,11 @@
         for (let i = detailCursor - 1; i >= 0; i--) if (detailRows[i].depth < depth) return move(i);
         return;
       }
-      case "copy":
-        if (key === "Y") {
-          if (detail !== null && log) copy(JSON.stringify(log.lines[detail].data, null, 2), "the full entry");
-        } else if (r) copy(copyText(r.value), `the value of '${r.key}'`);
+      case "copy-json":
+        if (detail !== null && log) copy(JSON.stringify(log.lines[detail].data, null, 2), "the full entry");
+        return;
+      case "yank":
+        if (r) copy(copyText(r.value), `the value of '${r.key}'`);
         return;
       case "leave":
         detail = null;
@@ -355,7 +361,7 @@
   let levels = $state(false);
 
   // The keys follow what's shown: the files, a log, a line's entry, or picking levels
-  $effect(() => td.keys.use(detail !== null ? "entry" : !log ? "files" : levels ? "levels" : "log"));
+  $effect(() => td.keys.use(detail !== null ? "entry" : !log ? "files" : levels ? "levels" : anchorKey !== null ? "visual" : "log"));
 
   function onAction(action, key) {
     if (detail !== null) return detailAction(action, key);
@@ -389,25 +395,50 @@
           if (p !== null) setCursor(p);
         }
         return;
-      case "error": return jumpTo(key === "E" ? -1 : 1, (l) => l.level === "ERROR", "no ERROR lines");
+      case "next-error": case "previous-error": return jumpTo(action === "previous-error" ? -1 : 1, (l) => l.level === "ERROR", "no ERROR lines");
+      case "fold-toggle": return r?.type === "block" && toggle(r);
+      case "fold-open": return r?.type === "block" && !r.open && toggle(r);
+      case "fold-close":
+        if (r?.type === "block" && r.open) return toggle(r);
+        {
+          const p = parentIndex(list, cursor);
+          if (p !== null) (setCursor(p), toggle(list[p]));
+        }
+        return;
+      case "unfold-all": opened = new Set([...parentsOf.values()].flat()); return say("every section open");
+      case "fold-all": opened = new Set(); return say("every section closed");
       case "search":
         searching = true;
         query = "";
         tick().then(() => searchEl?.focus());
         return;
-      case "match": return goToMatch(key === "N" ? -1 : 1);
-      case "tail":
+      case "next-match": case "previous-match": return goToMatch(action === "previous-match" ? -1 : 1);
+      case "watch":
         tailing = !tailing;
         return say(`live tail ${tailing ? "on" : "off"}`);
-      case "levels":
+      case "filter":
         levels = true;
         return;
-      case "copy":
-        if (key === "Y") {
+      case "visual": case "visual-line":
+        if (anchorKey !== null) anchorKey = null;
+        else if (r) (anchorKey = r.key), say("selecting: j / k extend, y copies the lines, Space y j as JSON");
+        return;
+      case "yank": case "yank-selection": case "copy-json": {
+        const json = action === "copy-json";
+        if (anchorKey !== null) {
+          const ls = list.slice(picked[0], picked[1] + 1).filter((x) => x.type === "line").map((x) => log.lines[x.line]);
+          anchorKey = null;
+          if (!ls.length) return say("no lines in the selection");
+          const text = json ? ls.map((l) => JSON.stringify(l.data)).join("\n") : ls.map((l) => [l.time, l.level === "UNKNOWN" ? "" : l.level, l.message].filter(Boolean).join(" ")).join("\n");
+          return copy(text, `${ls.length} line${ls.length === 1 ? "" : "s"}${json ? " as JSON" : ""}`);
+        }
+        if (action === "yank-selection") return say("y copies a selection: v selects first (yy copies the line)");
+        if (json) {
           if (r?.type === "line") copy(JSON.stringify(log.lines[r.line].data), "the JSON");
         } else if (r?.type === "line") copy(log.lines[r.line].message, "the message");
         else if (r) copy(r.node.name, "the title");
         return;
+      }
       case "refresh": return reload();
       case "fold":
         fold = !fold;
@@ -419,9 +450,10 @@
         else say("this line has no request id (req, request_id, trace_id…)");
         return;
       }
-      case "pane": pane = !pane; return;
+      case "info": pane = !pane; return;
       case "back": return backToList();
       case "leave":
+        if (anchorKey !== null) return void (anchorKey = null);
         if (only) return void ((only = null), say("every request"));
         if (!status && !marked) td.keys.release(); // nothing to close: give the keyboard back
         status = "";
@@ -520,7 +552,7 @@
       <strong>{setup.title || "Logs"}</strong>
       <span class="dim">{setup.folders.filter((f) => f.trim()).join(", ")} · {setup.pattern}</span>
       <span class="spacer"></span>
-      <button class="tool" title="Set up this tab (S)" onclick={() => td.setup.edit()}>⚙ setup <kbd>S</kbd></button>
+      <button class="tool" title="Set up this tab (Space S)" onclick={() => td.setup.edit()}>⚙ setup <kbd>Space S</kbd></button>
     </header>
     {#if listed && !files.length && missing.length}
       <p class="note">not found: {missing.join(", ")}. Check the folders in ⚙ setup.</p>
@@ -581,14 +613,14 @@
       <span class="levels">
         {#each LEVELS as level}
           <button class="td-chip" class:off={hidden.has(level)} style="--c: var(--{levelColor(level)})"
-                  title="Show / hide {level} (f, then {level[0]})" onclick={() => toggleLevel(level)}>{LEVEL_NAMES[level]} <b>{counts[level]}</b></button>
+                  title="Show / hide {level} (Space f, then {level[0]})" onclick={() => toggleLevel(level)}>{LEVEL_NAMES[level]} <b>{counts[level]}</b></button>
         {/each}
-        <kbd>f</kbd>
+        <kbd>Space f</kbd>
       </span>
       <span class="spacer"></span>
       {#if status}<span class="dim">{status}</span>{/if}
-      <button class="tool" class:on={!fold} title="Fold repeats (c)" onclick={() => (fold = !fold)}>{fold ? "×n" : "all"} <kbd>c</kbd></button>
-      <button class="tool" class:follow={tailing} title="Live tail (t)" onclick={() => onAction("tail")}>{tailing ? "● Following" : "Follow"} <kbd>t</kbd></button>
+      <button class="tool" class:on={!fold} title="Fold repeats (Space c)" onclick={() => (fold = !fold)}>{fold ? "×n" : "all"} <kbd>Space c</kbd></button>
+      <button class="tool" class:follow={tailing} title="Live tail (Space w)" onclick={() => onAction("watch")}>{tailing ? "● Following" : "Follow"} <kbd>Space w</kbd></button>
       <span class="dim">{list[cursor] ? `${lineOf(list[cursor]) + 1}/${log.lines.length}` : `${log.lines.length} lines`}</span>
     </header>
     {#if searching}
@@ -605,7 +637,7 @@
       </div>
     {/if}
     {#if only}
-      <div class="only">Only {only[0]}={only[1]} · {list.length} line{list.length === 1 ? "" : "s"}<span class="spacer"></span><span class="dim">every line <kbd>=</kbd></span></div>
+      <div class="only">Only {only[0]}={only[1]} · {list.length} line{list.length === 1 ? "" : "s"}<span class="spacer"></span><span class="dim">every line <kbd>Space =</kbd></span></div>
     {/if}
     <div class="body" class:with-pane={pane}>
       <div class="rowsbox">
@@ -614,7 +646,7 @@
             {#each shown as r, j (r.key)}
               {@const i = first + j}
               {@const l = r.type === "line" ? log.lines[r.line] : null}
-              <div class="row" class:cursor={i === cursor} class:error={l?.level === "ERROR"}
+              <div class="row" class:cursor={i === cursor} class:picked={i >= picked[0] && i <= picked[1]} class:error={l?.level === "ERROR"}
                    class:same={l && request && !only && i !== cursor && String(l.data?.[request[0]] ?? "") === request[1]}
                    style="top: {i * ROW}px; padding-left: {8 + r.depth * 16}px"
                    onclick={() => setCursor(i)}
@@ -663,7 +695,7 @@
                 {@const x = log.lines[li]}
                 <div class="rq" class:me={li === paneLine} onclick={() => reveal(li)}><span class="time">{shortTime(x.time)}</span><span class="pill {x.level}">{x.level.slice(0, 4)}</span><span class="msg">{x.message}</span></div>
               {/each}
-              <button class="tool" onclick={() => onAction("request")}>{only ? "Every line" : "Only this request"} <kbd>=</kbd></button>
+              <button class="tool" onclick={() => onAction("request")}>{only ? "Every line" : "Only this request"} <kbd>Space =</kbd></button>
             </section>
           {/if}
           <p class="dim hint">{detail !== null ? "j k move · l open · y copy · Esc back to the log" : "Enter: move into it · y copies · i hides this"}</p>
@@ -743,6 +775,7 @@
   .map i.view { left: 0; right: 0; height: auto; background: color-mix(in srgb, var(--fg) 10%, transparent); border: 1px solid color-mix(in srgb, var(--fg) 30%, transparent); }
   .row:hover { background: var(--bg1); }
   .row.cursor { background: var(--bg2); }
+  .row.picked { background: color-mix(in srgb, var(--yellow) 16%, transparent); }
   .viewer.active .row.cursor { box-shadow: inset 2px 0 var(--cursor, var(--orange)); }
   .caret { width: 12px; padding: 0; border: 0; background: none; color: var(--grey); font: 12px var(--mono); }
 

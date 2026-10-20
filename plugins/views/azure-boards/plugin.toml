@@ -1,7 +1,7 @@
 id = "azure-boards"
 name = "Azure Boards"
-version = "1.8.6"
-api = 1
+version = "2.0.0"
+api = 2
 description = "Your Azure DevOps work items as a tree, with what's under and above them: their pages as in Azure DevOps, changes (state, assignee, comments…), notifications, the current sprint, the hours you logged by day"
 homepage = "https://github.com/Nozeren/thumbdeck-plugins/tree/main/plugins/views/azure-boards"
 icon = "icon.svg"
@@ -132,73 +132,74 @@ surface = "view"
 bindings = [
   { keys = ["j", "ArrowDown"], action = "down", does = "next work item" },
   { keys = ["k", "ArrowUp"], action = "up", does = "previous" },
-  { keys = ["g"], action = "first", does = "first" },
+  { keys = ["gg"], action = "first", does = "first" },
   { keys = ["G"], action = "last", does = "last" },
-  { keys = ["l", "ArrowRight", "Space"], action = "open", does = "show what's under it (then: into it)" },
+  { keys = ["l", "ArrowRight"], action = "open", does = "show what's under it (then: into it)" },
   { keys = ["h", "ArrowLeft"], action = "close", does = "hide what's under it (or: up to its parent)" },
-  { keys = ["d"], action = "page-down", does = "scroll its page down" },
-  { keys = ["u"], action = "page-up", does = "scroll its page up" },
-  { keys = ["o"], action = "outside", does = "open it in Azure DevOps" },
-  { keys = ["y"], action = "copy-branch", does = "copy a branch name for it (feature/1234-its-title)" },
-  { keys = ["Y"], action = "copy-ref", does = "copy 'TASK 1234 Its title' (for a commit or a message)" },
-  { keys = ["/"], action = "filter", does = "filter by words in the title" },
-  { keys = ["f"], action = "fold", does = "show all of its long texts / fold them again" },
-  { keys = ["i"], action = "sprint", does = "only the current sprint's / every iteration's" },
-  { keys = ["s"], action = "state", does = "change its state" },
-  { keys = ["a"], action = "assign", does = "assign it (to you, someone, nobody)" },
-  { keys = ["c"], action = "comment", does = "write a comment (the box under its activity; Ctrl+Enter sends)" },
-  { keys = ["e"], action = "title", does = "edit its title" },
-  { keys = ["t"], action = "tags", does = "edit its tags" },
-  { keys = ["p"], action = "priority", does = "change its priority" },
-  { keys = ["m"], action = "iteration", does = "move it to another iteration (sprint)" },
-  { keys = ["r"], action = "refresh", does = "look again now" },
-  { keys = ["w"], action = "hours", does = "the hours you logged, day by day (a calendar) / back to the list" },
-  { keys = ["F"], action = "search", does = "search work items: a number, or words in their title (anyone's, any state)" },
-  { keys = ["L"], action = "log", does = "log time on it (the Hours field a work log), or change or remove an entry" },
+  { keys = ["za"], action = "fold-toggle", does = "show / hide what's under it" },
+  { keys = ["zR"], action = "unfold-all", does = "show all of its long texts" },
+  { keys = ["zM"], action = "fold-all", does = "fold its long texts again" },
+  { keys = ["Ctrl+d"], action = "page-down", does = "scroll its page down" },
+  { keys = ["Ctrl+u"], action = "page-up", does = "scroll its page up" },
+  { keys = ["gx"], action = "outside", does = "open it in Azure DevOps" },
+  { keys = ["yy", "Y"], action = "yank", does = "copy a branch name for it (feature/1234-its-title)" },
+  { keys = ["Space y r"], action = "copy-ref", does = "copy 'TASK 1234 Its title' (for a commit or a message)" },
+  { keys = ["/"], action = "search", does = "filter by words in the title" },
+  { keys = ["Space /"], action = "search-wide", does = "search work items: a number, or words in their title (anyone's, any state)" },
+  { keys = ["Space v"], action = "sprint", does = "only the current sprint's / every iteration's" },
+  { keys = ["r"], action = "replace", does = "change its state" },
+  { keys = ["Space u"], action = "assign", does = "assign it (to you, someone, nobody)" },
+  { keys = ["cc"], action = "change", does = "write a comment (the box under its activity; Ctrl+Enter sends)" },
+  { keys = ["i", "a"], action = "edit", does = "edit its title" },
+  { keys = ["Space g"], action = "tags", does = "edit its tags" },
+  { keys = ["Space n"], action = "priority", does = "change its priority" },
+  { keys = ["Space m"], action = "iteration", does = "move it to another iteration (sprint)" },
+  { keys = ["Space c"], action = "hours", does = "the hours you logged, day by day (a calendar) / back to the list" },
+  { keys = ["Space l"], action = "log", does = "log time on it (the Hours field a work log), or change or remove an entry" },
+  { keys = ["R"], action = "refresh", does = "look again now" },
 ]
 
-# A work item's page on its own: one opened from the calendar, a search, Related work or a #123 link
 [keys.page]
 name = "WORK ITEM"
 surface = "view"
 bindings = [
   { keys = ["j", "ArrowDown"], action = "down", does = "scroll down" },
   { keys = ["k", "ArrowUp"], action = "up", does = "scroll up" },
-  { keys = ["g"], action = "first", does = "to the top" },
+  { keys = ["gg"], action = "first", does = "to the top" },
   { keys = ["G"], action = "last", does = "to the end" },
-  { keys = ["d"], action = "page-down", does = "scroll a page down" },
-  { keys = ["u"], action = "page-up", does = "scroll a page up" },
-  { keys = ["o"], action = "outside", does = "open it in Azure DevOps" },
-  { keys = ["y"], action = "copy-branch", does = "copy a branch name for it" },
-  { keys = ["Y"], action = "copy-ref", does = "copy 'TASK 1234 Its title'" },
-  { keys = ["f"], action = "fold", does = "show all of its long texts / fold them again" },
-  { keys = ["s"], action = "state", does = "change its state" },
-  { keys = ["a"], action = "assign", does = "assign it" },
-  { keys = ["c"], action = "comment", does = "write a comment" },
-  { keys = ["e"], action = "title", does = "edit its title" },
-  { keys = ["t"], action = "tags", does = "edit its tags" },
-  { keys = ["p"], action = "priority", does = "change its priority" },
-  { keys = ["m"], action = "iteration", does = "move it to another iteration" },
-  { keys = ["L"], action = "log", does = "log time on it, or change or remove an entry" },
-  { keys = ["F"], action = "search", does = "search work items" },
-  { keys = ["w"], action = "hours", does = "the hours calendar" },
-  { keys = ["r"], action = "refresh", does = "look again" },
+  { keys = ["Ctrl+d"], action = "page-down", does = "scroll a page down" },
+  { keys = ["Ctrl+u"], action = "page-up", does = "scroll a page up" },
+  { keys = ["gx"], action = "outside", does = "open it in Azure DevOps" },
+  { keys = ["yy", "Y"], action = "yank", does = "copy a branch name for it" },
+  { keys = ["Space y r"], action = "copy-ref", does = "copy 'TASK 1234 Its title'" },
+  { keys = ["zR"], action = "unfold-all", does = "show all of its long texts" },
+  { keys = ["zM"], action = "fold-all", does = "fold them again" },
+  { keys = ["r"], action = "replace", does = "change its state" },
+  { keys = ["Space u"], action = "assign", does = "assign it" },
+  { keys = ["cc"], action = "change", does = "write a comment" },
+  { keys = ["i", "a"], action = "edit", does = "edit its title" },
+  { keys = ["Space g"], action = "tags", does = "edit its tags" },
+  { keys = ["Space n"], action = "priority", does = "change its priority" },
+  { keys = ["Space m"], action = "iteration", does = "move it to another iteration" },
+  { keys = ["Space l"], action = "log", does = "log time on it, or change or remove an entry" },
+  { keys = ["Space /"], action = "search-wide", does = "search work items" },
+  { keys = ["Space c"], action = "hours", does = "the hours calendar" },
+  { keys = ["R"], action = "refresh", does = "look again" },
   { keys = ["q", "Escape"], action = "leave", does = "back where you came from (the calendar, the search, the list)" },
 ]
 
-# A search's results
 [keys.search]
 name = "SEARCH"
 surface = "view"
 bindings = [
   { keys = ["j", "ArrowDown"], action = "down", does = "next" },
   { keys = ["k", "ArrowUp"], action = "up", does = "previous" },
-  { keys = ["g"], action = "first", does = "first" },
+  { keys = ["gg"], action = "first", does = "first" },
   { keys = ["G"], action = "last", does = "last" },
-  { keys = ["l", "Enter", "Space"], action = "open", does = "its page" },
-  { keys = ["o"], action = "outside", does = "open it in Azure DevOps" },
-  { keys = ["F"], action = "search", does = "search again" },
-  { keys = ["w"], action = "hours", does = "the hours calendar" },
-  { keys = ["r"], action = "refresh", does = "search again with the same words" },
+  { keys = ["l", "Enter"], action = "open", does = "its page" },
+  { keys = ["gx"], action = "outside", does = "open it in Azure DevOps" },
+  { keys = ["Space /"], action = "search-wide", does = "search again" },
+  { keys = ["Space c"], action = "hours", does = "the hours calendar" },
+  { keys = ["R"], action = "refresh", does = "search again with the same words" },
   { keys = ["q", "Escape"], action = "leave", does = "back where you came from" },
 ]

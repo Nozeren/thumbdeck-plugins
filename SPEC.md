@@ -37,7 +37,7 @@ A plugin that adds two buttons to Django projects:
 id = "django"
 name = "Django"
 version = "1.0.0"
-api = 1
+api = 2
 description = "manage.py commands"
 
 [detect]
@@ -60,7 +60,7 @@ A plugin with a tab, a page that lists the project's TODO comments:
 id = "todos"
 name = "TODOs"
 version = "0.1.0"
-api = 1
+api = 2
 
 [[tab]]
 id = "todos"
@@ -105,7 +105,7 @@ file and commit the build output, since thumbdeck doesn't build plugins.
 id = "pomodoro"                 # lowercase letters, digits and -; unique among plugins
 name = "Pomodoro"               # shown everywhere
 version = "1.2.0"               # semver; matches the release tag (see Installing)
-api = 1                         # the page/backend API version it's written for
+api = 2                         # the page/backend API version it's written for
 description = "A focus timer"   # one line, shown in Settings
 homepage = "https://github.com/x/thumbdeck-pomodoro"   # optional
 icon = "icon.svg"               # optional
@@ -218,8 +218,8 @@ card is for where the project stands: a few lines, no scrolling. Cards belong to
 (`thumbdeck.context.project`), like tabs; they're loaded while the Overview shows and get the
 `shown` / `hidden` events.
 
-Cards don't take the keyboard. `h` / `j` / `k` / `l` (and `g` / `G`, the arrows) move between
-cards and `x` hides one in this project (you bring it back from the Overview's hidden list), so a
+Cards don't take the keyboard. `h` / `j` / `k` / `l` (and `gg` / `G`, the arrows) move between
+cards and `dd` hides one in this project (you bring it back from the Overview's hidden list), so a
 card can't bind them; the card under the cursor gets its own other keys, from a
 `[keys.<name>]` with `surface = "card:<id>"`, as `key` events. Enter shows the `opens` tab
 unless the card binds Enter itself. A click in a card puts the cursor on it.
@@ -482,6 +482,7 @@ your page stays in front, and gets the output through `onOutput`.
 td.ui.say(text, { error? }): void            // a short message in the status line
 td.ui.notify(title, body?): void             // a desktop notification
 td.ui.confirm(question, { yes?, no? }): Promise<boolean>   // thumbdeck's own dialog
+td.ui.copy(text): Promise<void>              // onto the clipboard (since 0.9.1; for y)
 td.ui.openUrl(url): void                     // in the browser (or through the plugin that claimed links)
 td.ui.openPage(id, data?): void              // one of this plugin's [[page]]s
 td.ui.close(): void                          // a page: close it
@@ -563,7 +564,8 @@ td.on(event, fn): Unsubscribe
 | `shown`, `hidden` | the frame is shown or hidden | — |
 | `project` | another project is selected (app-scope frames) | `Project` |
 | `keyboard` | the frame gets or loses the keyboard | `boolean` |
-| `key` | one of its declared keys is pressed (see [Keys](#keys)) | `{ action, key }` |
+| `key` | one of its declared keys is pressed (see [Keys](#keys)) | `{ action, key, count, arg }` |
+| `command` | `:name` on the command line that isn't one of its actions | `{ name, arg }` |
 | `setup`, `settings` | its setup or settings were saved | the new value |
 | `run` | a Toolkit action or `td.run` in its project ended | `{ id, label, code }` |
 | `focus` | the thumbdeck window gains or loses focus | `boolean` |
@@ -586,8 +588,8 @@ td.backend.on(event, fn): Unsubscribe        // events the backend sends
 ## Keys
 
 Keys are declared in the manifest, one **keymap** per place and mode. thumbdeck checks them
-when the plugin loads, draws `?` help and the status line from them, and sends the frame the
-**action** of a key, never the key itself:
+when the plugin loads, draws `?` help, the status line and the Space menu from them, reads the
+presses (sequences, counts) and sends the frame the **action**, never the key itself:
 
 ```toml
 [keys.files]                     # a keymap; the first one of a surface is its starting one
@@ -596,9 +598,12 @@ surface = "tab:logs"             # tab:<id>, panel:<id>, card:<id>, page:<id> or
 bindings = [
   { keys = ["j", "ArrowDown"], action = "down", does = "down" },
   { keys = ["k", "ArrowUp"], action = "up", does = "up" },
+  { keys = ["gg"], action = "first", does = "first" },
   { keys = ["l", "Enter"], action = "open", does = "open the log" },
-  { keys = ["r"], action = "refresh", does = "look for logs again" },
   { keys = ["/"], action = "search", does = "search" },
+  { keys = ["]e"], action = "next-error", does = "the next ERROR" },
+  { keys = ["Space w"], action = "watch", does = "live tail on / off" },
+  { keys = ["R"], action = "refresh", does = "look for logs again" },
 ]
 
 [keys.log]
@@ -608,34 +613,77 @@ bindings = [ … ]
 ```
 
 ```js
-td.on("key", ({ action }) => {
+td.on("key", ({ action, count, arg }) => {
   if (action === "open") openSelected();
+  if (action === "last" && count) goTo(count - 1);   // 5G: the 5th
 });
 td.keys.use("log");   // now [keys.log] applies
 ```
 
-**Key names**: `j`, `G`, `?`, `Enter`, `Space`, `Escape`, `ArrowDown`, `Shift+Tab`, `Ctrl+d`
-(letters and symbols already carry Shift: `G`, not `Shift+g`).
+**Key names**: `j`, `G`, `?`, `Enter`, `Space`, `Escape`, `ArrowDown`, `Shift+Tab`, `Ctrl+d`,
+`Alt+j` (letters and symbols already carry Shift: `G`, not `Shift+g`). A key can be a
+**sequence**: `gg`, `dd`, `]e`, `zR`, `Ctrl+w v`, `Space f`, `Space y j` (named keys and
+`Space` are one press each, anything else a press per character), and `{x}` takes any letter:
+`f{x}`, `m{x}`, `'{x}` send that letter as `arg`. A **count** typed first (`5j`, `3dd`) comes as
+`count`; motions (`down`, `up`, the page and `]x` / `[x` actions, `find-letter`) are simply
+sent that many times, so every plugin takes counts without doing anything.
 
-**The same key means the same thing everywhere.** Where a plugin uses these keys, they must
-run these actions (a plugin that breaks one isn't loaded, and the check says which):
+**Rule 1: a vim key means what it means in vim**, in thumbdeck and every plugin (API 2). Where a
+plugin binds one of these keys, it must run this action (a plugin that breaks one isn't loaded,
+and the check says which); a plugin may leave any of them out:
 
 | key | action | | key | action |
 | --- | --- | --- | --- | --- |
-| `j` | down | | `v` | review |
-| `k` | up | | `o` | outside |
-| `g` | first | | `r` | refresh |
-| `G` | last | | `q`, `Escape` | leave |
-| `d` | page-down | | `S` | setup |
-| `u` | page-up | | `?` | help |
-| `l` | open | | `Tab` / `Shift+Tab` | next-list / previous-list |
+| `j` / `k` | down / up | | `v` / `V` | visual / visual-line |
+| `gg` / `G` | first / last | | `yy`, `Y` | yank (copy the item) |
+| `Ctrl+d` / `Ctrl+u` | page-down / page-up | | `p` / `P` | paste / paste-before |
+| `Ctrl+f` / `Ctrl+b` | full-down / full-up | | `x` | tick (done, viewed, selected) |
+| `zz` | center | | `dd` | delete (remove, stop, hide; ask when it can't be undone) |
+| `l` | open | | `cc` | change (rename, or the main text) |
+| `/` | search | | `o` / `O` | new / new-above |
+| `n` / `N` | next-match / previous-match | | `i`, `a` | edit |
+| `f{x}` / `F{x}` | find-letter / find-letter-back | | `r` | replace (one value in place) |
+| `m{x}` / `'{x}` | mark / jump | | `u` / `Ctrl+r` | undo / redo |
+| `za` `zo` `zc` | fold-toggle / fold-open / fold-close | | `zR` / `zM` | unfold-all / fold-all |
+| `]c` `[c` | next-change / previous-change | | `]t` `[t` | next-thread / previous-thread |
+| `]f` `[f` | next-file / previous-file | | `]e` `[e` | next-error / previous-error |
+| `]r` `[r` | next-run / previous-run | | `gd` | diff |
+| `gx` | outside | | `R` | refresh |
+| `Ctrl+w v` | split | | `Tab` / `Shift+Tab` | next-list / previous-list |
+| `q`, `Escape` | leave | | `?` | help |
 
-**thumbdeck keeps** `1`–`9` (tabs), `z` (wide), `Ctrl+p` (the Plugins pane), `Ctrl+h/j/k/l`
-(moving between panes) and `Ctrl+b` (then `n` / `p`: the next / previous tab, as in tmux) even
-while a plugin has the keyboard.
-`?` always shows help and `S` always opens the setup; a plugin doesn't need to bind them.
-`q` / `Escape` give the keyboard back unless the plugin binds them (to close something of its
-own first).
+**Rule 2: the rest is behind `Space`** (a menu of the place's actions, letters shown, like
+which-key) or on the `:` line. These Space letters mean the same everywhere; a plugin adds its
+own letters for ideas that aren't here (`Space c`, `Space =`, `Space y j`…):
+
+| key | action | | key | action |
+| --- | --- | --- | --- | --- |
+| `Space s` | stop (or pause) | | `Space i` | info (the details pane) |
+| `Space p` | pin | | `Space e` | editor |
+| `Space f` | filter | | `Space t` | terminal |
+| `Space o` | order (sort) | | `Space w` | watch (live tail, follow) |
+| `Space h` | hidden (show / leave out) | | `Space /` | search-wide |
+| `Space a` | add | | `Space S` | setup |
+
+`Space y …` is "copy as" (`Space y j` JSON, `Space y p` path, `Space y r` reference…). `Enter`
+is the item's main action (run it, review it, open its window); `h` goes out (back, the parent,
+close a section).
+
+**thumbdeck keeps** these even while a plugin has the keyboard: `Space` itself, `Space Space`
+(the Toolkit), `Space 1`–`Space 9` (pages), `Space ,` (settings), `gt` / `gT` (the next /
+previous page), `:` (the command line), `.` (repeat the last change), `;` and `,` (repeat the
+last `f`), the digits (counts), `Ctrl+p` (the Plugins pane), `Ctrl+h/j/k/l` and `Ctrl+w o`,
+`Ctrl+w h/j/k/l` (panes). `?` always shows help and `Space S` opens the setup; a plugin doesn't
+need to bind them. `q` / `Escape` give the keyboard back unless the plugin binds them (to close
+something of its own first).
+
+**The command line**: `:name` runs the place's action of that name (`:refresh`, `:filter`);
+anything else comes to the frame as the `command` event, `{ name, arg }` (`:kill` → `{ name:
+"kill", arg: "" }`, `:!ls -la` → `{ name: "!", arg: "ls -la" }`), for actions without a key.
+
+**Plugin API 1** keymaps keep the keys from before thumbdeck 1.0 (`g`, `d` / `u`, `r`, `v`
+review, `o` outside, `S` setup; thumbdeck kept `1`–`9`, `z` and `Ctrl+b`), with no counts:
+plugins made for API 1 still load, and `api = 2` opts into the rules above.
 
 A click in the frame gives it the keyboard (like `td.keys.take()`), and keys pressed with the
 focus in the frame go through thumbdeck the same way.
@@ -828,7 +876,8 @@ folder, settings, storage and tabs.
 ## API versions
 
 `api` in `plugin.toml` is the version of the page API, the backend messages and the manifest
-together. thumbdeck speaks a range of versions (this draft: only 1):
+together. thumbdeck speaks a range of versions (1 and 2: 2 is the vim keys of thumbdeck 1.0,
+see [Keys](#keys); a plugin for API 1 keeps its old keys):
 
 - **Adding** things (a new function, event, manifest key or field type) keeps the version.
   A plugin that uses something newer than the thumbdeck it runs in gets a clear error at that

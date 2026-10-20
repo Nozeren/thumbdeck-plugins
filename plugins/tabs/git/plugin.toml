@@ -1,7 +1,7 @@
 id = "git"
 name = "Git"
-version = "1.4.0"
-api = 1
+version = "2.0.0"
+api = 2
 description = "The repo at a glance: changes and their diffs, the branch, commits, branches and stashes (read-only)"
 homepage = "https://github.com/Nozeren/thumbdeck-plugins/tree/main/plugins/tabs/git"
 icon = "icon.svg"
@@ -38,15 +38,16 @@ opens = "git"
 name = "CHANGES"
 surface = "card:changes"
 bindings = [
-  { keys = ["Enter", "v"], action = "review", does = "review the uncommitted changes" },
-  { keys = ["r"], action = "refresh", does = "look again" },
+  { keys = ["Enter"], action = "review", does = "review the uncommitted changes" },
+  { keys = ["gd"], action = "diff", does = "the same" },
+  { keys = ["R"], action = "refresh", does = "look again" },
 ]
 
 [keys.commits]
 name = "COMMITS"
 surface = "card:commits"
 bindings = [
-  { keys = ["r"], action = "refresh", does = "look again" },
+  { keys = ["R"], action = "refresh", does = "look again" },
 ]
 
 [keys.git]
@@ -55,13 +56,14 @@ surface = "tab:git"
 bindings = [
   { keys = ["j", "ArrowDown"], action = "down", does = "down" },
   { keys = ["k", "ArrowUp"], action = "up", does = "up" },
-  { keys = ["g"], action = "first", does = "first" },
+  { keys = ["gg"], action = "first", does = "first" },
   { keys = ["G"], action = "last", does = "last" },
-  { keys = ["l", "Enter"], action = "open", does = "review: all changes (at this file), the commit, the stash" },
-  { keys = ["v"], action = "review", does = "review (the same)" },
+  { keys = ["l"], action = "open", does = "review: all changes (at this file), the commit, the stash" },
+  { keys = ["Enter"], action = "review", does = "the same" },
+  { keys = ["gd"], action = "diff", does = "the same" },
   { keys = ["Tab"], action = "next-list", does = "next list: changes → commits → branches" },
   { keys = ["Shift+Tab"], action = "previous-list", does = "previous list" },
-  { keys = ["d", "PageDown"], action = "page-down", does = "scroll the diff down" },
-  { keys = ["u", "PageUp"], action = "page-up", does = "scroll the diff up" },
-  { keys = ["r"], action = "refresh", does = "refresh" },
+  { keys = ["Ctrl+d", "PageDown"], action = "page-down", does = "scroll the diff down" },
+  { keys = ["Ctrl+u", "PageUp"], action = "page-up", does = "scroll the diff up" },
+  { keys = ["R"], action = "refresh", does = "refresh" },
 ]

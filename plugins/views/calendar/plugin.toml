@@ -1,7 +1,7 @@
 id = "calendar"
 name = "Calendar"
-version = "1.1.2"
-api = 1
+version = "2.0.0"
+api = 2
 description = "Your calendars' coming events, what's next, and reminders (from iCal links, read-only)"
 homepage = "https://github.com/Nozeren/thumbdeck-plugins/tree/main/plugins/views/calendar"
 icon = "icon.svg"
@@ -58,14 +58,16 @@ surface = "view"
 bindings = [
   { keys = ["j", "ArrowDown"], action = "down", does = "next event (a week later, in the month)" },
   { keys = ["k", "ArrowUp"], action = "up", does = "previous event (a week earlier)" },
-  { keys = ["g"], action = "first", does = "first" },
+  { keys = ["gg"], action = "first", does = "first" },
   { keys = ["G"], action = "last", does = "last" },
-  { keys = ["m"], action = "month", does = "the month, or back to the coming days" },
-  { keys = ["t"], action = "now", does = "back to what's next (today, in the month)" },
+  { keys = ["Space m"], action = "month", does = "the month, or back to the coming days" },
+  { keys = ["Space n"], action = "now", does = "back to what's next (today, in the month)" },
   { keys = ["h", "ArrowLeft"], action = "left", does = "the day before (in the month)" },
   { keys = ["ArrowRight"], action = "right", does = "the day after (in the month)" },
-  { keys = ["d", "]"], action = "page-down", does = "next month (10 events down in the coming days)" },
-  { keys = ["u", "["], action = "page-up", does = "previous month (10 events up)" },
-  { keys = ["o"], action = "outside", does = "open the meeting link (or the event's link) in the browser" },
-  { keys = ["r"], action = "refresh", does = "read the calendars again" },
+  { keys = ["Ctrl+d"], action = "page-down", does = "next month (10 events down in the coming days)" },
+  { keys = ["Ctrl+u"], action = "page-up", does = "previous month (10 events up)" },
+  { keys = ["Ctrl+f"], action = "full-down", does = "the same" },
+  { keys = ["Ctrl+b"], action = "full-up", does = "the same, back" },
+  { keys = ["gx"], action = "outside", does = "open the meeting link (or the event's link) in the browser" },
+  { keys = ["R"], action = "refresh", does = "read the calendars again" },
 ]

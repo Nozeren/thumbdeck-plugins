@@ -10,12 +10,12 @@ text (Python logging, Rust, Go, Django, nginx, syslog, build output…).
   it to go to that moment. A map on the right edge marks the errors and warnings.
 - The highlighted line's **entry beside the log**: its fields, a traceback written out, and, for a
   line with a request id (`req`, `request_id`, `trace_id`…), that request's other lines. Enter
-  moves the keyboard into it; `i` hides it. `=` shows only that request's lines.
+  moves the keyboard into it; `Space i` hides it. `Space =` shows only that request's lines.
 - JSON fields show after the message (`req=r1008 ms=3000`); repeated lines fold into one with
-  ×n (`c` shows every line); search marks its words.
-- A log: levels in colour (`f` then `D` `I` `W` `E` shows or hides one), search (`/`, then `n` /
-  `N`), `e` / `E` for the next and previous error, live tail (`t`), and a line's full entry
-  (`l`), its values copied with `y`.
+  ×n (`Space c` shows every line); search marks its words.
+- A log: levels in colour (`Space f` then `D` `I` `W` `E` shows or hides one), search (`/`, then `n` /
+  `N`), `]e` / `[e` for the next and previous error, live tail (`Space w`), and a line's full entry
+  (`l`), its values copied with `yy`. Sections fold the vim way (`za`, `zR`, `zM`); `v` selects lines and `y` copies them.
 - **Sections** (in the tab's setup): fold a log into parts that start and end at marker texts,
   a request, a test, a deploy step. Top sections (◆) hold inner ones (▸), and a section with an
   error is marked red.

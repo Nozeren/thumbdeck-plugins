@@ -1,7 +1,7 @@
 id = "agents"
 name = "Agents"
-version = "1.0.2"
-api = 1
+version = "2.0.0"
+api = 2
 description = "Claude Code sessions in this project, their subagents, and the subagents and skills it defines"
 homepage = "https://github.com/Nozeren/thumbdeck-plugins/tree/main/plugins/tabs/agents"
 icon = "icon.svg"
@@ -28,12 +28,12 @@ surface = "tab:agents"
 bindings = [
   { keys = ["j", "ArrowDown"], action = "down", does = "down" },
   { keys = ["k", "ArrowUp"], action = "up", does = "up" },
-  { keys = ["g"], action = "first", does = "first" },
+  { keys = ["gg"], action = "first", does = "first" },
   { keys = ["G"], action = "last", does = "last" },
   { keys = ["l", "Enter"], action = "open", does = "open: an agent or skill to start, a session's conversation" },
   { keys = ["Tab"], action = "next-list", does = "next list: agents → skills → sessions" },
   { keys = ["Shift+Tab"], action = "previous-list", does = "previous list" },
-  { keys = ["r"], action = "refresh", does = "look again" },
+  { keys = ["R"], action = "refresh", does = "look again" },
 ]
 
 [keys.conversation]
@@ -42,19 +42,19 @@ surface = "tab:agents"
 bindings = [
   { keys = ["j", "ArrowDown"], action = "down", does = "down" },
   { keys = ["k", "ArrowUp"], action = "up", does = "up" },
-  { keys = ["g"], action = "first", does = "first" },
+  { keys = ["gg"], action = "first", does = "first" },
   { keys = ["G"], action = "last", does = "last" },
-  { keys = ["d", "PageDown"], action = "page-down", does = "a page down" },
-  { keys = ["u", "PageUp"], action = "page-up", does = "a page up" },
-  { keys = ["l", "Enter", "Space"], action = "open", does = "a tool call: its details; ◇ Agent: its conversation" },
+  { keys = ["Ctrl+d", "PageDown"], action = "page-down", does = "a page down" },
+  { keys = ["Ctrl+u", "PageUp"], action = "page-up", does = "a page up" },
+  { keys = ["l", "Enter"], action = "open", does = "a tool call: its details; ◇ Agent: its conversation" },
   { keys = ["h", "Backspace", "-"], action = "back", does = "back" },
-  { keys = ["r"], action = "refresh", does = "read it again" },
+  { keys = ["R"], action = "refresh", does = "read it again" },
 ]
 
 [keys.start]
 name = "START"
 surface = "tab:agents"
 bindings = [
-  { keys = ["i", "Enter"], action = "type", does = "type the task (Enter in the box starts Claude in tmux)" },
+  { keys = ["i", "a", "Enter"], action = "edit", does = "type the task (Enter in the box starts Claude in tmux)" },
   { keys = ["h", "Backspace", "-"], action = "back", does = "back" },
 ]

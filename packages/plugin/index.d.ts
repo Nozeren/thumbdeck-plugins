@@ -162,7 +162,17 @@ declare namespace Thumbdeck {
     /** The frame got or lost the keyboard */
     keyboard: boolean;
     /** One of its declared keys was pressed */
-    key: { action: string; key: string };
+    key: {
+      action: string;
+      /** The keys pressed ("j", "gg", "]e", "Space f", ":refresh" from the command line) */
+      key: string;
+      /** A count typed first (5G, 3dd); null without one. Motions come that many times instead */
+      count: number | null;
+      /** The letter after f{x}, m{x}, '{x} (or the text after a :command) */
+      arg: string | null;
+    };
+    /** :name on thumbdeck's command line that isn't one of its actions (:kill, :!ls -la) */
+    command: { name: string; arg: string };
     /** Its tab's setup was saved */
     setup: Record<string, any>;
     /** The plugin's settings were saved */
@@ -239,6 +249,8 @@ declare namespace Thumbdeck {
       notify(title: string, body?: string): void;
       /** thumbdeck's own yes / no dialog */
       confirm(question: string, o?: { yes?: string; no?: string }): Promise<boolean>;
+      /** Onto the clipboard, the way y copies everywhere in thumbdeck (since 0.9.1) */
+      copy(text: string): Promise<void>;
       /** In the browser, or through the plugin whose backend claimed links (links.claim, thumbdeck 0.9) */
       openUrl(url: string): void;
       /** One of this plugin's [[page]]s, over the whole window */

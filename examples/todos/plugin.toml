@@ -2,7 +2,7 @@
 id = "todos"
 name = "TODOs"
 version = "0.1.0"
-api = 1
+api = 2
 description = "The project's TODO and FIXME comments"
 
 [[tab]]
@@ -22,8 +22,8 @@ surface = "tab:todos"
 bindings = [
   { keys = ["j", "ArrowDown"], action = "down", does = "down" },
   { keys = ["k", "ArrowUp"], action = "up", does = "up" },
-  { keys = ["g"], action = "first", does = "first" },
+  { keys = ["gg"], action = "first", does = "first" },
   { keys = ["G"], action = "last", does = "last" },
   { keys = ["l", "Enter"], action = "open", does = "open the file in the project's tmux (nvim)" },
-  { keys = ["r"], action = "refresh", does = "look again" },
+  { keys = ["R"], action = "refresh", does = "look again" },
 ]

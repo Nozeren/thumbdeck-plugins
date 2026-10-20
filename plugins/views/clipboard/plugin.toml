@@ -1,7 +1,7 @@
 id = "clipboard"
 name = "Clipboard"
-version = "1.0.2"
-api = 1
+version = "2.0.0"
+api = 2
 description = "What you copied: the last 100 texts, searchable, copied again with one key; pin the ones you reuse"
 homepage = "https://github.com/Nozeren/thumbdeck-plugins/tree/main/plugins/views/clipboard"
 icon = "icon.svg"
@@ -37,12 +37,12 @@ surface = "view"
 bindings = [
   { keys = ["j", "ArrowDown"], action = "down", does = "next" },
   { keys = ["k", "ArrowUp"], action = "up", does = "previous" },
-  { keys = ["g"], action = "first", does = "first" },
+  { keys = ["gg"], action = "first", does = "first" },
   { keys = ["G"], action = "last", does = "last" },
-  { keys = ["y", "Enter"], action = "copy", does = "copy it again (it goes back to the top)" },
-  { keys = ["/"], action = "filter", does = "search" },
-  { keys = ["p"], action = "pin", does = "pin or unpin it (pinned ones stay at the top and are never dropped)" },
-  { keys = ["x"], action = "remove", does = "remove it from the list" },
-  { keys = ["X"], action = "clear", does = "clear the list, except the pinned ones (asks first)" },
-  { keys = ["s"], action = "pause", does = "pause or resume keeping copies" },
+  { keys = ["Enter"], action = "copy", does = "copy it again (it goes back to the top)" },
+  { keys = ["yy", "Y"], action = "yank", does = "the same" },
+  { keys = ["/"], action = "search", does = "search" },
+  { keys = ["Space p"], action = "pin", does = "pin or unpin it (pinned ones stay at the top and are never dropped)" },
+  { keys = ["dd"], action = "delete", does = "remove it from the list" },
+  { keys = ["Space s"], action = "stop", does = "pause or resume keeping copies (:clear clears the list but the pinned ones)" },
 ]

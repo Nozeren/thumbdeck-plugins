@@ -78,6 +78,13 @@ $("filter").addEventListener("keydown", (e) => {
   }
 });
 
+// :clear (thumbdeck's command line): the history, but the pinned ones
+td.on("command", async ({ name }) => {
+  if (name !== "clear") return td.ui.say(`There's no :${name} in Clipboard (:clear)`);
+  if (!(await td.ui.confirm("Clear the clipboard history? Pinned ones stay.", { yes: "Clear" }))) return;
+  act("clear", null, () => "cleared");
+});
+
 td.on("key", async ({ action }) => {
   const it = list()[cursor];
   switch (action) {
@@ -85,17 +92,15 @@ td.on("key", async ({ action }) => {
     case "up": return move(cursor - 1);
     case "first": return move(0);
     case "last": return move(list().length - 1);
-    case "filter": return startFilter();
+    case "search": return startFilter();
     case "copy":
+    case "yank":
       if (!it) return;
       cursor = 0;
       return act("copy", it, () => `copied: ${line(it.text, 40)}`);
     case "pin": return it && act("pin", it, (pinned) => (pinned ? "pinned" : "unpinned"));
-    case "remove": return it && act("remove", it, () => "removed");
-    case "clear":
-      if (!(await td.ui.confirm("Clear the clipboard history? Pinned ones stay.", { yes: "Clear" }))) return;
-      return act("clear", null, () => "cleared");
-    case "pause": return act("pause", null, (p) => (p ? "paused: copies aren't kept" : "keeping copies again"));
+    case "delete": return it && act("remove", it, () => "removed");
+    case "stop": return act("pause", null, (p) => (p ? "paused: copies aren't kept" : "keeping copies again"));
   }
 });
 td.backend.on("changed", load);

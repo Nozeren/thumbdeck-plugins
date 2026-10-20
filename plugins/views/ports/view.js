@@ -99,6 +99,12 @@ async function copy(text) {
   }
 }
 
+// :kill (thumbdeck's command line): for a process that doesn't stop
+td.on("command", ({ name }) => {
+  if (name === "kill") return stop(rows[cursor], true);
+  td.ui.say(`There's no :${name} in Ports (:kill)`);
+});
+
 td.on("key", ({ action }) => {
   const p = rows[cursor];
   switch (action) {
@@ -107,9 +113,8 @@ td.on("key", ({ action }) => {
     case "first": return move(0);
     case "last": return move(rows.length - 1);
     case "outside": return p && td.ui.openUrl(url(p));
-    case "copy": return p && copy(url(p));
-    case "stop": return stop(p, false);
-    case "kill": return stop(p, true);
+    case "yank": return p && copy(url(p));
+    case "delete": return stop(p, false);
     case "refresh": return load();
   }
 });

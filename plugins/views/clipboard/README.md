@@ -3,10 +3,10 @@
 A history of what you copied, in a view in the Plugins pane (`Ctrl+p`): the last 100 texts,
 newest first, the highlighted one in full beside the list.
 
-- `y` (or Enter) copies it again, and it goes back to the top.
-- `/` searches, `p` pins one (pinned ones stay at the top and are never dropped), `x` removes
-  one, `X` clears the rest.
-- `s` pauses it, for a while you copy things it shouldn't keep.
+- `Enter` (or `yy`) copies it again, and it goes back to the top.
+- `/` searches, `Space p` pins one (pinned ones stay at the top and are never dropped), `dd` removes
+  one, `:clear` clears the rest.
+- `Space s` pauses it, for a while you copy things it shouldn't keep.
 
 It notices copies while thumbdeck runs. Copies a password manager marks as secret (KeePassXC,
 KDE's and others on Linux) aren't kept. The history is kept in the plugin's data folder,

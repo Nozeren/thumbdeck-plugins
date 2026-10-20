@@ -52,7 +52,13 @@ async function outside() {
 }
 
 td.on("key", ({ action }) => {
-  if (action === "type") return box.focus();
+  if (action === "edit") return box.focus();
+  if (action === "new") {
+    box.focus();
+    box.selectionStart = box.selectionEnd = box.value.length;
+    if (box.value && !box.value.endsWith("\n")) document.execCommand("insertText", false, "\n");
+    return;
+  }
   if (action === "outside") return outside();
   if (action === "tick") {
     let next = toggle(box.value, lineAt(box.value, caret));

@@ -173,8 +173,8 @@ td.on("key", ({ action }) => {
       case "up": return select(shiftDays(selected, -7));
       case "left": return select(shiftDays(selected, -1));
       case "right": return select(shiftDays(selected, 1));
-      case "page-down": return select(shiftMonth(selected, 1));
-      case "page-up": return select(shiftMonth(selected, -1));
+      case "page-down": case "full-down": return select(shiftMonth(selected, 1));
+      case "page-up": case "full-up": return select(shiftMonth(selected, -1));
       case "first": return select(new Date(d.getFullYear(), d.getMonth(), 1).getTime());
       case "last": return select(new Date(d.getFullYear(), d.getMonth() + 1, 0).getTime());
       case "now": return select(Date.now());
@@ -183,8 +183,8 @@ td.on("key", ({ action }) => {
   }
   switch (action) {
     case "month": return setMonth(true);
-    case "page-down": return move(cursor + 10);
-    case "page-up": return move(cursor - 10);
+    case "page-down": case "full-down": return move(cursor + 10);
+    case "page-up": case "full-up": return move(cursor - 10);
     case "down": return move(cursor + 1);
     case "up": return move(cursor - 1);
     case "first": return move(0);

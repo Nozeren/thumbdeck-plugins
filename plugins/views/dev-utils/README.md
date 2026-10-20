@@ -12,5 +12,5 @@ can be read as.
 - **base64**: decoded, when it's text
 - Anything: as base64, URL-encoded, and its length in characters and bytes
 
-With the box empty it shows the time now and a new UUID (`n` for another). `j`/`k` move
-between results and `y` copies one. Nothing leaves your computer.
+With the box empty it shows the time now and a new UUID (`Space n` for another). `j`/`k` move
+between results and `yy` copies one. Nothing leaves your computer.

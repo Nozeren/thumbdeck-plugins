@@ -5,11 +5,37 @@ import { existsSync, readFileSync, statSync } from "node:fs";
 import { isAbsolute, join, normalize } from "node:path";
 import { parse, TomlError } from "smol-toml";
 
-/** The plugin API versions this checker knows */
-export const API = [1, 1];
+/** The plugin API versions this checker knows (2: the vim keys of thumbdeck 1.0) */
+export const API = [1, 2];
 
-/** The same key, the same meaning: key -> the action it must run wherever it's bound */
+/**
+ * Rule 1 and the shared Space letters (plugin API 2): key -> the action it must run wherever
+ * it's bound. A vim key means what it means in vim; the rest is behind Space.
+ */
 export const RULES = {
+  j: "down", k: "up", gg: "first", G: "last",
+  "Ctrl+d": "page-down", "Ctrl+u": "page-up", "Ctrl+f": "full-down", "Ctrl+b": "full-up", zz: "center",
+  l: "open", Tab: "next-list", "Shift+Tab": "previous-list",
+  "/": "search", n: "next-match", N: "previous-match",
+  "f{x}": "find-letter", "F{x}": "find-letter-back",
+  "m{x}": "mark", "'{x}": "jump",
+  v: "visual", V: "visual-line", yy: "yank", Y: "yank", p: "paste", P: "paste-before", x: "tick",
+  dd: "delete", cc: "change", o: "new", O: "new-above", i: "edit", a: "edit", r: "replace",
+  u: "undo", "Ctrl+r": "redo",
+  za: "fold-toggle", zo: "fold-open", zc: "fold-close", zR: "unfold-all", zM: "fold-all",
+  "]c": "next-change", "[c": "previous-change", "]t": "next-thread", "[t": "previous-thread",
+  "]f": "next-file", "[f": "previous-file", "]e": "next-error", "[e": "previous-error",
+  "]r": "next-run", "[r": "previous-run",
+  gd: "diff", gx: "outside", R: "refresh",
+  "Ctrl+w v": "split",
+  q: "leave", Escape: "leave", "?": "help",
+  "Space s": "stop", "Space p": "pin", "Space f": "filter", "Space o": "order", "Space h": "hidden",
+  "Space i": "info", "Space e": "editor", "Space t": "terminal", "Space w": "watch", "Space /": "search-wide",
+  "Space a": "add", "Space S": "setup",
+};
+
+/** The rules plugins made for plugin API 1 were checked against (they keep their keys) */
+export const RULES_API1 = {
   j: "down", k: "up", g: "first", G: "last",
   d: "page-down", u: "page-up",
   l: "open",
@@ -19,10 +45,14 @@ export const RULES = {
   S: "setup", "?": "help",
 };
 
-/** Keys thumbdeck keeps even while a plugin has the keyboard */
-/** Keys a card can't bind: they move between the Overview's cards, and x hides one */
-export const CARD_KEYS = ["h", "j", "k", "l", "g", "G", "ArrowLeft", "ArrowDown", "ArrowUp", "ArrowRight", "x"];
-export const RESERVED = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "z", "Ctrl+p", "Ctrl+h", "Ctrl+j", "Ctrl+k", "Ctrl+l", "Ctrl+b"];
+/** Keys thumbdeck keeps even while a plugin has the keyboard (plugin API 2) */
+export const RESERVED = ["Space", "Space Space", "Space ,", "Space 1", "Space 2", "Space 3", "Space 4", "Space 5", "Space 6", "Space 7", "Space 8", "Space 9", "gt", "gT", ":", ".", ";", ",", "Ctrl+p", "Ctrl+h", "Ctrl+j", "Ctrl+k", "Ctrl+l", "Ctrl+w o", "Ctrl+w h", "Ctrl+w j", "Ctrl+w k", "Ctrl+w l", "0", "1", "2", "3", "4", "5", "6", "7", "8", "9"];
+/** What plugin API 1 reserved */
+export const RESERVED_API1 = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "z", "Ctrl+p", "Ctrl+h", "Ctrl+j", "Ctrl+k", "Ctrl+l", "Ctrl+b"];
+
+/** Keys a card can't bind: they move between the Overview's cards, and dd hides one (API 1: x) */
+export const CARD_KEYS = ["h", "j", "k", "l", "gg", "G", "ArrowLeft", "ArrowDown", "ArrowUp", "ArrowRight", "dd"];
+export const CARD_KEYS_API1 = ["h", "j", "k", "l", "g", "G", "ArrowLeft", "ArrowDown", "ArrowUp", "ArrowRight", "x"];
 
 export const ICONS = ["django", "python", "android", "node", "tauri", "rust", "go", "nvim", "folder"];
 const FIELD_TYPES = ["text", "number", "bool", "choice", "list", "folder", "file", "folders", "files", "json", "secret"];
@@ -142,8 +172,9 @@ function checkFields(fields, place, reserved, out) {
   }
 }
 
-/** What's wrong with one keymap's keys */
-export function keymapProblems(map, name) {
+/** What's wrong with one keymap's keys (against its plugin API's rules) */
+export function keymapProblems(map, name, api = 2) {
+  const [rules, reserved] = api >= 2 ? [RULES, RESERVED] : [RULES_API1, RESERVED_API1];
   const out = [];
   if (!String(map.name ?? "").trim()) out.push(`keys.${name} needs a name (shown in the status line)`);
   const seen = [];
@@ -154,8 +185,12 @@ export function keymapProblems(map, name) {
     for (const k of keys) {
       if (seen.includes(k)) out.push(`keys.${name}: ${k} is bound twice`);
       seen.push(k);
-      if (RESERVED.includes(k)) out.push(`keys.${name}: ${k} is thumbdeck's (1–9 show tabs, z is wide, Ctrl+p the Plugins pane, Ctrl+h/j/k/l move between panes, Ctrl+b then n / p the next / previous tab)`);
-      if (RULES[k] && RULES[k] !== b.action) out.push(`keys.${name}: ${k} runs ${b.action} here, but ${k} means ${RULES[k]} everywhere`);
+      if (reserved.includes(k)) {
+        out.push(api >= 2
+          ? `keys.${name}: ${k} is thumbdeck's (Space, Space Space, Space , and Space 1–9 its menu, Toolkit, settings and pages; gt / gT pages; : the command line; . ; , repeating; digits counts; Ctrl+p, Ctrl+h/j/k/l and Ctrl+w panes)`
+          : `keys.${name}: ${k} is thumbdeck's (1–9 show tabs, z is wide, Ctrl+p the Plugins pane, Ctrl+h/j/k/l move between panes, Ctrl+b then n / p the next / previous tab)`);
+      }
+      if (rules[k] && rules[k] !== b.action) out.push(`keys.${name}: ${k} runs ${b.action} here, but ${k} means ${rules[k]} everywhere`);
     }
   }
   return out;
@@ -250,15 +285,16 @@ export function checkManifest(text, folder) {
   for (const [name, map] of Object.entries(m.keys ?? {})) {
     if (!shape(map, "keymap", `keys.${name}`, out)) continue;
     for (const [i, b] of list(map.bindings).entries()) shape(b, "binding", `keys.${name}.bindings[${i}]`, out);
-    out.push(...keymapProblems(map, name));
+    out.push(...keymapProblems(map, name, m.api ?? 1));
     const [kind, id] = String(map.surface ?? "").split(":");
     const exists = id === undefined
       ? map.surface === "view" && m.view !== undefined
       : ({ tab: tabs, panel: panels, card: cards, page: pages }[kind] ?? []).some((x) => x.id === id);
     if (!exists) out.push(`keys.${name}: surface "${map.surface}" isn't one of the plugin's (tab:<id>, panel:<id>, card:<id>, page:<id> or view)`);
     if (kind === "card") {
-      for (const k of list(map.bindings).flatMap((b) => list(b.keys)).filter((k) => CARD_KEYS.includes(k))) {
-        out.push(`keys.${name}: on a card, ${k} is thumbdeck's (h/j/k/l/g/G move between the Overview's cards, x hides one)`);
+      const [taken, why] = (m.api ?? 1) >= 2 ? [CARD_KEYS, "h/j/k/l/gg/G move between the Overview's cards, dd hides one"] : [CARD_KEYS_API1, "h/j/k/l/g/G move between the Overview's cards, x hides one"];
+      for (const k of list(map.bindings).flatMap((b) => list(b.keys)).filter((k) => taken.includes(k))) {
+        out.push(`keys.${name}: on a card, ${k} is thumbdeck's (${why})`);
       }
     }
   }

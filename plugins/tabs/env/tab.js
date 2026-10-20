@@ -106,7 +106,7 @@ td.on("key", ({ action }) => {
     case "first": return move(0);
     case "last": return move(rows.length - 1);
     case "open": return open();
-    case "show":
+    case "hidden":
       if (!r) return;
       if (shownKeys.has(r.key)) shownKeys.delete(r.key);
       else shownKeys.add(r.key);

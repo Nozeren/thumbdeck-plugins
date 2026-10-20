@@ -3,7 +3,7 @@
 id = "pomodoro"
 name = "Pomodoro"
 version = "0.1.0"
-api = 1
+api = 2
 description = "A focus timer: start it from its view, see it tick in a panel"
 
 [view]
@@ -33,9 +33,9 @@ default = 25
 name = "POMODORO"
 surface = "view"
 bindings = [
-  { keys = ["s"], action = "start", does = "start / stop" },
-  { keys = ["x"], action = "reset", does = "reset" },
-  { keys = ["H"], action = "history", does = "the history, over the whole window" },
+  { keys = ["Space s"], action = "stop", does = "start / stop" },
+  { keys = ["Space r"], action = "reset", does = "reset" },
+  { keys = ["Space H"], action = "history", does = "the history, over the whole window" },
 ]
 
 [keys.history]

@@ -1,7 +1,7 @@
 id = "ports"
 name = "Ports"
-version = "1.0.2"
-api = 1
+version = "2.0.0"
+api = 2
 description = "What's listening on which port, which project it's from, and stopping it (after asking)"
 homepage = "https://github.com/Nozeren/thumbdeck-plugins/tree/main/plugins/views/ports"
 icon = "icon.svg"
@@ -23,11 +23,10 @@ surface = "view"
 bindings = [
   { keys = ["j", "ArrowDown"], action = "down", does = "next port" },
   { keys = ["k", "ArrowUp"], action = "up", does = "previous" },
-  { keys = ["g"], action = "first", does = "first" },
+  { keys = ["gg"], action = "first", does = "first" },
   { keys = ["G"], action = "last", does = "last" },
-  { keys = ["o"], action = "outside", does = "open http://localhost:<port> in the browser" },
-  { keys = ["y"], action = "copy", does = "copy http://localhost:<port>" },
-  { keys = ["x"], action = "stop", does = "stop the process (asks first)" },
-  { keys = ["X"], action = "kill", does = "kill it: for one that doesn't stop (asks first)" },
-  { keys = ["r"], action = "refresh", does = "look again (it also looks every 3 seconds)" },
+  { keys = ["gx", "Enter"], action = "outside", does = "open http://localhost:<port> in the browser" },
+  { keys = ["yy", "Y"], action = "yank", does = "copy http://localhost:<port>" },
+  { keys = ["dd"], action = "delete", does = "stop the process (asks first); :kill kills one that doesn't stop" },
+  { keys = ["R"], action = "refresh", does = "look again (it also looks every 3 seconds)" },
 ]

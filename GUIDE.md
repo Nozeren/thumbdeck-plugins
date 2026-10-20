@@ -16,7 +16,7 @@ mkdir ~/dev/deploy-buttons && cd ~/dev/deploy-buttons
 id = "deploy-buttons"
 name = "Deploy"
 version = "0.1.0"
-api = 1
+api = 2
 description = "Deploy the project to staging or production"
 
 [detect]
@@ -88,7 +88,7 @@ The page already looks like thumbdeck: its colors and fonts are there as CSS var
 
 ## 3. Its setup
 
-Each tab has a setup, per project (`S` opens it). Declare the fields; thumbdeck draws the form:
+Each tab has a setup, per project (`Space S` opens it). Declare the fields; thumbdeck draws the form:
 
 ```toml
 [[tab.setup]]
@@ -119,7 +119,7 @@ bindings = [
   { keys = ["j", "ArrowDown"], action = "down", does = "down" },
   { keys = ["k", "ArrowUp"], action = "up", does = "up" },
   { keys = ["l", "Enter"], action = "open", does = "open the release in the browser" },
-  { keys = ["r"], action = "refresh", does = "look again" },
+  { keys = ["R"], action = "refresh", does = "look again" },
 ]
 ```
 
@@ -132,10 +132,13 @@ td.on("key", ({ action }) => {
 });
 ```
 
-`?` shows these keys, `S` the setup, and `q` / `Esc` give the keyboard back, without you
-doing anything. A key means the same thing everywhere in thumbdeck (`j` is always down, `r`
-always refresh, …): a plugin that binds one to something else isn't loaded, and says why. The
-table is in [Keys](SPEC.md#keys). Several keymaps for one tab are modes: `td.keys.use("detail")`.
+`?` shows these keys, `Space S` the setup, and `q` / `Esc` give the keyboard back, without you
+doing anything. Keys follow two rules. A vim key means what it means in vim (`j` is always down,
+`gg` the top, `dd` delete, `yy` copy, `R` refresh, `]e` the next error, …): a plugin that binds
+one to something else isn't loaded, and says why. Everything else goes behind `Space`, with
+letters shared by every place (`Space f` filter, `Space s` stop, …), or on the `:` line. Counts
+(`5j`) work without you doing anything. The tables are in [Keys](SPEC.md#keys). Several
+keymaps for one tab are modes: `td.keys.use("detail")`.
 
 ## 5. A backend
 

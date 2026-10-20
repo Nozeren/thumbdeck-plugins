@@ -1,7 +1,7 @@
 id = "logs"
 name = "Logs"
-version = "1.3.0"
-api = 1
+version = "2.0.0"
+api = 2
 description = "The project's log files: levels, search, errors, live tail, optional sections"
 homepage = "https://github.com/Nozeren/thumbdeck-plugins/tree/main/plugins/tabs/logs"
 icon = "icon.svg"
@@ -52,10 +52,10 @@ surface = "tab:logs"
 bindings = [
   { keys = ["j", "ArrowDown"], action = "down", does = "down" },
   { keys = ["k", "ArrowUp"], action = "up", does = "up" },
-  { keys = ["g"], action = "first", does = "first" },
+  { keys = ["gg"], action = "first", does = "first" },
   { keys = ["G"], action = "last", does = "last" },
   { keys = ["l", "Enter"], action = "open", does = "open the log" },
-  { keys = ["r"], action = "refresh", does = "look for logs again" },
+  { keys = ["R"], action = "refresh", does = "look for logs again" },
 ]
 
 [keys.log]
@@ -64,26 +64,54 @@ surface = "tab:logs"
 bindings = [
   { keys = ["j", "ArrowDown"], action = "down", does = "down" },
   { keys = ["k", "ArrowUp"], action = "up", does = "up" },
-  { keys = ["g"], action = "first", does = "first" },
+  { keys = ["gg"], action = "first", does = "first" },
   { keys = ["G"], action = "last", does = "last" },
-  { keys = ["l", "Enter", "Space", "ArrowRight"], action = "open", does = "open a section / a line's full entry" },
+  { keys = ["l", "Enter", "ArrowRight"], action = "open", does = "open a section / a line's full entry" },
   { keys = ["h", "ArrowLeft"], action = "close", does = "close a section (on a line: its section)" },
-  { keys = ["d", "Ctrl+d"], action = "page-down", does = "half a page down" },
-  { keys = ["u", "Ctrl+u"], action = "page-up", does = "half a page up" },
+  { keys = ["za"], action = "fold-toggle", does = "open / close the section" },
+  { keys = ["zo"], action = "fold-open", does = "open the section" },
+  { keys = ["zc"], action = "fold-close", does = "close the section" },
+  { keys = ["zR"], action = "unfold-all", does = "open every section" },
+  { keys = ["zM"], action = "fold-all", does = "close every section" },
+  { keys = ["Ctrl+d"], action = "page-down", does = "half a page down" },
+  { keys = ["Ctrl+u"], action = "page-up", does = "half a page up" },
   { keys = ["Ctrl+f", "PageDown"], action = "full-down", does = "a page down" },
-  { keys = ["PageUp"], action = "full-up", does = "a page up" },
-  { keys = ["e", "E"], action = "error", does = "next / previous ERROR" },
+  { keys = ["Ctrl+b", "PageUp"], action = "full-up", does = "a page up" },
+  { keys = ["]e"], action = "next-error", does = "the next ERROR" },
+  { keys = ["[e"], action = "previous-error", does = "the previous ERROR" },
   { keys = ["/"], action = "search", does = "search" },
-  { keys = ["n", "N"], action = "match", does = "next / previous match" },
-  { keys = ["t"], action = "tail", does = "live tail on / off" },
-  { keys = ["c"], action = "fold", does = "fold repeated lines (×n) / show every line" },
-  { keys = ["="], action = "request", does = "only this line's request (req, request_id, trace_id…) / every line" },
-  { keys = ["i"], action = "pane", does = "the entry beside the log: hide / show" },
-  { keys = ["f"], action = "levels", does = "show / hide levels: then D I W E, or A for all" },
-  { keys = ["y", "Y"], action = "copy", does = "copy the message (a section: its title) / the entry as JSON" },
-  { keys = ["r"], action = "refresh", does = "read the log again" },
+  { keys = ["n"], action = "next-match", does = "the next match" },
+  { keys = ["N"], action = "previous-match", does = "the previous match" },
+  { keys = ["Space w"], action = "watch", does = "live tail on / off" },
+  { keys = ["Space c"], action = "fold", does = "fold repeated lines (×n) / show every line" },
+  { keys = ["Space ="], action = "request", does = "only this line's request (req, request_id, trace_id…) / every line" },
+  { keys = ["Space i"], action = "info", does = "the entry beside the log: hide / show" },
+  { keys = ["Space f"], action = "filter", does = "show / hide levels: then D I W E, or A for all" },
+  { keys = ["v"], action = "visual", does = "select lines (j / k extend), then y copies them" },
+  { keys = ["V"], action = "visual-line", does = "the same" },
+  { keys = ["yy", "Y"], action = "yank", does = "copy the message (a section: its title); in a selection, y copies the lines" },
+  { keys = ["Space y j"], action = "copy-json", does = "copy as JSON (the line, or the selected lines)" },
+  { keys = ["R"], action = "refresh", does = "read the log again" },
   { keys = ["Backspace", "-"], action = "back", does = "back to the files" },
   { keys = ["q", "Escape"], action = "leave", does = "close the search status, else give the keyboard back" },
+]
+
+[keys.visual]
+name = "VISUAL"
+surface = "tab:logs"
+bindings = [
+  { keys = ["j", "ArrowDown"], action = "down", does = "extend down" },
+  { keys = ["k", "ArrowUp"], action = "up", does = "extend up" },
+  { keys = ["gg"], action = "first", does = "to the first line" },
+  { keys = ["G"], action = "last", does = "to the last line" },
+  { keys = ["Ctrl+d"], action = "page-down", does = "half a page down" },
+  { keys = ["Ctrl+u"], action = "page-up", does = "half a page up" },
+  { keys = ["y"], action = "yank-selection", does = "copy the selected lines" },
+  { keys = ["Y"], action = "yank", does = "the same" },
+  { keys = ["Space y j"], action = "copy-json", does = "copy them as JSON" },
+  { keys = ["v"], action = "visual", does = "drop the selection" },
+  { keys = ["V"], action = "visual-line", does = "drop the selection" },
+  { keys = ["q", "Escape"], action = "leave", does = "drop the selection" },
 ]
 
 [keys.levels]
@@ -104,10 +132,11 @@ surface = "tab:logs"
 bindings = [
   { keys = ["j", "ArrowDown"], action = "down", does = "down" },
   { keys = ["k", "ArrowUp"], action = "up", does = "up" },
-  { keys = ["g"], action = "first", does = "first" },
+  { keys = ["gg"], action = "first", does = "first" },
   { keys = ["G"], action = "last", does = "last" },
-  { keys = ["l", "Enter", "Space"], action = "open", does = "open / close a value" },
+  { keys = ["l", "Enter"], action = "open", does = "open / close a value" },
   { keys = ["h"], action = "close", does = "close (on a value: its parent)" },
-  { keys = ["y", "Y"], action = "copy", does = "copy the value / the whole entry" },
+  { keys = ["yy", "Y"], action = "yank", does = "copy the value" },
+  { keys = ["Space y j"], action = "copy-json", does = "copy the whole entry as JSON" },
   { keys = ["q", "Escape", "Backspace"], action = "leave", does = "close the entry" },
 ]

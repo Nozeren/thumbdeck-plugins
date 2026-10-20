@@ -1,7 +1,7 @@
 id = "dev-utils"
 name = "Dev utils"
-version = "1.0.2"
-api = 1
+version = "2.0.0"
+api = 2
 description = "Paste a JWT, JSON, base64, a timestamp, a date or a URL: what it says, decoded; and a UUID or the time now"
 homepage = "https://github.com/Nozeren/thumbdeck-plugins/tree/main/plugins/views/dev-utils"
 icon = "icon.svg"
@@ -14,13 +14,13 @@ page = "view.html"
 name = "DEV UTILS"
 surface = "view"
 bindings = [
-  { keys = ["i"], action = "type", does = "type or paste into the box (Esc leaves it)" },
+  { keys = ["i", "a"], action = "edit", does = "type or paste into the box (Esc leaves it)" },
   { keys = ["p"], action = "paste", does = "paste the clipboard in place of what's there" },
   { keys = ["j", "ArrowDown"], action = "down", does = "next result" },
   { keys = ["k", "ArrowUp"], action = "up", does = "previous result" },
-  { keys = ["g"], action = "first", does = "first" },
+  { keys = ["gg"], action = "first", does = "first" },
   { keys = ["G"], action = "last", does = "last" },
-  { keys = ["y"], action = "copy", does = "copy the highlighted result" },
-  { keys = ["x"], action = "clear", does = "clear the box" },
-  { keys = ["n"], action = "uuid", does = "a new UUID (with the box empty)" },
+  { keys = ["yy", "Y"], action = "yank", does = "copy the highlighted result" },
+  { keys = ["dd"], action = "delete", does = "clear the box" },
+  { keys = ["Space n"], action = "uuid", does = "a new UUID (with the box empty)" },
 ]

@@ -147,14 +147,14 @@ function detail() {
   const tags = it.tags.map((t) => `<span class="td-badge">${esc(t)}</span>`).join(" ");
   const planning = (p?.planning ?? []).filter((f) => f.ref !== "Microsoft.VSTS.Common.Priority");
   const properties = `<dl class="fields props">
-      <dt>State ${kbd("s")}</dt><dd>${editable("state", `<i class="dot ${stateClass(it.state)}"></i>${esc(it.state)}`, "state", "Change the state (s)")}${p?.reason ? ` <span class="td-muted">${esc(p.reason)}</span>` : ""}</dd>
-      <dt>Assigned ${kbd("a")}</dt><dd>${editable("assign", esc(it.assignedTo || "Unassigned"), "assignee", "Assign it (a)")}</dd>
-      <dt>Iteration ${kbd("m")}</dt><dd>${editable("iteration", esc(lastPart(it.iteration) || "—"), "iteration", `${esc(it.iteration)}: move it (m)`)}</dd>
+      <dt>State ${kbd("r")}</dt><dd>${editable("state", `<i class="dot ${stateClass(it.state)}"></i>${esc(it.state)}`, "state", "Change the state (r)")}${p?.reason ? ` <span class="td-muted">${esc(p.reason)}</span>` : ""}</dd>
+      <dt>Assigned ${kbd("Space u")}</dt><dd>${editable("assign", esc(it.assignedTo || "Unassigned"), "assignee", "Assign it (Space u)")}</dd>
+      <dt>Iteration ${kbd("Space m")}</dt><dd>${editable("iteration", esc(lastPart(it.iteration) || "—"), "iteration", `${esc(it.iteration)}: move it (Space m)`)}</dd>
       ${p?.area ? `<dt>Area</dt><dd${changed.has("area") ? ' class="changed"' : ""}>${esc(lastPart(p.area))}</dd>` : ""}
-      <dt>Priority ${kbd("p")}</dt><dd>${editable("priority", esc(it.priority ?? "—"), "priority", "Change the priority (p)")}</dd>
-      <dt>Tags ${kbd("t")}</dt><dd>${editable("tags", tags || `<span class="td-muted">+ add</span>`, "tags", "Edit the tags (t)")}</dd>
+      <dt>Priority ${kbd("Space n")}</dt><dd>${editable("priority", esc(it.priority ?? "—"), "priority", "Change the priority (Space n)")}</dd>
+      <dt>Tags ${kbd("Space g")}</dt><dd>${editable("tags", tags || `<span class="td-muted">+ add</span>`, "tags", "Edit the tags (Space g)")}</dd>
       ${fields(planning)}</dl>`;
-  const development = `<ul class="links"><li class="link" data-edit="copy-branch" title="Copy it (y)">⎇ <code>${esc(branchName(it, data.branchPrefix))}</code> <span class="td-muted">copy</span> ${kbd("y")}</li>
+  const development = `<ul class="links"><li class="link" data-edit="copy-branch" title="Copy it (yy)">⎇ <code>${esc(branchName(it, data.branchPrefix))}</code> <span class="td-muted">copy</span> ${kbd("yy")}</li>
     ${(p?.development ?? []).map((x) => `<li${x.url ? ` class="link" data-href="${esc(x.url)}"` : ""}><span class="td-muted">${esc(x.kind)}</span> ${esc(x.label)}</li>`).join("")}</ul>`;
   let side = section("Properties", properties) + section("Development", development);
   if (p) {
@@ -191,17 +191,17 @@ function detail() {
         ${activity.map((x, n) => (n < folded ? "" : (n === firstNew ? `<li class="divider"><span>New since you last looked</span></li>` : "") + entry(x))).join("")}
       </ol>
       <div class="composer"><textarea id="compose" rows="3" placeholder="Write a comment… (Markdown works · Ctrl+Enter: send)"></textarea>
-        <div class="buttons"><span class="td-muted">${kbd("c")} here · ${kbd("Esc")} leave</span><button id="compose-send">Comment ${kbd("Ctrl+Enter")}</button></div></div>`, "activity-section");
+        <div class="buttons"><span class="td-muted">${kbd("cc")} here · ${kbd("Esc")} leave</span><button id="compose-send">Comment ${kbd("Ctrl+Enter")}</button></div></div>`, "activity-section");
   }
 
   const typing = document.activeElement?.id === "compose" ? [$("compose").selectionStart, $("compose").selectionEnd] : null;
   const leaving = mode === "page" ? `<button class="back" data-back title="Back (Esc)">‹ ${esc(backName())} ${kbd("Esc")}</button>` : "";
   box.innerHTML = `<header class="head"><i class="bar ${esc(it.type)}"></i>
       <div class="top">${leaving}<span class="kind"><span class="type ${esc(it.type)}">${esc(it.type.toUpperCase())}</span> ${it.id}</span>
-        ${editable("state", `<i class="dot ${stateClass(it.state)}"></i>${esc(it.state)}`, "state", "Change the state (s)")} ${kbd("s")}
+        ${editable("state", `<i class="dot ${stateClass(it.state)}"></i>${esc(it.state)}`, "state", "Change the state (r)")} ${kbd("r")}
         <span class="spacer"></span>
-        <button data-edit="outside" title="Open it in Azure DevOps (o)">Open ↗ ${kbd("o")}</button><button data-edit="copy-ref" title="${esc(`Copy “${reference(it)}” (Y)`)}">Copy ${kbd("Y")}</button></div>
-      <h2>${editable("title", esc(it.title), "title", "Edit the title (e)")} ${kbd("e")}</h2></header>
+        <button data-edit="outside" title="Open it in Azure DevOps (gx)">Open ↗ ${kbd("gx")}</button><button data-edit="copy-ref" title="${esc(`Copy “${reference(it)}” (Space y r)`)}">Copy ${kbd("Space y r")}</button></div>
+      <h2>${editable("title", esc(it.title), "title", "Edit the title (i)")} ${kbd("i")}</h2></header>
     <div class="cols"><div class="main">${main}</div><aside>${side}</aside></div>`;
   for (const el of box.querySelectorAll("[data-rich]")) el.replaceWith(safe(rich[el.dataset.rich]));
   fold(box);
@@ -238,7 +238,7 @@ function workLogSection(wl, section) {
           <td class="do"><button data-log-change="${r.n}" title="Change it">Change</button><button data-log-remove="${r.n}" title="Remove it">✕</button></td></tr>`).join("")}</tbody>
         <tfoot><tr><td${wl.activity ? ' colspan="2"' : ""}>Total</td><td class="h">${hoursText(wl.total)}</td><td></td></tr></tfoot></table>`
       : `<p class="td-muted">No time logged on it yet.</p>`)
-      + `<p><button data-edit="log" title="Log time on it (L)">Log time ${kbd("L")}</button></p>`;
+      + `<p><button data-edit="log" title="Log time on it (Space l)">Log time ${kbd("Space l")}</button></p>`;
   return section(`Work log <span class="td-muted">${hoursText(wl.total)}</span>`, body, "worklog-section");
 }
 
@@ -253,7 +253,7 @@ function fold(box) {
     if (full <= FOLD_AT * 1.4) continue;
     const open = openFields.has(t.dataset.field);
     t.classList.toggle("folded", !open);
-    t.insertAdjacentHTML("afterend", `<button class="fold" data-fold="${esc(t.dataset.field)}">${open ? "Show less" : `Show all (${Math.round(full / 19)} lines)`} ${kbd("f")}</button>`);
+    t.insertAdjacentHTML("afterend", `<button class="fold" data-fold="${esc(t.dataset.field)}">${open ? "Show less" : `Show all (${Math.round(full / 19)} lines)`} ${kbd(open ? "zM" : "zR")}</button>`);
   }
 }
 
@@ -648,13 +648,13 @@ function renderSearch() {
   foundAt = Math.max(0, Math.min(foundAt, f.items.length - 1));
   $("search").innerHTML = `<header class="search-head"><button class="back" data-back title="Back (Esc)">‹ ${esc(backName())} ${kbd("Esc")}</button>
       <h2>“${esc(f.typed)}”</h2><span class="td-muted">${f.asking ? "Asking Azure DevOps…" : `${f.items.length}${f.items.length >= 50 ? " (the 50 most recently changed)" : ""} found`}</span>
-      <span class="spacer"></span><button data-edit="search" title="Another search (F)">Search ${kbd("F")}</button></header>
+      <span class="spacer"></span><button data-edit="search" title="Another search (Space /)">Search ${kbd("Space /")}</button></header>
     ${f.error ? `<p class="td-error">${esc(f.error)}</p>` : ""}
     <table class="found"><tbody>${f.items.map((i, n) => `<tr class="${n === foundAt ? "cursor" : ""}" data-found="${n}" title="${esc(`${i.type} ${i.id} · ${i.state}\n${i.title}`)}">
       <td class="type ${esc(i.type)}"><span class="mark">${mark(i.type)}</span> ${esc(i.type)}</td><td class="id">${i.id}</td><td class="title">${esc(i.title)}</td>
       <td class="state"><i class="dot ${stateClass(i.state)}"></i>${esc(i.state)}</td><td class="who">${esc(i.assignedTo || "Unassigned")}</td></tr>`).join("")}</tbody></table>
     ${!f.asking && !f.error && !f.items.length ? `<p class="td-muted">No work item's title has all of these words.</p>` : ""}
-    <p class="td-muted keys">${kbd("j")}${kbd("k")} move · ${kbd("Enter")} its page · ${kbd("o")} in Azure DevOps · ${kbd("F")} search again · ${kbd("Esc")} back</p>`;
+    <p class="td-muted keys">${kbd("j")}${kbd("k")} move · ${kbd("Enter")} its page · ${kbd("gx")} in Azure DevOps · ${kbd("Space /")} search again · ${kbd("Esc")} back</p>`;
   $("search").querySelector(".cursor")?.scrollIntoView({ block: "nearest" });
 }
 
@@ -789,10 +789,10 @@ function renderHours() {
 
   $("hours").innerHTML = `<div class="calendar">
       <header class="cal-head">
-        <button data-month="-1" title="The month before (u)">‹ ${kbd("u")}</button>
+        <button data-month="-1" title="The month before (Ctrl+u)">‹ ${kbd("Ctrl+u")}</button>
         <h2>${esc(day.toLocaleDateString(undefined, { month: "long", year: "numeric" }))}</h2>
-        <button data-month="1" title="The month after (d)">${kbd("d")} ›</button>
-        <button data-today title="Today (g)">Today ${kbd("g")}</button>
+        <button data-month="1" title="The month after (Ctrl+d)">${kbd("Ctrl+d")} ›</button>
+        <button data-today title="Today (gg)">Today ${kbd("gg")}</button>
         <span class="spacer"></span>
         <span class="td-muted">${loading ? "Asking Azure DevOps…" : `<b>${hoursText(total)}</b> logged${workedDays ? ` · ${hoursText(total / workedDays)} a day you logged` : ""}`}</span>
       </header>
@@ -800,7 +800,7 @@ function renderHours() {
       ${logged.note && !loading ? `<p class="td-muted">${esc(logged.note)}</p>` : ""}
       <div class="grid" style="grid-template-rows: auto repeat(${all.length}, minmax(58px, 1fr))">${[...DAY_NAMES, "Week"].map((n) => `<div class="name">${n}</div>`).join("")}
         ${all.map((w) => w.map(cell).join("") + week(w)).join("")}</div>
-      <p class="td-muted keys">${kbd("h")}${kbd("l")} day · ${kbd("j")}${kbd("k")} week · ${kbd("d")}${kbd("u")} month · ${kbd("w")} back to the work items</p>
+      <p class="td-muted keys">${kbd("h")}${kbd("l")} day · ${kbd("j")}${kbd("k")} week · ${kbd("Ctrl+d")}${kbd("Ctrl+u")} month · ${kbd("Space c")} back to the work items</p>
     </div>
     <aside class="day">
       <h3>${esc(dayName)}</h3>
@@ -898,7 +898,9 @@ $("filter").addEventListener("input", () => {
   render();
 });
 
-td.on("key", ({ action }) => act(action));
+// The keys (vim's names, plugin API 2) for the actions as this view calls them
+const ALIAS = { yank: "copy-branch", search: "filter", "search-wide": "search", replace: "state", change: "comment", edit: "title", "unfold-all": "fold", "fold-all": "fold" };
+td.on("key", ({ action }) => act(ALIAS[action] ?? action));
 
 /** What a key or a button does */
 function act(action) {
@@ -917,6 +919,9 @@ function act(action) {
     case "outside": return it && td.ui.openUrl(it.url);
     case "copy-branch": return it && copy(branchName(it, data.branchPrefix), "the branch name");
     case "copy-ref": return it && copy(reference(it), `${it.type} ${it.id}`);
+    case "fold-toggle": // its children shown / hidden
+      if (row?.kids) return toggle(it.id, !row.open);
+      return;
     case "open": // its children shown; then into them
       if (!row?.kids) return;
       return row.open ? move(cursor + 1) : toggle(it.id, true);
