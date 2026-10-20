@@ -1,0 +1,121 @@
+id = "files"
+name = "Files"
+version = "1.0.0"
+api = 1
+description = "A keyboard file manager: columns with a preview, git status, copy, cut, paste, rename (many at once), the Trash with undo, search by name or content, disk usage"
+homepage = "https://github.com/Nozeren/thumbdeck-plugins/tree/main/plugins/views/files"
+icon = "icon.svg"
+
+[view]
+name = "Files"
+page = "view.html"
+status = true
+
+[backend]
+command = "node backend.js"
+
+[[settings]]
+key = "follow"
+label = "Go to the selected project's folder"
+type = "bool"
+default = true
+help = "When you select a project, Files shows its folder (in the current tab)"
+
+[[settings]]
+key = "hidden"
+label = "Show hidden files"
+type = "bool"
+default = false
+help = "Files starting with a dot; . turns them on and off in the view"
+
+[[settings]]
+key = "editor"
+label = "Editor"
+type = "text"
+default = "nvim"
+help = "e opens files with it, in the project's tmux session (a window called edit)"
+
+[[settings]]
+key = "bookmarks"
+label = "Bookmarks"
+type = "json"
+default = { d = "~/Downloads", h = "~" }
+help = "A letter for each folder: ' and the letter go there, m and a letter sets one"
+
+[keys.list]
+name = "FILES"
+surface = "view"
+bindings = [
+  { keys = ["j", "ArrowDown"], action = "down", does = "next" },
+  { keys = ["k", "ArrowUp"], action = "up", does = "previous" },
+  { keys = ["g"], action = "first", does = "first" },
+  { keys = ["G"], action = "last", does = "last" },
+  { keys = ["d"], action = "page-down", does = "half a page down" },
+  { keys = ["u"], action = "page-up", does = "half a page up" },
+  { keys = ["l", "Enter", "ArrowRight"], action = "open", does = "open the folder (or show the whole file)" },
+  { keys = ["h", "Backspace", "ArrowLeft"], action = "parent", does = "the folder above" },
+  { keys = ["/"], action = "filter", does = "filter this folder as you type" },
+  { keys = ["Space"], action = "select", does = "select it (and go to the next)" },
+  { keys = ["V"], action = "visual", does = "select a range with j / k" },
+  { keys = ["y"], action = "copy", does = "copy (the selection or this one), to paste with p" },
+  { keys = ["x"], action = "cut", does = "cut, to move with p" },
+  { keys = ["p"], action = "paste", does = "paste what was copied or cut here" },
+  { keys = ["X"], action = "trash", does = "move to the Trash" },
+  { keys = ["U"], action = "undo", does = "undo the last copy, move, rename, new or trash" },
+  { keys = ["c"], action = "rename", does = "rename it" },
+  { keys = ["C"], action = "rename-many", does = "rename the selection (or the whole folder) as text" },
+  { keys = ["n"], action = "new-file", does = "a new file" },
+  { keys = ["N"], action = "new-folder", does = "a new folder" },
+  { keys = ["Y"], action = "copy-path", does = "copy its path as text" },
+  { keys = ["e"], action = "edit", does = "open it in the editor (nvim) in tmux" },
+  { keys = ["o"], action = "outside", does = "open it with the default app" },
+  { keys = ["t"], action = "terminal", does = "a terminal here (tmux)" },
+  { keys = ["!"], action = "command", does = "run a command on the selection" },
+  { keys = ["v"], action = "review", does = "review a changed file's diff" },
+  { keys = ["Ctrl+f"], action = "find", does = "find a file by name under here" },
+  { keys = ["Ctrl+g"], action = "grep", does = "search inside the files under here" },
+  { keys = ["="], action = "usage", does = "what takes the space here" },
+  { keys = ["'"], action = "jump", does = "go to a bookmark (then its letter)" },
+  { keys = ["m"], action = "mark", does = "bookmark this folder (then a letter)" },
+  { keys = ["~"], action = "home", does = "your home folder" },
+  { keys = ["."], action = "hidden", does = "show or leave out hidden files" },
+  { keys = ["s"], action = "sort", does = "sort by name, size or date" },
+  { keys = ["i"], action = "info", does = "its size, permissions and dates" },
+  { keys = ["T"], action = "new-tab", does = "a new tab here" },
+  { keys = ["W"], action = "close-tab", does = "close the tab" },
+  { keys = ["]"], action = "next-tab", does = "next tab" },
+  { keys = ["["], action = "previous-tab", does = "previous tab" },
+  { keys = ["r"], action = "refresh", does = "read the folder again" },
+  { keys = ["Escape", "q"], action = "leave", does = "clear the selection and filter (again: leave)" },
+]
+
+[keys.usage]
+name = "DISK USAGE"
+surface = "view"
+bindings = [
+  { keys = ["j", "ArrowDown"], action = "down", does = "next" },
+  { keys = ["k", "ArrowUp"], action = "up", does = "previous" },
+  { keys = ["g"], action = "first", does = "first" },
+  { keys = ["G"], action = "last", does = "last" },
+  { keys = ["l", "Enter"], action = "open", does = "into the folder" },
+  { keys = ["h", "Backspace"], action = "parent", does = "the folder above" },
+  { keys = ["X"], action = "trash", does = "move it to the Trash" },
+  { keys = ["U"], action = "undo", does = "undo" },
+  { keys = ["r"], action = "refresh", does = "add it up again" },
+  { keys = ["=", "Escape", "q"], action = "leave", does = "back to the files (at this folder)" },
+]
+
+[keys.letter]
+name = "BOOKMARK"
+surface = "view"
+bindings = [
+  { keys = ["Escape"], action = "leave", does = "never mind (a letter picks the bookmark)" },
+]
+
+[keys.text]
+name = "EDIT"
+surface = "view"
+bindings = [
+  { keys = ["Escape"], action = "leave", does = "close without changing anything" },
+  { keys = ["Ctrl+s"], action = "save", does = "rename them" },
+]

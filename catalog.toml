@@ -100,6 +100,12 @@ source = "https://github.com/Nozeren/thumbdeck-plugins#plugins/views/azure-board
 recommended = false
 
 [[plugin]]
+id = "files"
+name = "Files"
+description = "A keyboard file manager: columns with a preview, git status, copy, cut, paste, rename (many at once), the Trash with undo, search by name or content, disk usage"
+source = "https://github.com/Nozeren/thumbdeck-plugins#plugins/views/files"
+
+[[plugin]]
 id = "ports"
 name = "Ports"
 description = "What's listening on which port, which project it's from, and stopping it (after asking)"

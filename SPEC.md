@@ -801,7 +801,7 @@ and its version. Tags are `v1.2.0`, or `<id>-v1.2.0` in a repository with severa
 tag's `version` in `plugin.toml` must match it.
 
 On start, thumbdeck checks installed plugins for newer tags and marks them in Settings (↑);
-you update them from there. Nothing updates by itself. A plugin without tags follows its default
+you update them from there, one by one or all at once (**Update all**, since 0.9.1). Nothing updates by itself. A plugin without tags follows its default
 branch: a newer commit there is its update.
 
 A plugin with any problem in its manifest isn't loaded; Settings shows each problem in a plain
