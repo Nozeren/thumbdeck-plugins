@@ -482,7 +482,7 @@ your page stays in front, and gets the output through `onOutput`.
 td.ui.say(text, { error? }): void            // a short message in the status line
 td.ui.notify(title, body?): void             // a desktop notification
 td.ui.confirm(question, { yes?, no? }): Promise<boolean>   // thumbdeck's own dialog
-td.ui.openUrl(url): void                     // in the browser
+td.ui.openUrl(url): void                     // in the browser (or through the plugin that claimed links)
 td.ui.openPage(id, data?): void              // one of this plugin's [[page]]s
 td.ui.close(): void                          // a page: close it
 td.ui.openReview({                           // thumbdeck's review page for a diff
@@ -750,6 +750,7 @@ What the backend can send thumbdeck:
 | `ui.say`, `ui.notify`, `ui.badge`, `ui.status`, `ui.mood` | as the page API (a badge goes on all the plugin's tabs) |
 | `actions.refresh` (event) | ask for Toolkit buttons again |
 | `storage.get`, `storage.set`, `storage.remove` | as the page API; `project` (a folder) in params for project scope |
+| `links.claim` | `{ on: true }`: thumbdeck's links (`td.ui.openUrl`, the review page's `o`) go to this backend's `openUrl` first, `{ url }`; answering `true` means it opened the link, anything else (or an error) sends it to the default browser. `{ on: false }` gives them back. The last plugin to claim them has them (since thumbdeck 0.9; `plugins/views/chrome` picks a browser profile this way) |
 
 An error answer is `{"id": 2, "error": {"message": "No such log"}}`; the page's
 `td.backend.call` throws it as an `Error` with that message.
@@ -868,3 +869,4 @@ thumbdeck-plugins has these, smallest first:
 | `plugins/tabs/git` | a real tab: several keymaps, the review page |
 | `plugins/tabs/logs` | the most complete: a Node backend, its own setup page, live tail, Svelte built with Vite |
 | `plugins/tabs/agents` | a backend that starts with thumbdeck and tells the avatar what's going on |
+| `plugins/views/chrome` | a view with its own dialogs and keymaps for them, and a backend that opens thumbdeck's links |

@@ -1,0 +1,64 @@
+/* The list and its details come from thumbdeck's kit (td-split, td-rows, td-row, td-pane, …):
+   only what's this plugin's own is here */
+body { display: flex; flex-direction: column; font: 12.5px var(--mono); overflow: hidden; }
+#error, #search { margin: 6px 12px; }
+.spacer { flex: 1; }
+.seg { padding: 2px 9px; border: 0; background: none; border-radius: 6px; color: var(--grey); font: 12px var(--mono); }
+.seg[aria-pressed="true"] { background: var(--bg2); color: var(--fg); }
+.seg b { color: var(--fg); }
+
+.td-group { cursor: pointer; }
+.td-group .caret { width: 10px; color: var(--grey); }
+.td-group .dom { color: var(--grey); font-weight: 400; letter-spacing: 0; text-transform: none; }
+.td-group .n { margin-left: auto; }
+.td-rows .td-row { grid-template-columns: 26px minmax(0, 1fr) auto; margin-left: 8px; }
+.td-row.hidden { opacity: 0.55; }
+.av { grid-row: 1 / span 2; position: relative; width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center;
+      font: 700 10.5px var(--mono); color: var(--bg-dim); background: var(--grey); }
+.av.big { width: 44px; height: 44px; font-size: 17px; flex: none; }
+.av.small { width: 18px; height: 18px; font-size: 8px; grid-row: auto; }
+.av .live { position: absolute; right: -2px; bottom: -2px; width: 9px; height: 9px; border-radius: 50%; background: var(--green); border: 2px solid var(--bg0); }
+.role { border: 1px solid currentColor; border-radius: 4px; padding: 0 5px; font-size: 10.5px; }
+mark { background: color-mix(in srgb, var(--yellow) 35%, transparent); color: inherit; border-radius: 2px; }
+
+.who { display: flex; gap: 12px; align-items: center; }
+.who h3 { margin: 0; font: 600 15px var(--mono); }
+.facts { display: grid; grid-template-columns: max-content 1fr; gap: 3px 12px; margin: 0; font-size: 12px; }
+.facts dt { color: var(--grey); }
+.facts dd { margin: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.td-sect h5 { display: flex; }
+.td-sect h5 .r { margin-left: auto; font-weight: 400; letter-spacing: 0; text-transform: none; }
+.short { cursor: pointer; border-radius: 6px; padding: 2px 6px; margin: 0 -6px; }
+.short:hover { background: var(--bg1); }
+.short .u { color: var(--grey); font-size: 11px; margin-left: auto; overflow: hidden; text-overflow: ellipsis; max-width: 55%; }
+.pat { color: var(--aqua); }
+button.danger { color: var(--red); border-color: color-mix(in srgb, var(--red) 50%, transparent); }
+
+#rules { flex: 1; min-height: 0; overflow: auto; padding: 10px 14px; display: flex; flex-direction: column; gap: 8px; }
+.rule { display: grid; grid-template-columns: minmax(0, 1.2fr) 16px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 7px 10px;
+        border: 1px solid var(--bg2); border-radius: 8px; cursor: default; }
+.rule[aria-selected="true"] { background: var(--bg2); }
+body.td-keys .rule[aria-selected="true"] { box-shadow: inset 2px 0 var(--cursor, var(--orange)); }
+.rule .to { display: flex; gap: 8px; align-items: center; min-width: 0; white-space: nowrap; }
+.try { display: flex; gap: 8px; align-items: center; padding: 8px 10px; border: 1px dashed var(--bg3); border-radius: 8px; color: var(--grey); }
+.try input { flex: 1; }
+
+#layer { position: fixed; inset: 0; z-index: 10; background: rgba(15, 18, 20, 0.5); display: grid; place-items: start center; padding-top: 8vh; overflow: auto; }
+.dialog { width: min(480px, calc(100vw - 32px)); background: var(--bg0); border: 1px solid var(--bg3); border-radius: 12px;
+          box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5); padding: 14px 16px; display: flex; flex-direction: column; gap: 9px; }
+.dialog h4 { margin: 0; font: 600 13px var(--mono); }
+.dialog label { display: grid; grid-template-columns: 96px 1fr; gap: 10px; align-items: center; color: var(--grey); font-size: 11.5px; }
+.dialog input, .dialog select, .dialog textarea { width: 100%; box-sizing: border-box; }
+.dialog textarea { height: 70px; resize: vertical; }
+.dialog .hint { margin: -5px 0 0 106px; color: var(--grey-dim); font-size: 10.5px; }
+.dialog .sw { display: flex; gap: 6px; }
+.dialog .sw button { width: 18px; height: 18px; border-radius: 50%; padding: 0; border: 2px solid transparent; }
+.dialog .sw button[aria-pressed="true"] { border-color: var(--fg); }
+.dialog .sw .none { background: none; border: 1px dashed var(--grey); }
+.dialog .foot { display: flex; gap: 8px; align-items: center; margin-top: 4px; }
+.opt { display: flex; flex-direction: column; gap: 1px; padding: 6px 10px; border: 1px solid var(--bg2); border-radius: 8px; text-align: left; background: none; }
+.opt small { color: var(--grey); font-size: 11px; }
+.opt.bad b { color: var(--red); }
+.opt:disabled { opacity: 0.45; }
+/* display: grid / flex above would beat the hidden attribute */
+[hidden] { display: none !important; }

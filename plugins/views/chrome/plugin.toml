@@ -1,0 +1,92 @@
+id = "chrome"
+name = "Chrome"
+version = "1.0.0"
+api = 1
+description = "Chrome profiles grouped by tenant: open the right one with a key, make, edit and delete them, and open thumbdeck's links in the profile signed in there"
+homepage = "https://github.com/Nozeren/thumbdeck-plugins/tree/main/plugins/views/chrome"
+icon = "icon.svg"
+
+[view]
+name = "Chrome"
+page = "view.html"
+status = true
+
+[backend]
+command = "node backend.js"
+# It opens thumbdeck's links (links.claim), so it's there before the view is ever opened
+autostart = true
+
+[[settings]]
+key = "browser"
+label = "Browser"
+type = "choice"
+choices = [{ value = "chrome", label = "Google Chrome" }, { value = "chromium", label = "Chromium" }, { value = "brave", label = "Brave" }, { value = "edge", label = "Microsoft Edge" }]
+default = "chrome"
+
+[[settings]]
+key = "route_links"
+label = "Open thumbdeck's links through the link rules"
+type = "bool"
+default = true
+help = "Pull requests, Azure Boards, Calendar…: a link a rule matches opens in that rule's profile; the others in your default browser. Needs thumbdeck 0.9 or newer."
+
+[keys.list]
+name = "CHROME"
+surface = "view"
+bindings = [
+  { keys = ["j", "ArrowDown"], action = "down", does = "next profile" },
+  { keys = ["k", "ArrowUp"], action = "up", does = "previous" },
+  { keys = ["g"], action = "first", does = "first" },
+  { keys = ["G"], action = "last", does = "last" },
+  { keys = ["l", "Enter"], action = "open", does = "open its window (or bring it forward)" },
+  { keys = ["a"], action = "short-1", does = "open its first shortcut" },
+  { keys = ["b"], action = "short-2", does = "its second shortcut" },
+  { keys = ["c"], action = "short-3", does = "its third shortcut" },
+  { keys = ["/"], action = "search", does = "search names and accounts" },
+  { keys = ["f"], action = "filter", does = "only one tenant (again: the next one)" },
+  { keys = ["Space"], action = "fold", does = "fold or unfold its tenant" },
+  { keys = ["n"], action = "new", does = "a new profile" },
+  { keys = ["e"], action = "edit", does = "edit it: name, account, tenant, role, colour, shortcuts" },
+  { keys = ["m"], action = "move", does = "move it to another tenant" },
+  { keys = ["x"], action = "delete", does = "hide it, or delete it from the browser (asks first)" },
+  { keys = ["N"], action = "new-tenant", does = "a new tenant" },
+  { keys = ["E"], action = "edit-tenant", does = "edit its tenant: name and domains (or delete it)" },
+  { keys = ["H"], action = "hidden", does = "show or leave out hidden profiles" },
+  { keys = ["y"], action = "copy", does = "copy its account" },
+  { keys = ["r"], action = "refresh", does = "read the browser's profiles again" },
+  { keys = ["Tab"], action = "next-list", does = "link rules" },
+]
+
+[keys.rules]
+name = "LINK RULES"
+surface = "view"
+bindings = [
+  { keys = ["j", "ArrowDown"], action = "down", does = "next rule" },
+  { keys = ["k", "ArrowUp"], action = "up", does = "previous" },
+  { keys = ["g"], action = "first", does = "first" },
+  { keys = ["G"], action = "last", does = "last" },
+  { keys = ["l", "Enter"], action = "open", does = "edit it" },
+  { keys = ["n"], action = "new", does = "a new rule" },
+  { keys = ["x"], action = "delete", does = "delete it (asks first)" },
+  { keys = ["J"], action = "rule-down", does = "move it down (the first rule that matches wins)" },
+  { keys = ["K"], action = "rule-up", does = "move it up" },
+  { keys = ["t"], action = "try", does = "try a link: which profile it opens in" },
+  { keys = ["Tab"], action = "next-list", does = "profiles" },
+]
+
+[keys.form]
+name = "EDIT"
+surface = "view"
+bindings = [
+  { keys = ["Escape", "q"], action = "leave", does = "close without saving" },
+  { keys = ["Ctrl+Enter"], action = "save", does = "save" },
+]
+
+[keys.ask]
+name = "DELETE"
+surface = "view"
+bindings = [
+  { keys = ["h"], action = "hide", does = "hide it in thumbdeck (the browser keeps it)" },
+  { keys = ["X"], action = "remove", does = "delete it from the browser, with its data" },
+  { keys = ["Escape", "q"], action = "leave", does = "never mind" },
+]

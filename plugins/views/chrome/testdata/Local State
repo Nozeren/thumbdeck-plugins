@@ -1,0 +1,14 @@
+{
+  "browser": { "enabled_labs_experiments": [] },
+  "profile": {
+    "info_cache": {
+      "Default": { "name": "Me", "user_name": "alex.dev@gmail.com", "gaia_name": "Alex", "hosted_domain": "NO_DOMAIN", "active_time": 1760990000.5, "default_avatar_fill_color": -12146356 },
+      "Profile 3": { "name": "Contoso dev", "user_name": "alex@contoso.com", "hosted_domain": "contoso.com", "active_time": 1760900000, "profile_highlight_color": -10915917 },
+      "Profile 4": { "name": "Contoso admin", "user_name": "admin.alex@contoso.com", "active_time": 1760500000 },
+      "Profile 5": { "name": "Person 2", "user_name": "", "active_time": 1760000000 }
+    },
+    "last_active_profiles": ["Profile 3"],
+    "last_used": "Profile 3",
+    "profiles_order": ["Default", "Profile 3", "Profile 4", "Profile 5"]
+  }
+}

@@ -239,7 +239,7 @@ declare namespace Thumbdeck {
       notify(title: string, body?: string): void;
       /** thumbdeck's own yes / no dialog */
       confirm(question: string, o?: { yes?: string; no?: string }): Promise<boolean>;
-      /** In the browser */
+      /** In the browser, or through the plugin whose backend claimed links (links.claim, thumbdeck 0.9) */
       openUrl(url: string): void;
       /** One of this plugin's [[page]]s, over the whole window */
       openPage(id: string, data?: unknown): void;

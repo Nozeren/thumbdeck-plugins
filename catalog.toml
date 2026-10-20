@@ -107,6 +107,12 @@ source = "https://github.com/Nozeren/thumbdeck-plugins#plugins/views/ports"
 recommended = true
 
 [[plugin]]
+id = "chrome"
+name = "Chrome"
+description = "Chrome profiles grouped by tenant: open the right one with a key, make, edit and delete them, and open thumbdeck's links in the profile signed in there"
+source = "https://github.com/Nozeren/thumbdeck-plugins#plugins/views/chrome"
+
+[[plugin]]
 id = "env"
 name = "Env check"
 description = "Compares the project's .env with its .env.example: what's missing, empty or still the example's"
