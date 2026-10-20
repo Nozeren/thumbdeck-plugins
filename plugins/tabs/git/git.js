@@ -116,3 +116,69 @@ export function ago(iso, now = Date.now()) {
 
 /** A long diff, cut */
 export const cut = (text) => (text.length > MAX_DIFF ? `${text.slice(0, MAX_DIFF)}\n… (cut: the diff is too long to show)` : text);
+
+/** `git diff --numstat` (or `git show --numstat`): path -> [added, removed] (null for a binary file) */
+export function parseNumstat(out) {
+  const map = new Map();
+  for (const line of out.split("\n")) {
+    const m = /^(\d+|-)\t(\d+|-)\t(.+)$/.exec(line);
+    if (!m) continue;
+    // A rename is written "old => new" or "dir/{old => new}/file": keep the new path
+    const path = m[3].replace(/\{[^{}]* => ([^{}]*)\}/g, "$1").replace(/^.* => /, "").replace(/\/\//g, "/");
+    map.set(path, m[1] === "-" ? null : [Number(m[1]), Number(m[2])]);
+  }
+  return map;
+}
+
+/** " 3 files changed, 10 insertions(+), 2 deletions(-)" as { files, added, removed } */
+export function parseShortstat(text) {
+  const n = (re) => Number(re.exec(text)?.[1] ?? 0);
+  return { files: n(/(\d+) files? changed/), added: n(/(\d+) insertions?\(\+\)/), removed: n(/(\d+) deletions?\(-\)/) };
+}
+
+/** `git log` with LOG_FORMAT and --shortstat: the commits, each with its counts (git writes a
+ *  commit's stat after its line, so it sits at the start of the next record) */
+export const LOG_STAT_ARGS = [LOG_FORMAT, "--shortstat"];
+export function parseLogStat(out) {
+  const chunks = out.split("\x1e");
+  const commits = [];
+  chunks.forEach((chunk, i) => {
+    const at = chunk.search(/[0-9a-f]{40}\x1f/);
+    const stat = at < 0 ? chunk : chunk.slice(0, at);
+    if (i > 0 && commits.length) commits[commits.length - 1].stat = parseShortstat(stat);
+    if (at < 0) return;
+    const [hash, short, author, date, subject, refs] = chunk.slice(at).split("\x1f");
+    commits.push({ hash, short, author, date, subject, refs: (refs ?? "").trim(), stat: { files: 0, added: 0, removed: 0 } });
+  });
+  return commits;
+}
+
+/** A diff as lines to draw: hunks, added, removed and unchanged lines with their numbers; git's
+ *  header lines (diff --git, index, ---, +++) left out, the file names kept as "file" lines */
+export function diffLines(text) {
+  const out = [];
+  let oldN = 0, newN = 0;
+  for (const line of text.split("\n")) {
+    if (line.startsWith("diff --git ")) {
+      const m = / b\/(.+)$/.exec(line);
+      out.push({ kind: "file", text: m ? m[1] : line.slice(11) });
+      continue;
+    }
+    if (/^(index |--- |\+\+\+ |new file mode|deleted file mode|similarity index|rename (from|to) |old mode|new mode)/.test(line)) continue;
+    const h = /^@@ -(\d+)(?:,\d+)? \+(\d+)(?:,\d+)? @@ ?(.*)$/.exec(line);
+    if (h) {
+      oldN = Number(h[1]);
+      newN = Number(h[2]);
+      out.push({ kind: "hunk", text: h[3] ?? "" });
+    } else if (line.startsWith("+")) out.push({ kind: "add", text: line.slice(1), old: null, new: newN++ });
+    else if (line.startsWith("-")) out.push({ kind: "del", text: line.slice(1), old: oldN++, new: null });
+    else if (line.startsWith(" ")) out.push({ kind: "same", text: line.slice(1), old: oldN++, new: newN++ });
+    else if (line.startsWith("Binary files")) out.push({ kind: "meta", text: "A binary file: no text to show" });
+    else if (line.startsWith("\\")) continue;
+    else if (line.trim()) out.push({ kind: "meta", text: line });
+  }
+  return out;
+}
+
+/** The repo's main branch among the local ones (main, master, trunk, develop), or null */
+export const mainBranch = (names) => ["main", "master", "trunk", "develop"].find((n) => names.includes(n)) ?? null;

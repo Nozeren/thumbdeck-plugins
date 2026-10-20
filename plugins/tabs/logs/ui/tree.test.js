@@ -62,3 +62,35 @@ test("an entry as rows: top level open, deeper closed until opened", () => {
     assert.equal(copyText({ a: 1 }), '{\n  "a": 1\n}');
     assert.equal(copyText("full text"), "full text");
 });
+
+test("repeats fold when they're the same but for the time; one request's lines", async () => {
+  const { rows, signature } = await import("./tree.js");
+  const lines = [
+    { level: "DEBUG", message: "healthcheck ok", data: { time: "1", msg: "healthcheck ok" } },
+    { level: "DEBUG", message: "healthcheck ok", data: { time: "2", msg: "healthcheck ok" } },
+    { level: "INFO", message: "GET /cart", data: { time: "3", msg: "GET /cart", req: "r1" } },
+    { level: "INFO", message: "GET /cart", data: { time: "4", msg: "GET /cart", req: "r2" } },
+  ];
+  const outline = lines.map((_, i) => ({ type: "line", line: i }));
+  const folded = rows(outline, lines, new Set(), new Set(), { fold: true });
+  assert.deepEqual(folded.map((r) => [r.line, r.count ?? 1]), [[0, 2], [2, 1], [3, 1]], "different requests don't fold");
+  assert.equal(signature(lines[0]), signature(lines[1]));
+  const only = rows(outline, lines, new Set(), new Set(), { only: (l) => l.data.req === "r2" });
+  assert.deepEqual(only.map((r) => r.line), [3]);
+});
+
+test("times, the timeline, fields and requests", async () => {
+  const { timeMs, histogram, extraFields, requestOf } = await import("./tree.js");
+  assert.equal(timeMs("2026-10-20T09:00:01.250Z"), Date.UTC(2026, 9, 20, 9, 0, 1, 250));
+  assert.equal(timeMs("2026-10-20 09:00:01,5"), Date.UTC(2026, 9, 20, 9, 0, 1, 500));
+  assert.equal(timeMs("09:00:01"), Date.UTC(1970, 0, 1, 9, 0, 1));
+  assert.equal(timeMs("no time"), null);
+  const h = histogram([{ time: "2026-10-20 09:00:00", level: "INFO" }, { time: "2026-10-20 09:00:30", level: "ERROR" }, { time: "", level: "INFO" }], 2);
+  assert.deepEqual([h.bins[0].INFO, h.bins[1].ERROR, h.max], [1, 1, 1]);
+  assert.equal(histogram([{ time: "", level: "INFO" }]), null);
+  const fields = { message: ["msg"], level: ["level"], time: ["time"] };
+  assert.deepEqual(extraFields({ time: "x", level: "info", msg: "hi", req: "r1", err: { stack: "…" }, tags: [1, 2] }, fields), [["req", "r1"], ["err", "{…}"], ["tags", "[2]"]]);
+  assert.deepEqual(requestOf({ req: "r9" }), ["req", "r9"]);
+  assert.deepEqual(requestOf({ trace_id: 5 }), ["trace_id", "5"]);
+  assert.equal(requestOf({ msg: "x" }), null);
+});

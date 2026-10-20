@@ -3,6 +3,7 @@
 // texts. Tested with `node --test` (logs.test.js).
 import { globSync, readFileSync, statSync } from "node:fs";
 import { matchesGlob, resolve } from "node:path";
+import { histogram } from "./ui/tree.js";
 
 // ------------------------------------------------------------ the setup
 
@@ -435,9 +436,13 @@ export function summary(path, setup) {
     else levels.push([line.level, 1]);
   }
   const [a, b] = [log.lines[0], log.lines.at(-1)].map((l) => (l ? timestamp(l.time) : null));
+  // Its activity over time, for the list's small graph: [debug, info, warning, error] per stretch
+  const h = histogram(log.lines, 40);
   return {
     total: log.lines.length,
     levels,
+    activity: h ? h.bins.map((b) => [b.DEBUG + b.other, b.INFO, b.WARNING, b.ERROR]) : null,
+    span: h ? [new Date(h.t0).toISOString().slice(11, 16), new Date(h.t1).toISOString().slice(11, 16)] : null,
     blocks: log.outline.filter((n) => n.type === "block").length,
     first_error: log.lines.find((l) => l.level === "ERROR")?.message ?? null,
     duration: a !== null && b !== null && b >= a ? formatDuration(b - a) : null,

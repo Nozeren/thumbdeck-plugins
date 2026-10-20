@@ -3,7 +3,7 @@
 // a preview. Its review page can comment, suggest, answer threads and approve or request
 // changes. Read and written with the GitHub CLI (gh), so it uses your gh login.
 import {
-  aboutFrom, ago, categoryLabel, checksText, contentsPath, isStale, PR_QUERY, REPLY_MUTATION, RESOLVE_MUTATION,
+  aboutFrom, ago, checkSign, contentsPath, descriptionHtml, filterPrs, FILTERS, isStale, PR_QUERY, REPLY_MUTATION, RESOLVE_MUTATION,
   reviewPayload, reviewText, SEARCH_QUERY, searches, sortPrs, threadsFrom, UNRESOLVE_MUTATION,
 } from "./prs.js";
 
@@ -16,8 +16,10 @@ let settings = await td.settings.get();
 let data = null; // { demo, user, prs }
 let error = "";
 let loading = false;
-let cursor = 0;
+let cursor = 0; // in the shown (filtered) list
 let visible = true;
+let filter = "all";
+let fetchedAt = 0;
 
 /** Run the GitHub CLI; its output, or an error with its message */
 async function gh(args, input) {
@@ -66,12 +68,14 @@ async function refresh() {
   render();
   try {
     data = await fetchPrs();
+    fetchedAt = Date.now();
+    details.clear();
     // The avatar holds up a sign while PRs wait for your review; the Plugins pane says how many
     const waiting = data.prs.filter((p) => p.category === "review" || p.category === "re-review").length;
     td.ui.mood("review", waiting);
     td.ui.status(waiting ? `${waiting} to review` : null);
     error = "";
-    cursor = Math.min(cursor, Math.max(0, data.prs.length - 1));
+    cursor = Math.min(cursor, Math.max(0, shown().length - 1));
   } catch (e) {
     error = e.message;
   } finally {
@@ -81,58 +85,119 @@ async function refresh() {
 }
 
 // ------------------------------------------------------------ drawing
+const GROUPS = [["re-review", "To review again"], ["review", "To review"], ["reviewed", "Reviewed by you"], ["mine", "Yours"]];
+const SIGN = { pass: "✓", run: "●", fail: "✗", none: "○" };
+const SIGN_WORDS = { pass: "checks pass", run: "checks running", fail: "checks fail", none: "no checks" };
+const VERDICT = { APPROVED: ["approved", "green"], CHANGES_REQUESTED: ["changes requested", "red"], COMMENTED: ["commented", "blue"], PENDING: ["asked", "yellow"], DISMISSED: ["dismissed", "dim"] };
+const FACE_COLORS = ["purple", "blue", "orange", "aqua", "yellow", "green", "red"];
+const faceColor = (name) => `var(--${FACE_COLORS[[...name].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7) % FACE_COLORS.length]})`;
+const COMMENTS_ICON = `<svg class="cmi" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 3.5h11v7h-6l-3 2.5v-2.5h-2z"/></svg>`;
+const shown = () => filterPrs(data?.prs ?? [], filter);
+const faces = (reviewers) => `<span class="faces">${reviewers.map((r) =>
+  `<span class="face ${esc(r.state)}" style="background: ${faceColor(r.name)}" title="@${esc(r.name)}: ${esc(reviewText(r.state))}">${esc(r.name[0]?.toUpperCase() ?? "?")}</span>`).join("")}</span>`;
+
 function render() {
   const where = demo() ? "sample PRs, not from GitHub" : String(settings.repos ?? "").trim() || "every repo you're in";
+  const all = data?.prs ?? [];
   $("bar").innerHTML = `<strong>Pull requests</strong>
-    <span class="${demo() ? "yellow" : "dim"}">${esc(where)}</span>
-    <span class="dim">${data ? `${data.prs.length} for @${esc(data.user)}` : ""}</span>
+    <span class="${demo() ? "yellow" : "dim"}">${esc(where)}${data ? ` · ${all.length} for @${esc(data.user)}` : ""}</span>
+    <span class="chips">${FILTERS.map(([id, name]) => `<button class="chip${filter === id ? " on" : ""}" data-filter="${id}">${esc(name)} <b>${filterPrs(all, id).length}</b></button>`).join("")}<kbd>f</kbd></span>
     <span class="spacer"></span>
-    ${loading ? `<span class="dim">refreshing…</span>` : ""}
+    <span class="dim">${loading ? "refreshing…" : fetchedAt ? ago(new Date(fetchedAt).toISOString()) : ""}</span>
     <button class="tool" id="refresh" title="Refresh (r)">↻ <kbd>r</kbd></button>`;
   $("error").hidden = !error;
   $("error").textContent = error;
 
-  const prs = data?.prs ?? [];
-  $("rows").innerHTML = prs.length
-    ? prs.map((p, i) => `<li class="row${i === cursor ? " cursor" : ""}" data-i="${i}">
+  const list = shown();
+  if (!list.length) {
+    $("rows").innerHTML = `<li class="empty">${data ? (all.length ? "Nothing here: f shows the others." : "No open PRs that concern you.") : error ? "" : "Asking GitHub…"}</li>`;
+    $("details").hidden = true;
+    return;
+  }
+  let html = "";
+  for (const [g, name] of GROUPS) {
+    const items = list.filter((p) => p.category === g);
+    if (!items.length) continue;
+    html += `<li class="grp ${g}">${name} <span class="n">${items.length}</span></li>`;
+    for (const p of items) {
+      const i = list.indexOf(p);
+      const sign = checkSign(p.checks);
+      html += `<li class="row${i === cursor ? " cursor" : ""}" data-i="${i}">
         <span class="bell" title="${p.notification ? "unread notification" : ""}">${p.notification ? "🔔" : ""}</span>
-        <span class="cat ${p.category}">${categoryLabel[p.category]}</span>
-        <span class="repo" title="${esc(p.repo)}">${esc(p.repo)}</span>
-        <span class="num ${p.category}">#${p.number}</span>
-        <span class="title${p.draft ? " draft" : ""}">${esc(p.title)}</span>
-        <span class="author">@${esc(p.author)}</span></li>`).join("")
-    : `<li class="empty">${data ? "No open PRs that concern you." : error ? "" : "Asking GitHub…"}</li>`;
+        <span class="l1"><span class="title">${esc(p.title)}</span>${p.draft ? `<span class="draft">draft</span>` : ""}</span>
+        <span class="side"><span class="meta"><span class="ck-${sign}" title="${SIGN_WORDS[sign]}">${SIGN[sign]}</span><span title="comments">${COMMENTS_ICON}${p.comments}</span>${p.mergeable === "CONFLICTING" ? `<span class="conflict" title="merge conflicts">⚠</span>` : ""}${isStale(p.updated, settings.stale_days) ? `<span class="stale" title="stale">⏳</span>` : ""}</span>${faces(p.reviewers)}</span>
+        <span class="l2 meta"><span class="repo">${esc(p.repo)}</span><span>#${p.number}</span><span>@${esc(p.author)}</span><span>${ago(p.updated)}</span></span></li>`;
+    }
+  }
+  $("rows").innerHTML = html;
   $("rows").querySelector(".cursor")?.scrollIntoView({ block: "nearest" });
+  renderDetails(list[cursor]);
+}
 
-  const p = prs[cursor];
+/** The highlighted PR: its verdicts and checks first, then the start of its description */
+function renderDetails(p) {
   $("details").hidden = !p;
   if (!p) return;
-  const flags = [
-    p.draft ? `<span class="dim">DRAFT</span>` : "",
-    isStale(p.updated, settings.stale_days) ? `<span class="yellow">⏰ STALE</span>` : "",
-    p.mergeable === "CONFLICTING" ? `<span class="red">⚠ MERGE CONFLICTS</span>` : "",
+  const more = details.get(p.url);
+  if (!more) loadDetails(p);
+  const sign = checkSign(p.checks);
+  const pills = [
+    `<span class="pill ck-${sign}">${SIGN[sign]} ${SIGN_WORDS[sign]}</span>`,
+    p.mergeable === "CONFLICTING" ? `<span class="pill conflict">⚠ merge conflicts</span>` : "",
+    isStale(p.updated, settings.stale_days) ? `<span class="pill stale">⏳ stale</span>` : "",
+    p.notification ? `<span class="pill yellow">🔔 unread</span>` : "",
+    `<span class="pill dim">${COMMENTS_ICON}${p.comments}${p.lastComment ? ` · last @${esc(p.lastComment.author)} ${ago(p.lastComment.updated)}` : ""}</span>`,
   ].join("");
   const reviewers = p.reviewers.length
-    ? p.reviewers.map((r) => `<div class="reviewer"><span class="state ${esc(r.state)}">@${esc(r.name)}</span> <span class="dim">${esc(reviewText(r.state))}</span></div>`).join("")
-    : `<div class="dim reviewer">No reviewers assigned</div>`;
-  $("details").innerHTML = `<strong class="big">${esc(p.title)}</strong>
-    <dl>
-      <dt>Repo</dt><dd class="repo">${esc(p.repo)}${p.head ? ` <span class="dim">· ${esc(p.head)} → ${esc(p.base)}</span>` : ""}</dd>
-      <dt>Author</dt><dd>@${esc(p.author)}</dd>
-      <dt>Updated</dt><dd class="yellow">${ago(p.updated)}</dd>
-      <dt>Checks</dt><dd class="checks ${esc(p.checks)}">${checksText(p.checks)}</dd>
-      ${p.labels.length ? `<dt>Labels</dt><dd>${p.labels.map((l) => `[${esc(l)}]`).join("  ")}</dd>` : ""}
-      ${p.comments ? `<dt>Comments</dt><dd>${p.comments} ${p.lastComment ? `<span class="dim">(last: @${esc(p.lastComment.author)} · ${ago(p.lastComment.updated)})</span>` : ""}</dd>` : ""}
-    </dl>
-    <p class="flags">${flags}</p>
-    <strong>Reviewers</strong>${reviewers}
-    <p class="dim url">${esc(p.url)}</p>
-    <p class="actions"><button class="link" id="review">Review it <kbd>v</kbd></button> <button class="link" id="open">Open in the browser <kbd>o</kbd></button></p>`;
+    ? p.reviewers.map((r) => { const [word, color] = VERDICT[r.state] ?? [r.state.toLowerCase(), "dim"];
+        return `<div class="it">${faces([r])}@${esc(r.name)}<span class="r ${color}">${esc(word)}</span></div>`; }).join("")
+    : `<div class="dim">No reviewers asked</div>`;
+  const checks = more?.about?.checks?.length
+    ? more.about.checks.map((c) => { const s = { success: "pass", failure: "fail", pending: "run", neutral: "none" }[c.state] ?? "none";
+        return `<div class="it"><span class="ck-${s}">${SIGN[s]}</span>${esc(c.name)}${c.detail ? `<span class="r dim">${esc(c.detail)}</span>` : ""}</div>`; }).join("")
+    : `<div class="dim">${more?.error ? esc(more.error) : more ? "No checks" : "Reading…"}</div>`;
+  const description = more?.about ? descriptionHtml(more.about.description, esc) || `<p class="dim">No description.</p>` : `<p class="dim">${more?.error ? "" : "Reading…"}</p>`;
+  $("details").innerHTML = `<div><h3>${esc(p.title)}${p.draft ? ` <span class="draft">draft</span>` : ""}</h3>
+      <div class="sub"><span class="repo">${esc(p.repo)}</span><span>#${p.number}</span><span>@${esc(p.author)}</span><span>${ago(p.updated)}</span>
+        ${p.head ? `<span class="branch">${esc(p.head)}</span>→<span class="branch">${esc(p.base)}</span>` : ""}</div></div>
+    <div class="pills">${pills}</div>
+    <div class="sect"><h5>Reviewers</h5>${reviewers}</div>
+    <div class="sect"><h5>Checks</h5>${checks}</div>
+    <div class="sect"><h5>Description</h5><div class="desc">${description}</div></div>
+    ${p.labels.length ? `<div class="sect"><h5>Labels</h5><div class="labels">${p.labels.map((l) => `<span class="label">${esc(l)}</span>`).join("")}</div></div>` : ""}
+    <div class="actions"><button class="btn main" id="review">Review it <kbd>v</kbd></button><button class="btn" id="open">Open in the browser <kbd>o</kbd></button></div>
+    <div class="dim url">${esc(p.url)}</div>`;
+}
+
+/** A PR's description and checks, read once (a moment after it's highlighted, so moving fast doesn't ask for each) */
+const details = new Map(); // url -> { about } | { error }
+let detailsTimer;
+function loadDetails(p) {
+  clearTimeout(detailsTimer);
+  detailsTimer = setTimeout(async () => {
+    if (details.has(p.url) || !data) return;
+    try {
+      const [owner, name] = p.repo.split("/");
+      const answer = data.demo ? await readJson("pr.json") : await graphql(PR_QUERY, { owner, name, number: p.number });
+      details.set(p.url, { about: aboutFrom(answer, data.demo ? { ...settings, trim_suffix: "_corp" } : settings) });
+    } catch (e) {
+      details.set(p.url, { error: `Couldn't read it: ${e.message}` });
+    }
+    if (shown()[cursor]?.url === p.url) renderDetails(p);
+  }, 250);
 }
 
 // ------------------------------------------------------------ doing things
 function move(to) {
-  cursor = Math.max(0, Math.min((data?.prs.length ?? 1) - 1, to));
+  cursor = Math.max(0, Math.min(shown().length - 1, to));
+  render();
+}
+
+/** The next filter (f), the cursor kept on the same PR when it's still there */
+function nextFilter(to) {
+  const at = shown()[cursor];
+  filter = to ?? FILTERS[(FILTERS.findIndex(([id]) => id === filter) + 1) % FILTERS.length][0];
+  cursor = Math.max(0, shown().indexOf(at));
   render();
 }
 
@@ -209,15 +274,19 @@ async function reviewPr(p) {
   });
 }
 
+// The "refreshed 2m ago" stays right
+setInterval(() => visible && !loading && data && render(), 60_000);
+
 const scrollDetails = (pages) => $("details").scrollBy({ top: pages * ($("details").clientHeight * 0.8) });
 
 td.on("key", ({ action }) => {
-  const p = data?.prs[cursor];
+  const p = shown()[cursor];
   switch (action) {
     case "down": return move(cursor + 1);
     case "up": return move(cursor - 1);
     case "first": return move(0);
-    case "last": return move((data?.prs.length ?? 0) - 1);
+    case "last": return move(shown().length - 1);
+    case "filter": return nextFilter();
     case "open": case "review": return reviewPr(p);
     case "outside": return openPr(p);
     case "page-down": return scrollDetails(1);
@@ -233,14 +302,16 @@ td.on("shown", () => (visible = true));
 td.on("hidden", () => (visible = false));
 
 document.addEventListener("click", (e) => {
-  const p = data?.prs[cursor];
+  const p = shown()[cursor];
+  const chip = e.target.closest("[data-filter]");
+  if (chip) return nextFilter(chip.dataset.filter);
   if (e.target.closest("#refresh")) return refresh();
   if (e.target.closest("#review")) return reviewPr(p);
   if (e.target.closest("#open")) return openPr(p);
   const row = e.target.closest("[data-i]");
   if (row) move(Number(row.dataset.i));
 });
-document.addEventListener("dblclick", (e) => e.target.closest("[data-i]") && reviewPr(data?.prs[cursor]));
+document.addEventListener("dblclick", (e) => e.target.closest("[data-i]") && reviewPr(shown()[cursor]));
 
 // Fetch now, then every few minutes while the view is shown
 refresh();

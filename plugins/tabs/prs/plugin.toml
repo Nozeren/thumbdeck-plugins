@@ -1,6 +1,6 @@
 id = "prs"
 name = "Pull requests"
-version = "2.0.0"
+version = "2.1.0"
 api = 1
 description = "The open PRs that concern you in every repo you're in: to review again, to review, reviewed, yours; reviewed with comments, suggestions and a verdict"
 homepage = "https://github.com/Nozeren/thumbdeck-plugins/tree/main/plugins/tabs/prs"
@@ -56,6 +56,7 @@ bindings = [
   { keys = ["l", "Enter"], action = "open", does = "review it" },
   { keys = ["v"], action = "review", does = "review it: comment, suggest, approve or request changes" },
   { keys = ["o"], action = "outside", does = "open in the browser (marks its 🔔 read)" },
+  { keys = ["f"], action = "filter", does = "the next filter: all, to review, yours, unread" },
   { keys = ["d", "PageDown"], action = "page-down", does = "scroll the details down" },
   { keys = ["u", "PageUp"], action = "page-up", does = "scroll the details up" },
   { keys = ["r"], action = "refresh", does = "refresh now" },

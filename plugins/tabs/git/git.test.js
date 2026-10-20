@@ -57,3 +57,25 @@ test("small helpers", () => {
   assert.equal(ago("nonsense", now), "");
   assert.ok(cut("x".repeat(MAX_DIFF + 5)).endsWith("too long to show)"));
 });
+
+test("numstat, shortstat and the log with counts", async () => {
+  const { parseNumstat, parseShortstat, parseLogStat } = await import("./git.js");
+  const n = parseNumstat("3\t1\tsrc/a.py\n-\t-\timg.png\n2\t0\tsrc/{old => new}/b.py\n5\t5\told.txt => new.txt\n");
+  assert.deepEqual([...n], [["src/a.py", [3, 1]], ["img.png", null], ["src/new/b.py", [2, 0]], ["new.txt", [5, 5]]]);
+  assert.deepEqual(parseShortstat(" 2 files changed, 10 insertions(+), 1 deletion(-)"), { files: 2, added: 10, removed: 1 });
+  assert.deepEqual(parseShortstat(" 1 file changed, 3 insertions(+)"), { files: 1, added: 3, removed: 0 });
+  const h1 = "a".repeat(40), h2 = "b".repeat(40);
+  const out = `${h1}\x1fa1\x1fann\x1f2026-10-20T09:00:00Z\x1fFirst\x1fHEAD -> main\x1e\n\n 1 file changed, 2 insertions(+)\n${h2}\x1fb2\x1fbob\x1f2026-10-19T09:00:00Z\x1fSecond\x1f\x1e\n\n 3 files changed, 4 insertions(+), 5 deletions(-)\n`;
+  const log = parseLogStat(out);
+  assert.deepEqual(log.map((c) => [c.short, c.subject, c.refs, c.stat.added, c.stat.removed]), [["a1", "First", "HEAD -> main", 2, 0], ["b2", "Second", "", 4, 5]]);
+});
+
+test("a diff as lines to draw, without git's headers", async () => {
+  const { diffLines, mainBranch } = await import("./git.js");
+  const d = diffLines("diff --git a/x.py b/x.py\nindex 1..2 100644\n--- a/x.py\n+++ b/x.py\n@@ -3,2 +3,2 @@ def f():\n a\n-b\n+c\n\\ No newline at end of file\n");
+  assert.deepEqual(d.map((l) => [l.kind, l.text, l.old ?? null, l.new ?? null]), [
+    ["file", "x.py", null, null], ["hunk", "def f():", null, null], ["same", "a", 3, 3], ["del", "b", 4, null], ["add", "c", null, 4],
+  ]);
+  assert.equal(mainBranch(["dev", "master"]), "master");
+  assert.equal(mainBranch(["x"]), null);
+});

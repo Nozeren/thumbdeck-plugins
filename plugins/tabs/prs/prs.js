@@ -233,3 +233,30 @@ export function ago(iso, now = Date.now()) {
   if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
   return `${Math.floor(s / 86400)}d ago`;
 }
+
+/** The filters at the top, in the order f goes through them */
+export const FILTERS = [["all", "All"], ["todo", "To review"], ["mine", "Yours"], ["unread", "🔔 Unread"]];
+
+/** The PRs a filter keeps */
+export function filterPrs(prs, filter) {
+  if (filter === "todo") return prs.filter((p) => p.category === "review" || p.category === "re-review");
+  if (filter === "mine") return prs.filter((p) => p.category === "mine");
+  if (filter === "unread") return prs.filter((p) => p.notification);
+  return prs;
+}
+
+/** A PR's checks as a sign: pass, run (pending), fail, none */
+export const checkSign = (state) =>
+  ({ SUCCESS: "pass", FAILURE: "fail", ERROR: "fail", PENDING: "run", EXPECTED: "run" })[state] ?? "none";
+
+/** A description (Markdown, written by anyone) as safe HTML: escaped, with `code`, **bold** and
+ *  paragraphs back; cut after `max` characters */
+export function descriptionHtml(text, escape, max = 700) {
+  const t = String(text ?? "").replace(/\r\n/g, "\n").replace(/<!--[\s\S]*?-->/g, "").trim();
+  if (!t) return "";
+  const cut = t.length > max ? t.slice(0, max).replace(/\s+\S*$/, "") + " …" : t;
+  return cut.split(/\n{2,}/).map((p) => `<p>${escape(p)
+    .replace(/`([^`\n]+)`/g, "<code>$1</code>")
+    .replace(/\*\*([^*\n]+)\*\*/g, "<b>$1</b>")
+    .replace(/\n/g, "<br>")}</p>`).join("");
+}

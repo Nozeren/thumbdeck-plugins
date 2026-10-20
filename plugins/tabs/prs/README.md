@@ -2,8 +2,11 @@
 
 The open pull requests that concern you in **every repo you're in**, in the Plugins pane (`Ctrl+p`),
 in the order to deal with them: asked to review again (after you reviewed), asked to review,
-reviewed by you, and yours. Each row says its repo. The highlighted one's details below: checks,
-labels, comments, reviewers, stale and conflict flags; a 🔔 marks an unread GitHub notification.
+reviewed by you, and yours. Each row has its title, then repo, number, author and age, with its
+checks (✓ ● ✗), comment count, conflict ⚠ or stale ⏳ marks and its reviewers' faces (a dot for
+each one's verdict); 🔔 marks an unread GitHub notification. The highlighted one's details fill
+the right side: verdicts, each check, the start of its description, labels. Filters at the top
+(All, To review, Yours, Unread, with their counts): `f` goes through them.
 
 - `v` (or `l`, `Enter`) opens thumbdeck's review page for its changes (nothing is checked out).
   There: `c` comments on a line, `V` selects lines to comment on together, `Ctrl+g` suggests a

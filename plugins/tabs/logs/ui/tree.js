@@ -2,13 +2,22 @@
 // out. Pure functions, tested with `node --test` (tree.test.js).
 /** A block's identity across reloads (live tail keeps what you opened) */
 export const blockKey = (b) => `${b.kind}:${b.first_line}`;
-export function rows(outline, lines, open, hidden) {
+/** The rows on screen. `only`: a line must pass it to show (one request's lines); `fold`: lines
+ *  that repeat the one before exactly (but for their time) become one row with a `count` */
+export function rows(outline, lines, open, hidden, { fold = false, only = null } = {}) {
     const out = [];
     const walk = (nodes, depth) => {
         for (const n of nodes) {
             if (n.type === "line") {
-                if (!hidden.has(lines[n.line]?.level))
-                    out.push({ key: `line:${n.line}`, depth, type: "line", line: n.line });
+                const l = lines[n.line];
+                if (hidden.has(l?.level) || (only && !only(l)))
+                    continue;
+                const last = out[out.length - 1];
+                if (fold && last?.type === "line" && last.depth === depth && signature(lines[last.line]) === signature(l)) {
+                    last.count = (last.count ?? 1) + 1;
+                    continue;
+                }
+                out.push({ key: `line:${n.line}`, depth, type: "line", line: n.line });
             }
             else {
                 const key = blockKey(n);
@@ -119,3 +128,53 @@ export function jsonRows(entry, closed, opened) {
 }
 /** What `y` copies: a value as text, containers as indented JSON */
 export const copyText = (value) => value !== null && typeof value === "object" ? JSON.stringify(value, null, 2) : String(value);
+
+/** What makes two lines the same, but for their time (repeats fold only when this matches) */
+const TIME_KEYS = new Set(["timestamp", "time", "ts", "@timestamp", "asctime", "datetime", "date", "t"]);
+export function signature(l) {
+    if (!l) return "";
+    const data = l.data && typeof l.data === "object" ? Object.fromEntries(Object.entries(l.data).filter(([k]) => !TIME_KEYS.has(k))) : null;
+    return `${l.level}\u0000${l.message}\u0000${data ? JSON.stringify(data) : ""}`;
+}
+
+/** A line's time in milliseconds ("2026-07-31 10:00:00,001", "...T...Z", "10:00:00"), or null */
+export function timeMs(t) {
+    const m = /^(\d{4})-(\d\d)-(\d\d)[T ](\d\d):(\d\d):(\d\d)(?:[.,](\d{1,6}))?/.exec(String(t ?? ""));
+    if (m) return Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6], m[7] ? Number(m[7].slice(0, 3).padEnd(3, "0")) : 0);
+    const h = /^(\d\d):(\d\d):(\d\d)(?:[.,](\d{1,6}))?/.exec(String(t ?? ""));
+    return h ? Date.UTC(1970, 0, 1, +h[1], +h[2], +h[3], h[4] ? Number(h[4].slice(0, 3).padEnd(3, "0")) : 0) : null;
+}
+
+/** Lines per stretch of time, by level, for the timeline (null when the lines have no times) */
+export function histogram(lines, buckets = 60) {
+    const times = lines.map((l) => timeMs(l.time));
+    const known = times.filter((t) => t !== null);
+    if (known.length < 2) return null;
+    const t0 = Math.min(...known), t1 = Math.max(...known), span = Math.max(1, t1 - t0);
+    const bins = Array.from({ length: buckets }, () => ({ DEBUG: 0, INFO: 0, WARNING: 0, ERROR: 0, other: 0 }));
+    lines.forEach((l, i) => {
+        if (times[i] === null) return;
+        const b = bins[Math.min(buckets - 1, Math.floor(((times[i] - t0) / span) * buckets))];
+        b[l.level in b ? l.level : "other"]++;
+    });
+    const max = Math.max(1, ...bins.map((b) => b.DEBUG + b.INFO + b.WARNING + b.ERROR + b.other));
+    return { t0, t1, bins, max, times };
+}
+
+/** A JSON line's other fields (not its message, level or time), to show after the message */
+export function extraFields(data, fields) {
+    if (!data || typeof data !== "object") return [];
+    const skip = new Set([...(fields?.message ?? []), ...(fields?.level ?? []), ...(fields?.time ?? []), "message"]);
+    return Object.entries(data).filter(([k]) => !skip.has(k)).map(([k, v]) => {
+        const shown = v !== null && typeof v === "object" ? (Array.isArray(v) ? `[${v.length}]` : "{…}") : String(v);
+        return [k, shown.length > 40 ? shown.slice(0, 39) + "…" : shown];
+    });
+}
+
+/** The field tying a line to a request (req, request_id, trace_id…), as [name, value] */
+const REQUEST_KEYS = ["req", "request_id", "requestId", "req_id", "reqId", "trace_id", "traceId", "correlation_id", "correlationId"];
+export function requestOf(data) {
+    if (!data || typeof data !== "object") return null;
+    const k = REQUEST_KEYS.find((name) => data[name] !== undefined && data[name] !== null && typeof data[name] !== "object");
+    return k ? [k, String(data[k])] : null;
+}

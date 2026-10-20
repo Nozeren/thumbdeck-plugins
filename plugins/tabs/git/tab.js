@@ -1,11 +1,12 @@
 // The Git tab: the project's repo at a glance, read-only. Three lists (Tab switches): the
-// uncommitted changes, recent commits, and branches with stashes; the highlighted one's diff
-// below. Keys come from thumbdeck as actions (plugin.toml [keys.git]).
+// uncommitted changes, recent commits, and branches with stashes; the highlighted one beside
+// them: a file's diff, a commit's message, files and diff, a branch against main. Keys come from
+// thumbdeck as actions (plugin.toml [keys.git]).
 import {
-  ago, BRANCH_FORMAT, cut, groupChanges, lineKind, parseBranches, parseStashes, parseStatus,
-  refNames, STASH_FORMAT, stateWord, track,
+  ago, BRANCH_FORMAT, cut, diffLines, groupChanges, LOG_STAT_ARGS, mainBranch, parseBranches, parseLogStat,
+  parseNumstat, parseStashes, parseStatus, refNames, STASH_FORMAT, stateWord, track,
 } from "./git.js";
-import { git, log, review } from "./repo.js";
+import { git, review } from "./repo.js";
 
 const td = window.thumbdeck;
 const esc = td.escape;
@@ -20,7 +21,12 @@ async function status() {
     const dir = (await git(["rev-parse", "--git-dir"])).trim();
     fetched = (await td.fs.stat(`${dir}/FETCH_HEAD`))?.modified ?? null;
   } catch {}
-  return { ...s, fetched };
+  // Each file's added and removed lines
+  const [unstaged, staged] = await Promise.all([
+    git(["diff", "--numstat"]).catch(() => ""),
+    git(["diff", "--cached", "--numstat"]).catch(() => ""),
+  ]);
+  return { ...s, fetched, stats: { changes: parseNumstat(unstaged), staged: parseNumstat(staged) } };
 }
 
 async function diff(file, staged, untracked) {
@@ -28,10 +34,29 @@ async function diff(file, staged, untracked) {
   return cut(await git(staged ? ["diff", "--cached", "--", file] : ["diff", "--", file]));
 }
 
+async function commitList(count) {
+  try {
+    return parseLogStat(await git(["log", `-n${Math.max(1, count)}`, ...LOG_STAT_ARGS]));
+  } catch (e) {
+    if (/does not have any commits/.test(e.message)) return []; // a repo without commits yet
+    throw e;
+  }
+}
+
+/** Branches (each against the main branch: ahead / behind, merged) and stashes */
 async function branches() {
   const b = parseBranches(await git(["for-each-ref", "refs/heads", "--sort=-committerdate", BRANCH_FORMAT]));
   const stashes = parseStashes(await git(["stash", "list", STASH_FORMAT]));
-  return { branches: b, stashes };
+  const main = mainBranch(b.map((x) => x.name));
+  if (main) {
+    const merged = new Set((await git(["branch", "--merged", main, "--format=%(refname:short)"]).catch(() => "")).split("\n").map((s) => s.trim()));
+    await Promise.all(b.slice(0, 30).map(async (x) => {
+      if (x.name === main) return;
+      const [behind, ahead] = (await git(["rev-list", "--left-right", "--count", `${main}...${x.name}`]).catch(() => "0\t0")).trim().split(/\s+/).map(Number);
+      Object.assign(x, { behind, ahead, merged: merged.has(x.name) });
+    }));
+  }
+  return { branches: b, stashes, main };
 }
 
 // ------------------------------------------------------------ the tab's state
@@ -66,7 +91,7 @@ function rowKey(r) {
 async function load(which = view) {
   try {
     if (which === "changes") st = await status();
-    else if (which === "commits") commits = await log(setup.commits);
+    else if (which === "commits") commits = await commitList(setup.commits);
     else refs = await branches();
     error = "";
   } catch (e) {
@@ -77,26 +102,26 @@ async function load(which = view) {
 }
 
 // ------------------------------------------------------------ drawing
+const counts = (stat) => (stat === null ? `<span class="dim">binary</span>` : stat ? `<span class="plus">+${stat[0]}</span> <span class="minus">−${stat[1]}</span>` : "");
+const statOf = (f) => (f.group === "untracked" ? undefined : st?.stats?.[f.group === "staged" ? "staged" : "changes"]?.get(f.change.path));
+const splitPath = (p) => (p.includes("/") ? [p.slice(0, p.lastIndexOf("/") + 1), p.slice(p.lastIndexOf("/") + 1)] : ["", p]);
+
 function renderBar() {
   const b = st?.branch;
   let html = "";
   if (b) {
-    html += `<strong class="branch">${esc(b.name ?? "detached HEAD")}</strong>`;
+    html += `<strong class="branch">⎇ ${esc(b.name ?? "detached HEAD")}</strong>`;
     if (b.upstream) {
       html += `<span class="dim">→ ${esc(b.upstream)}</span>`;
-      html += b.gone ? `<span class="red">upstream gone</span>` : `<span class="track">${track(b.ahead, b.behind) || "up to date"}</span>`;
-    } else if (b.name) html += `<span class="dim">no upstream</span>`;
-    if (st.fetched) html += `<span class="dim">· fetched ${ago(new Date(st.fetched).toISOString())}</span>`;
+      html += b.gone ? `<span class="chip gone">upstream gone</span>` : track(b.ahead, b.behind) ? `<span class="chip up">${track(b.ahead, b.behind)}</span>` : `<span class="chip">up to date</span>`;
+    } else if (b.name) html += `<span class="chip">no upstream</span>`;
+    if (st.fetched) html += `<span class="dim">fetched ${ago(new Date(st.fetched).toISOString())}</span>`;
   }
   html += `<span class="spacer"></span>`;
   const g = groupChanges(st?.changes ?? []);
-  const staged = g.filter((r) => r.group === "staged").length;
-  const changed = g.length - staged;
-  for (const v of views) {
-    const count = v === "changes" && st ? ` <span class="dim">${staged ? `${staged}+` : ""}${changed}</span>` : "";
-    html += `<button class="seg${v === view ? " on" : ""}" data-view="${v}">${viewName[v]}${count}</button>`;
-  }
-  html += `<button class="tool" id="setup" title="Set up this tab (S)">⚙</button>`;
+  const n = { changes: st ? g.length : null, commits: commits?.length ?? null, branches: refs ? refs.branches.length : null };
+  for (const v of views) html += `<button class="seg${v === view ? " on" : ""}" data-view="${v}">${viewName[v]}${n[v] !== null ? `<b>${n[v]}</b>` : ""}</button>`;
+  html += `<kbd title="Tab: the next list">Tab</kbd><button class="tool" id="setup" title="Set up this tab (S)">⚙ <kbd>S</kbd></button>`;
   $("bar").innerHTML = html;
 }
 
@@ -105,25 +130,34 @@ function rowHtml(r, i) {
   if (r.kind === "file") {
     const f = r.file;
     const s = f.state === "?" ? "N" : f.state;
+    const [dir, name] = splitPath(f.change.path);
     const from = f.change.from ? `<span class="dim"> ← ${esc(f.change.from)}</span>` : "";
-    return `<li class="${cls}" data-i="${i}"><span class="state s${s}" title="${stateWord[f.state] ?? f.state}">${f.state === "?" ? "+" : f.state}</span>
-      <span class="title">${esc(f.change.path)}${from}</span></li>`;
+    return `<li class="${cls} one" data-i="${i}"><span class="state s${s}" title="${stateWord[f.state] ?? f.state}">${f.state === "?" ? "+" : f.state}</span>
+      <span class="l1"><span class="title"><span class="dir">${esc(dir)}</span>${esc(name)}${from}</span></span>
+      <span class="side">${f.group === "untracked" ? `<span class="dim">new</span>` : counts(statOf(f))}</span></li>`;
   }
   if (r.kind === "commit") {
     const c = r.commit;
-    const tags = refNames(c.refs).map((n) => `<span class="ref">${esc(n)}</span>`).join("");
-    return `<li class="${cls}" data-i="${i}"><span class="hash">${esc(c.short)}</span><span class="title">${esc(c.subject)}${tags}</span>
-      <span class="meta">${esc(c.author)}</span><span class="meta">${ago(c.date)}</span></li>`;
+    const chips = refNames(c.refs).map((n) => `<span class="ref${n === st?.branch?.name ? " head" : n.startsWith("tag: ") ? " tag" : ""}">${esc(n.replace(/^tag: /, "🏷 "))}</span>`).join("");
+    return `<li class="${cls}" data-i="${i}"><span></span>
+      <span class="l1"><span class="title">${esc(c.subject)}</span>${chips}</span>
+      <span class="side">${c.stat.files ? `<span class="dim">${c.stat.files} file${c.stat.files === 1 ? "" : "s"}</span><span><span class="plus">+${c.stat.added}</span> <span class="minus">−${c.stat.removed}</span></span>` : ""}</span>
+      <span class="l2"><span class="hash">${esc(c.short)}</span><span>${esc(c.author)}</span><span>${ago(c.date)}</span></span></li>`;
   }
   if (r.kind === "branch") {
     const b = r.branch;
-    return `<li class="${cls}" data-i="${i}"><span class="state">${b.current ? "●" : ""}</span>
-      <span class="title${b.current ? " current" : ""}">${esc(b.name)} <span class="dim">${esc(b.subject)}</span></span>
-      <span class="meta">${esc(b.track.replace(/[[\]]/g, ""))}</span><span class="meta">${ago(b.date)}</span></li>`;
+    const vsMain = refs?.main && b.name !== refs.main && b.ahead !== undefined
+      ? `<span class="chip" title="against ${esc(refs.main)}">↑${b.ahead} ↓${b.behind}</span>${b.merged ? `<span class="chip merged">merged</span>` : ""}` : "";
+    const up = b.upstream ? `<span class="dim" title="against ${esc(b.upstream)}">${esc(b.track.replace(/[[\]]/g, "")) || "↔ " + esc(b.upstream)}</span>` : "";
+    return `<li class="${cls}" data-i="${i}"><span class="state green">${b.current ? "●" : ""}</span>
+      <span class="l1"><span class="title${b.current ? " current" : ""}">${esc(b.name)}</span>${b.name === refs?.main ? `<span class="chip">main</span>` : ""}</span>
+      <span class="side">${vsMain || up}</span>
+      <span class="l2"><span>${esc(b.subject)}</span><span>${ago(b.date)}</span></span></li>`;
   }
   const s = r.stash;
   return `<li class="${cls}" data-i="${i}"><span class="state dim">≡</span>
-    <span class="title">${esc(s.name)} <span class="dim">${esc(s.subject)}</span></span><span class="meta">${ago(s.date)}</span></li>`;
+    <span class="l1"><span class="title">${esc(s.subject)}</span></span><span class="side"></span>
+    <span class="l2"><span>${esc(s.name)}</span><span>${ago(s.date)}</span></span></li>`;
 }
 
 function render() {
@@ -134,8 +168,10 @@ function render() {
   let html = "";
   list.forEach((r, i) => {
     const prev = list[i - 1];
-    if (r.kind === "file" && (prev?.kind !== "file" || prev.file.group !== r.file.group)) html += `<li class="group">${groupTitle[r.file.group]}</li>`;
-    else if (r.kind === "stash" && prev?.kind !== "stash") html += `<li class="group">Stashes</li>`;
+    if (r.kind === "file" && (prev?.kind !== "file" || prev.file.group !== r.file.group)) {
+      html += `<li class="group">${groupTitle[r.file.group]} <span class="n">${list.filter((x) => x.kind === "file" && x.file.group === r.file.group).length}</span></li>`;
+    } else if (r.kind === "branch" && i === 0) html += `<li class="group">Branches <span class="n">${refs.branches.length}</span></li>`;
+    else if (r.kind === "stash" && prev?.kind !== "stash") html += `<li class="group">Stashes <span class="n">${refs.stashes.length}</span></li>`;
     html += rowHtml(r, i);
   });
   if (!list.length) {
@@ -145,7 +181,7 @@ function render() {
   }
   $("rows").innerHTML = html;
   $("rows").querySelector(".cursor")?.scrollIntoView({ block: "nearest" });
-  $("detail").hidden = !list[cursor];
+  $("preview").hidden = !list[cursor];
   const key = rowKey(list[cursor]);
   if (key !== shownKey) {
     shownKey = key;
@@ -155,33 +191,78 @@ function render() {
   }
 }
 
-// ------------------------------------------------------------ the highlighted one's diff
+// ------------------------------------------------------------ the highlighted one, beside the list
 let shownKey = "";
 let detailTimer;
 let asked = 0; // only the latest answer is shown
 
+/** A diff drawn like the review page: line numbers, added and removed lines, no git headers */
+function diffHtml(text) {
+  return diffLines(text).map((l) => {
+    if (l.kind === "file") return `<div class="dfile">${esc(l.text)}</div>`;
+    if (l.kind === "hunk") return `<div class="dhunk">@@ ${esc(l.text)}</div>`;
+    if (l.kind === "meta") return `<div class="dmeta">${esc(l.text)}</div>`;
+    const sign = l.kind === "add" ? "+" : l.kind === "del" ? "−" : "";
+    return `<div class="dl ${l.kind}"><span class="n">${l.old ?? ""}</span><span class="n">${l.new ?? ""}</span><span class="s">${sign}</span><code>${esc(l.text)}</code></div>`;
+  }).join("") || `<div class="dmeta">No changes to show.</div>`;
+}
+const filesHtml = (stats) => `<div class="files">${[...stats].map(([p, s]) => `<div class="f"><span class="p">${esc(p)}</span>${counts(s)}</div>`).join("")}</div>`;
+const reviewButton = (what) => `<div class="actions"><button class="btn main" id="review">Review ${what} <kbd>v</kbd></button></div>`;
+
 async function loadDetail(fromTop = true) {
   const r = rows()[cursor];
   const mine = ++asked;
-  let text = "";
+  let html = "";
   try {
-    if (!r) text = "";
+    if (!r) html = "";
     else if (r.kind === "file") {
       const f = r.file;
-      text = await diff(f.change.path, f.group === "staged", f.group === "untracked");
-      if (!text) text = f.change.from ? `Renamed from ${f.change.from}` : "(no changes to show)";
-    } else if (r.kind === "commit") text = cut(await git(["show", "--format=%B", "--stat", "--patch", r.commit.hash]));
-    else if (r.kind === "stash") text = cut(await git(["stash", "show", "--stat", "--patch", r.stash.name]));
-    else {
+      const text = await diff(f.change.path, f.group === "staged", f.group === "untracked");
+      html = `<div class="phead"><h3>${esc(f.change.path)}</h3>
+          <div class="sub"><span class="s${f.state === "?" ? "N" : f.state}">${stateWord[f.state] ?? f.state}</span><span>${groupTitle[f.group].toLowerCase()}</span>${counts(statOf(f))}${f.change.from ? `<span>from ${esc(f.change.from)}</span>` : ""}</div>
+          ${reviewButton("the changes")}</div>
+        <div class="diff">${text ? diffHtml(text) : `<div class="dmeta">${f.change.from ? `Renamed from ${esc(f.change.from)}` : "No changes to show."}</div>`}</div>`;
+    } else if (r.kind === "commit") {
+      const c = r.commit;
+      const [message, numstat, patch] = await Promise.all([
+        git(["show", "-s", "--format=%B", c.hash]),
+        git(["show", "--format=", "--numstat", "--find-renames", c.hash]),
+        git(["show", "--format=", "--patch", "--find-renames", c.hash]).then(cut),
+      ]);
+      const body = message.trim().split("\n").slice(1).join("\n").trim();
+      html = `<div class="phead"><h3>${esc(c.subject)}</h3>
+          <div class="sub"><span class="hash">${esc(c.short)}</span><span>${esc(c.author)}</span><span>${ago(c.date)}</span>${refNames(c.refs).map((n) => `<span class="ref">${esc(n)}</span>`).join("")}</div>
+          ${body ? `<p class="message">${esc(body)}</p>` : ""}
+          <div class="sect"><h5>${c.stat.files} file${c.stat.files === 1 ? "" : "s"} · <span class="plus">+${c.stat.added}</span> <span class="minus">−${c.stat.removed}</span></h5>${filesHtml(parseNumstat(numstat))}</div>
+          ${reviewButton("the commit")}</div>
+        <div class="diff">${diffHtml(patch)}</div>`;
+    } else if (r.kind === "stash") {
+      const s = r.stash;
+      const [numstat, patch] = await Promise.all([
+        git(["stash", "show", "--numstat", s.name]),
+        git(["stash", "show", "--patch", s.name]).then(cut),
+      ]);
+      html = `<div class="phead"><h3>${esc(s.subject)}</h3><div class="sub"><span>${esc(s.name)}</span><span>${ago(s.date)}</span></div>
+          <div class="sect"><h5>Files</h5>${filesHtml(parseNumstat(numstat))}</div>${reviewButton("the stash")}</div>
+        <div class="diff">${diffHtml(patch)}</div>`;
+    } else {
       const b = r.branch;
-      text = `${b.name}${b.upstream ? ` → ${b.upstream} ${b.track}` : " (no upstream)"}\n\nLast commit: ${b.subject}\n${ago(b.date)}`;
+      const main = refs?.main;
+      const own = main && b.name !== main ? await git(["log", "--format=%h%x1f%s%x1f%aI", "-n20", `${main}..${b.name}`]).catch(() => "") : "";
+      const list = own.trim() ? own.trim().split("\n").map((l) => l.split("\x1f")) : [];
+      html = `<div class="phead"><h3>${b.current ? "● " : ""}${esc(b.name)}</h3>
+          <div class="sub">${b.upstream ? `<span>→ ${esc(b.upstream)}</span><span>${esc(b.track.replace(/[[\]]/g, "")) || "up to date"}</span>` : `<span>no upstream</span>`}
+            ${main && b.name !== main ? `<span class="chip">↑${b.ahead} ↓${b.behind} against ${esc(main)}</span>${b.merged ? `<span class="chip merged">merged into ${esc(main)}</span>` : ""}` : ""}</div>
+          <div class="sect"><h5>Last commit</h5><div>${esc(b.subject)} <span class="dim">· ${ago(b.date)}</span></div></div>
+          ${list.length ? `<div class="sect"><h5>Not in ${esc(main)} yet · ${list.length}</h5><div class="files">${list.map(([h, s, d]) => `<div class="f"><span class="hash">${esc(h)}</span><span class="p">${esc(s)}</span><span class="dim">${ago(d)}</span></div>`).join("")}</div></div>` : ""}
+          <p class="dim">A branch has no diff of its own: review its commits in Commits (Tab).</p></div>`;
     }
   } catch (e) {
-    text = e.message;
+    html = `<div class="phead"><p class="red">${esc(e.message)}</p></div>`;
   }
   if (mine !== asked) return;
-  const el = $("detail");
-  el.innerHTML = text.split("\n").map((line) => `<span class="${lineKind(line)}">${esc(line)}</span>`).join("\n");
+  const el = $("preview");
+  el.innerHTML = html;
   if (fromTop) el.scrollTo({ top: 0 });
 }
 
@@ -226,7 +307,7 @@ const fileAt = (rev) => async (path) => {
   return r.stdout;
 };
 
-const scrollDetail = (pages) => $("detail").scrollBy({ top: pages * ($("detail").clientHeight * 0.8) });
+const scrollDetail = (pages) => $("preview").scrollBy({ top: pages * ($("preview").clientHeight * 0.8) });
 
 td.on("key", ({ action }) => {
   const i = views.indexOf(view);
@@ -260,6 +341,7 @@ document.addEventListener("click", (e) => {
   const seg = e.target.closest("[data-view]");
   if (seg) return showView(seg.dataset.view);
   if (e.target.closest("#setup")) return td.setup.edit();
+  if (e.target.closest("#review")) return reviewRow();
   const row = e.target.closest("[data-i]");
   if (row) move(Number(row.dataset.i));
 });
@@ -268,6 +350,8 @@ document.addEventListener("dblclick", (e) => e.target.closest("[data-i]") && rev
 // The branch line is always shown; the changes follow edits: look again every 3 seconds
 render();
 load("changes");
+// The other lists' counts in the bar, a moment later
+setTimeout(() => (commitList(setup.commits).then((c) => ((commits = c), render())).catch(() => {}), branches().then((b) => ((refs = b), render())).catch(() => {})), 300);
 setInterval(() => {
   if (!visible) return;
   load("changes").then(() => view === "changes" && loadDetail(false));

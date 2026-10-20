@@ -87,3 +87,21 @@ test("a review as GitHub takes it", () => {
   assert.deepEqual(reviewPayload({ event: "APPROVE", body: "", comments: [] }, "abc"), { commit_id: "abc", event: "APPROVE" });
   assert.equal(contentsPath("src/a b/c#d.py"), "src/a%20b/c%23d.py");
 });
+
+test("filters and the checks' sign", async () => {
+  const { filterPrs, checkSign } = await import("./prs.js");
+  const prs = sortPrs(testdata("search.json"), testdata("notifications.json"), "me_corp", setup);
+  assert.deepEqual(filterPrs(prs, "todo").map((p) => p.number), [2, 3]);
+  assert.deepEqual(filterPrs(prs, "mine").map((p) => p.number), [1]);
+  assert.deepEqual(filterPrs(prs, "unread").map((p) => p.number), [2]);
+  assert.equal(filterPrs(prs, "all").length, 4);
+  assert.deepEqual(["SUCCESS", "FAILURE", "ERROR", "PENDING", ""].map(checkSign), ["pass", "fail", "fail", "run", "none"]);
+});
+
+test("a description is escaped, with a little Markdown, and cut when long", async () => {
+  const { descriptionHtml } = await import("./prs.js");
+  const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+  assert.equal(descriptionHtml("Use `x` **now**\n\n<script>alert(1)</script>", esc), "<p>Use <code>x</code> <b>now</b></p><p>&lt;script&gt;alert(1)&lt;/script&gt;</p>");
+  assert.equal(descriptionHtml("<!-- template -->", esc), "");
+  assert.ok(descriptionHtml("word ".repeat(400), esc, 50).endsWith(" …</p>"));
+});

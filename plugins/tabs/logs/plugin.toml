@@ -1,6 +1,6 @@
 id = "logs"
 name = "Logs"
-version = "1.1.1"
+version = "1.2.0"
 api = 1
 description = "The project's log files: levels, search, errors, live tail, optional sections"
 homepage = "https://github.com/Nozeren/thumbdeck-plugins/tree/main/plugins/tabs/logs"
@@ -76,6 +76,9 @@ bindings = [
   { keys = ["/"], action = "search", does = "search" },
   { keys = ["n", "N"], action = "match", does = "next / previous match" },
   { keys = ["t"], action = "tail", does = "live tail on / off" },
+  { keys = ["c"], action = "fold", does = "fold repeated lines (×n) / show every line" },
+  { keys = ["="], action = "request", does = "only this line's request (req, request_id, trace_id…) / every line" },
+  { keys = ["i"], action = "pane", does = "the entry beside the log: hide / show" },
   { keys = ["f"], action = "levels", does = "show / hide levels: then D I W E, or A for all" },
   { keys = ["y", "Y"], action = "copy", does = "copy the message (a section: its title) / the entry as JSON" },
   { keys = ["r"], action = "refresh", does = "read the log again" },
