@@ -1,6 +1,6 @@
 id = "git"
 name = "Git"
-version = "2.0.0"
+version = "2.0.1"
 api = 2
 description = "The repo at a glance: changes and their diffs, the branch, commits, branches and stashes (read-only)"
 homepage = "https://github.com/Nozeren/thumbdeck-plugins/tree/main/plugins/tabs/git"

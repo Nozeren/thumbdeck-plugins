@@ -207,6 +207,7 @@ function diffHtml(text) {
   }).join("") || `<div class="dmeta">No changes to show.</div>`;
 }
 const filesHtml = (stats) => `<div class="files">${[...stats].map(([p, s]) => `<div class="f"><span class="p">${esc(p)}</span>${counts(s)}</div>`).join("")}</div>`;
+// Under the title, before the message and files (they can be long)
 const reviewButton = (what) => `<div class="td-actions"><button class="primary" id="review">Review ${what} <kbd>Enter</kbd></button></div>`;
 
 async function loadDetail(fromTop = true) {
@@ -232,9 +233,9 @@ async function loadDetail(fromTop = true) {
       const body = message.trim().split("\n").slice(1).join("\n").trim();
       html = `<div class="phead"><h3>${esc(c.subject)}</h3>
           <div class="sub"><span class="hash">${esc(c.short)}</span><span>${esc(c.author)}</span><span>${ago(c.date)}</span>${refNames(c.refs).map((n) => `<span class="ref">${esc(n)}</span>`).join("")}</div>
+          ${reviewButton("the commit")}
           ${body ? `<p class="message">${esc(body)}</p>` : ""}
-          <div class="td-sect"><h5>${c.stat.files} file${c.stat.files === 1 ? "" : "s"} · <span class="td-green">+${c.stat.added}</span> <span class="td-red">−${c.stat.removed}</span></h5>${filesHtml(parseNumstat(numstat))}</div>
-          ${reviewButton("the commit")}</div>
+          <div class="td-sect"><h5>${c.stat.files} file${c.stat.files === 1 ? "" : "s"} · <span class="td-green">+${c.stat.added}</span> <span class="td-red">−${c.stat.removed}</span></h5>${filesHtml(parseNumstat(numstat))}</div></div>
         <div class="td-diff">${diffHtml(patch)}</div>`;
     } else if (r.kind === "stash") {
       const s = r.stash;
@@ -242,8 +243,8 @@ async function loadDetail(fromTop = true) {
         git(["stash", "show", "--numstat", s.name]),
         git(["stash", "show", "--patch", s.name]).then(cut),
       ]);
-      html = `<div class="phead"><h3>${esc(s.subject)}</h3><div class="sub"><span>${esc(s.name)}</span><span>${ago(s.date)}</span></div>
-          <div class="td-sect"><h5>Files</h5>${filesHtml(parseNumstat(numstat))}</div>${reviewButton("the stash")}</div>
+      html = `<div class="phead"><h3>${esc(s.subject)}</h3><div class="sub"><span>${esc(s.name)}</span><span>${ago(s.date)}</span></div>${reviewButton("the stash")}
+          <div class="td-sect"><h5>Files</h5>${filesHtml(parseNumstat(numstat))}</div></div>
         <div class="td-diff">${diffHtml(patch)}</div>`;
     } else {
       const b = r.branch;
