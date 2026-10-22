@@ -209,6 +209,7 @@ function detail() {
       <div class="top">${leaving}<span class="kind"><span class="type ${esc(it.type)}">${esc(it.type.toUpperCase())}</span> ${it.id}</span>
         ${editable("state", `<i class="dot ${stateClass(it.state)}"></i>${esc(it.state)}`, "state", "Change the state (r)")} ${kbd("r")}
         <span class="spacer"></span>
+        <button data-edit="new" title="${isTask(it.type) ? "A new task beside it, under the same parent (o)" : "A new task under it (o)"}">+ Task ${kbd("o")}</button><button data-edit="add" title="Add a work item of any type: under it, beside it or on its own (Space a)">+ Add… ${kbd("Space a")}</button>
         <button data-edit="outside" title="Open it in Azure DevOps (gx)">Open ↗ ${kbd("gx")}</button><button data-edit="copy-ref" title="${esc(`Copy “${reference(it)}” (Space y r)`)}">Copy ${kbd("Space y r")}</button></div>
       <h2>${editable("title", esc(it.title), "title", "Edit the title (i)")} ${kbd("i")}</h2></header>
     <div class="cols"><div class="main">${main}</div><aside>${side}</aside></div>`;
