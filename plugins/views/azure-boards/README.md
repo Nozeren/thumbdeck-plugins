@@ -29,12 +29,40 @@ Your Azure DevOps work items in thumbdeck: to see them, change them and be told 
   planning, details, hidden. For example `Custom.Impact | Customer impact | markdown | main`,
   `Custom.Internal | | hidden`, `Microsoft.VSTS.Common.ClosedDate | Closed | date | details`.
   A line it can't read is shown at the top of the view.
-- **Changes, from the keyboard**: `r` its state (the ones its type has), `Space u` assign it (to you,
-  someone in the list, an email, or nobody), `cc` write a comment, `i` its title, `Space g` its tags, `Space n` its
-  priority, `Space m` move it to another iteration. **Or with the mouse**: click its title, state, or
-  a property; in the box, click a choice, Save or Cancel. A comment: `cc`, or click the box under
-  its activity; Ctrl+Enter or Comment sends it. A change is refused if someone changed the work
-  item meanwhile (yours doesn't undo theirs): look again (`R`) and redo it.
+- **New work items**: `o` makes a task under the highlighted story or bug (beside it, under the
+  same parent, when a task is highlighted): it asks for the title, and the task is yours, in the
+  current sprint (your team's; the parent's iteration if no sprint is found), in the parent's
+  area. `:task Its title` does the same without asking. `Space a` adds any type the project has:
+  its type, then under the highlighted one, beside it or on its own. The new one is highlighted.
+- **Changes, from the keyboard**: `r` its state (the ones its type has), `Space u` assign it, `cc`
+  write a comment, `i` its title, `Space g` its tags, `Space n` its priority, `Space m` move it to
+  another iteration. **Or with the mouse**: click its title, state, or a property; in the box,
+  click a choice, Save or Cancel. A change is refused if someone changed the work item meanwhile
+  (yours doesn't undo theirs): look again (`R`) and redo it.
+- **Assigning anyone**: `Space u` lists you and the people in your list; type a name or an email
+  and it also searches everyone in your organization (Azure DevOps' people picker), as you type.
+  An email nobody has yet still works. If your token can't search people, the box says why and
+  the list and typed emails still work.
+- **Its description, as Markdown**: `Space d` (or Edit beside it) opens it in an editor, as
+  Markdown: Ctrl+Enter saves, Esc leaves (asking first if you changed it). A description kept as
+  Azure DevOps' rich text is turned into Markdown to edit and written back as rich text, so
+  Azure DevOps' own editor keeps working; anything Markdown can't keep (underlines, colours,
+  merged table cells) is said before you save. One kept as Markdown stays Markdown. A bug's repro
+  steps, acceptance criteria and your organization's long texts are edited the same way (asked
+  which, when there are several).
+- **Any other field**: `Space x` lists the fields its type has (area path, remaining work,
+  original estimate, severity, dates, your organization's own…) with their values, and asks the
+  new one as its kind is typed: a choice from its allowed values or the project's areas, a number,
+  a day (YYYY-MM-DD), yes or no, a person (with the people search). Empty empties it. A click on a
+  field in its properties or details does the same, and "+ another field" there is `Space x`.
+  A field that holds data (a work log's JSON) isn't offered as text.
+- **Comments with @mentions**: in the comment box (and the editor), `@` and a few letters offer
+  people (the ones on the work item and in your list first, then anyone in your organization);
+  `Enter` or `Tab` picks one, and it's sent as Azure DevOps' own mention, so they're notified
+  there. Markdown works in comments; Ctrl+Enter or Comment sends one.
+- **Your comments**: `]t` / `[t` highlight the next or previous comment; on one of yours, `i`
+  changes it (in the editor, as Markdown, its mentions kept) and `dd` takes it back (asked
+  first); `Esc` lets it go. With the mouse: Edit and ✕ on your comment.
 - **The current sprint**: `Space v` (or the Sprint button) shows only the current sprint's work items (your team's: each
   project's default team, or the one in Settings), and again for every iteration's; remembered.
 - **Your hours, day by day**: `Space c` (or the Hours button) shows a month as a calendar. Each day
@@ -77,14 +105,15 @@ Your Azure DevOps work items in thumbdeck: to see them, change them and be told 
   a click opens one; `/` still filters the list.
 - **How many are open**, next to its name in the Plugins pane.
 - **Notifications** (it looks every 5 minutes): a work item assigned to you, a state changed on
-  yours, new comments on yours; not your own changes. What it saw last is remembered, so what
-  changed while thumbdeck was closed is told too (many at once: in one). Each can be turned off
-  in Settings.
+  yours, new comments on yours, and **@mentions of you on anyone's work item** (Azure DevOps'
+  recent mentions, the last 30 days'); not your own changes. A comment that mentions you on
+  one of yours says so. What it saw last is remembered, so what changed while thumbdeck was
+  closed is told too (many at once: in one). Each can be turned off in Settings.
 
 Set it up in Settings (`Space ,`) › Plugins › Azure Boards: your **organization** (its name, as in
 dev.azure.com/*name*) and a **personal access token** (Azure DevOps › User settings ›
 Personal access tokens › New token, with **Work Items: Read & write**, or **Read** to only
-look; nothing more is needed). The
+look; making work items, changing fields and comments need Read & write). The
 token is kept in thumbdeck's settings file, which only you can read, and is only sent to Azure
 DevOps. Set the organization to `demo` to see it with sample work items.
 

@@ -24,11 +24,17 @@ const indent = (line) => line.match(/^\s*/)[0].length;
 const blank = (line) => !line.trim();
 const starts = (line) => FENCE.test(line) || HEADING.test(line) || RULE.test(line) || QUOTE.test(line) || ITEM.test(line);
 
-/** Markdown as HTML. workItem(id): a work item's page, for #123 (none: left as it is) */
-export function markdown(src, { workItem } = {}) {
+/** Markdown as HTML. workItem(id): a work item's page, for #123 (none: left as it is);
+ *  mentions: [{ name, id }], the people picked for @Name (Azure DevOps' @mention, which tells them) */
+export function markdown(src, { workItem, mentions = [] } = {}) {
   const lines = String(src ?? "").replace(/\r\n?/g, "\n").replace(/\t/g, "    ").split("\n");
-  return blocks(lines, { workItem });
+  const people = mentions.filter((m) => m?.name && m?.id).sort((a, b) => b.name.length - a.name.length);
+  return blocks(lines, { workItem, people });
 }
+
+/** An @mention as Azure DevOps keeps it */
+export const mentionHtml = (name, id) => `<a href="#" data-vss-mention="version:2.0,${esc(id)}">@${esc(name)}</a>`;
+const reEscape = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
 function blocks(lines, o) {
   const out = [];
@@ -137,6 +143,7 @@ function inline(s, o) {
   s = s.replace(/(`+)([\s\S]*?[^`])\1(?!`)/g, (_, _t, code) => keep(`<code>${esc(code.trim())}</code>`));
   s = s.replace(/\\([\\`*_{}[\]()#+\-.!|~<>])/g, (_, c) => keep(esc(c)));
   s = s.replace(/<(https?:\/\/[^\s>]+|mailto:[^\s>]+)>/g, (_, url) => keep(`<a href="${esc(url)}">${esc(url)}</a>`));
+  for (const p of o.people ?? []) s = s.replace(new RegExp(`(^|[^\\w@])@${reEscape(p.name)}(?![\\w])`, "g"), (_, before) => before + keep(mentionHtml(p.name, p.id)));
   s = esc(s);
   const url = String.raw`((?:[^()\s]|\([^()\s]*\))+)(?:\s+&quot;(.*?)&quot;)?`;
   s = s.replace(new RegExp(String.raw`!\[([^\]]*)\]\(\s*${url}\s*\)`, "g"), (_, alt, src) => keep(`<img src="${src}" alt="${alt}">`));
@@ -176,4 +183,210 @@ export function richHtml(value, { format = "", workItem } = {}) {
   if (!/<\/?[a-z][^>]*>/i.test(v)) return markdown(decode(v), { workItem });
   const lines = plainLines(v);
   return lines !== null && MARKS.test(lines) ? markdown(lines, { workItem }) : v;
+}
+
+// HTML as Markdown: a description or a comment kept as HTML, to edit here as Markdown (and
+// written back with markdown() above). Azure DevOps' editor keeps a line as a <div>: each
+// becomes a line. What Markdown can't keep (underlines, colours, merged table cells…) is said,
+// so it isn't lost without knowing.
+
+const VOID = new Set(["br", "hr", "img", "input", "meta", "link", "col", "wbr", "area", "base", "source"]);
+const SKIP = new Set(["script", "style", "head", "title", "template", "noscript", "iframe", "object", "svg", "math"]);
+const BLOCK = new Set(["p", "div", "h1", "h2", "h3", "h4", "h5", "h6", "ul", "ol", "li", "pre", "blockquote", "table", "thead", "tbody", "tfoot", "tr", "td", "th", "hr", "section", "article", "header", "footer", "dl", "dt", "dd"]);
+const ATTR = /([^\s=>/]+)(?:\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+)))?/g;
+
+/** HTML as a tree of { tag, attrs, kids } and strings (forgiving, as browsers are) */
+function parse(html) {
+  const root = { tag: "#root", attrs: {}, kids: [] };
+  const stack = [root];
+  const top = () => stack.at(-1);
+  const re = /<!--[\s\S]*?-->|<!\w[^>]*>|<\/\s*([a-zA-Z][\w-]*)\s*>|<([a-zA-Z][\w-]*)((?:\s+[^\s=>/]+(?:\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+))?)*)\s*(\/?)>|[^<]+|</g;
+  let m;
+  while ((m = re.exec(String(html ?? "")))) {
+    const [all, close, open, attrText, selfClose] = m;
+    if (close) {
+      const tag = close.toLowerCase();
+      const at = stack.findLastIndex((n) => n.tag === tag);
+      if (at > 0) stack.length = at;
+      continue;
+    }
+    if (open) {
+      const tag = open.toLowerCase();
+      const attrs = {};
+      for (const a of (attrText ?? "").matchAll(ATTR)) attrs[a[1].toLowerCase()] = decode(a[2] ?? a[3] ?? a[4] ?? "");
+      // A new item or row closes the one before; a block closes an open paragraph
+      if (tag === "li") { const at = stack.findLastIndex((n) => n.tag === "li" || n.tag === "ul" || n.tag === "ol"); if (at > 0 && stack[at].tag === "li") stack.length = at; }
+      if (tag === "tr") { const at = stack.findLastIndex((n) => n.tag === "tr" || n.tag === "table"); if (at > 0 && stack[at].tag === "tr") stack.length = at; }
+      if (tag === "td" || tag === "th") { const at = stack.findLastIndex((n) => n.tag === "td" || n.tag === "th" || n.tag === "tr"); if (at > 0 && stack[at].tag !== "tr") stack.length = at; }
+      if (BLOCK.has(tag) && top().tag === "p") stack.pop();
+      const node = { tag, attrs, kids: [] };
+      top().kids.push(node);
+      if (!VOID.has(tag) && !selfClose) stack.push(node);
+      continue;
+    }
+    if (all.startsWith("<!")) continue;
+    top().kids.push(decode(all));
+  }
+  return root;
+}
+
+const textOf = (n) => (typeof n === "string" ? n : n.tag === "br" ? "\n" : SKIP.has(n.tag) ? "" : n.kids.map(textOf).join(""));
+// Text as Markdown would show it: its marks escaped, where they'd mean something
+const plain = (s) => s.replace(/\\/g, "\\\\").replace(/([*`[\]])/g, "\\$1").replace(/~~/g, "\\~~").replace(/(^|\s)_(?=\S)/g, "$1\\_");
+const lineStart = (line) => line.replace(/^(\s*)(#{1,6}\s|>|[-+]\s|\d{1,9}[.)]\s)/, "$1\\$2");
+
+/** HTML as Markdown: { text, mentions: [{ name, id }] (the @mentions in it, to keep), lost: what
+ *  Markdown can't keep, in words } */
+export function toMarkdown(html) {
+  const st = { mentions: [], lost: new Set() };
+  const text = blocksOf(parse(html).kids, st).join("\n").replace(/\n{3,}/g, "\n\n").replace(/^\n+|\s+$/g, "");
+  const people = new Map(st.mentions.map((m) => [m.id.toLowerCase(), m]));
+  return { text, mentions: [...people.values()], lost: [...st.lost] };
+}
+
+/** Block-level nodes as Markdown lines (a blank line between blocks; a <div> a line of its own) */
+function blocksOf(nodes, st) {
+  const out = [];
+  let run = []; // inline nodes on the current line
+  const flush = () => {
+    if (!run.length) return;
+    const t = inlineOf(run, st);
+    run = [];
+    if (t.trim()) out.push(...t.split("\n").map((l) => lineStart(l.replace(/\s+$/, ""))));
+  };
+  const gap = () => out.length && out.at(-1) !== "" && out.push("");
+  for (const n of nodes) {
+    if (typeof n === "string" || !BLOCK.has(n.tag)) {
+      run.push(n);
+      continue;
+    }
+    flush();
+    const t = n.tag;
+    if (t === "div" || t === "section" || t === "article" || t === "header" || t === "footer" || t === "dd" || t === "dt") {
+      if (!textOf(n).trim() && !n.kids.some((k) => typeof k !== "string" && (k.tag === "img" || k.tag === "hr"))) out.push(""); // <div><br></div>: an empty line
+      else out.push(...blocksOf(n.kids, st));
+    } else if (t === "p") {
+      gap();
+      out.push(...blocksOf(n.kids, st));
+      out.push("");
+    } else if (/^h[1-6]$/.test(t)) {
+      gap();
+      out.push(`${"#".repeat(Number(t[1]))} ${inlineOf(n.kids, st).replace(/\n/g, " ").trim()}`, "");
+    } else if (t === "hr") {
+      gap();
+      out.push("---", "");
+    } else if (t === "pre") {
+      gap();
+      const code = textOf(n).replace(/\n$/, "");
+      const fence = code.includes("```") ? "~~~" : "```";
+      out.push(fence, ...code.split("\n"), fence, "");
+    } else if (t === "blockquote") {
+      gap();
+      out.push(...trimBlank(blocksOf(n.kids, st)).map((l) => (l ? `> ${l}` : ">")), "");
+    } else if (t === "ul" || t === "ol") {
+      gap();
+      out.push(...listOf(n, st), "");
+    } else if (t === "table") {
+      gap();
+      out.push(...tableOf(n, st), "");
+    } else out.push(...blocksOf(n.kids, st)); // li, tr… out of place: their content
+  }
+  flush();
+  return out;
+}
+
+const trimBlank = (lines) => {
+  const l = [...lines];
+  while (l.length && !l[0].trim()) l.shift();
+  while (l.length && !l.at(-1).trim()) l.pop();
+  return l;
+};
+
+function listOf(list, st) {
+  const ordered = list.tag === "ol";
+  let n = Number(list.attrs.start) || 1;
+  const out = [];
+  for (const li of list.kids) {
+    if (typeof li === "string") {
+      if (li.trim()) out.push(`- ${plain(li.trim())}`);
+      continue;
+    }
+    if (li.tag !== "li") {
+      if (li.tag === "ul" || li.tag === "ol") out.push(...listOf(li, st).map((l) => `  ${l}`)); // a list right in a list
+      continue;
+    }
+    const marker = ordered ? `${n++}. ` : "- ";
+    const lines = trimBlank(blocksOf(li.kids, st)).filter((l, i, all) => l || (all[i + 1] && !/^\s*([-*+]|\d+[.)])\s/.test(all[i + 1])));
+    const first = (lines.shift() ?? "").replace(/^☐\s*/, "[ ] ").replace(/^☑\s*/, "[x] ");
+    out.push(marker + first, ...lines.map((l) => (l ? " ".repeat(marker.length) + l : "")));
+  }
+  return out;
+}
+
+function tableOf(table, st) {
+  const rows = [];
+  const walk = (n) => {
+    for (const k of n.kids) {
+      if (typeof k === "string") continue;
+      if (k.tag === "tr") rows.push(k.kids.filter((c) => typeof c !== "string" && (c.tag === "td" || c.tag === "th")));
+      else if (["thead", "tbody", "tfoot"].includes(k.tag)) walk(k);
+    }
+  };
+  walk(table);
+  if (!rows.length) return [];
+  if (rows.some((r) => r.some((c) => Number(c.attrs.colspan) > 1 || Number(c.attrs.rowspan) > 1))) st.lost.add("merged table cells");
+  const width = Math.max(...rows.map((r) => r.length));
+  const cell = (c) => (c ? inlineOf(c.kids, st).replace(/\n+/g, " ").replace(/\|/g, "\\|").trim() : "");
+  const line = (r) => `| ${Array.from({ length: width }, (_, i) => cell(r[i])).join(" | ")} |`;
+  return [line(rows[0]), `|${" --- |".repeat(width)}`, ...rows.slice(1).map(line)];
+}
+
+/** Inline nodes as Markdown (a <br>: a new line) */
+function inlineOf(nodes, st) {
+  let out = "";
+  for (const n of nodes) {
+    if (typeof n === "string") {
+      out += plain(n.replace(/[ \t\r\n]+/g, " ").replace(/\u00a0/g, " "));
+      continue;
+    }
+    const t = n.tag;
+    if (SKIP.has(t)) continue;
+    const inner = () => inlineOf(n.kids, st);
+    const wrap = (mark) => {
+      const s = inner();
+      const m = /^(\s*)([\s\S]*?)(\s*)$/.exec(s);
+      return m[2] ? `${m[1]}${mark}${m[2]}${mark}${m[3]}` : s;
+    };
+    if (t === "br") out += "\n";
+    else if (t === "b" || t === "strong") out += wrap("**");
+    else if (t === "i" || t === "em") out += wrap("*");
+    else if (t === "s" || t === "strike" || t === "del") out += wrap("~~");
+    else if (t === "code" || t === "kbd") {
+      const code = textOf(n);
+      const ticks = code.includes("`") ? "``" : "`";
+      out += code ? `${ticks}${ticks === "``" ? " " : ""}${code}${ticks === "``" ? " " : ""}${ticks}` : "";
+    } else if (t === "a") {
+      const mention = /version:2\.0,([\w-]+)/i.exec(n.attrs["data-vss-mention"] ?? "");
+      const label = textOf(n).replace(/\s+/g, " ").trim();
+      if (mention) {
+        const name = label.replace(/^@/, "");
+        st.mentions.push({ name, id: mention[1] });
+        out += `@${name}`;
+      } else {
+        const href = n.attrs.href ?? "";
+        if (!/^(https?:|mailto:)/i.test(href)) out += inner();
+        else if (label === href) out += href;
+        else out += `[${inner().replace(/\n/g, " ") || href}](${href.replace(/\s/g, "%20").replace(/\)/g, "%29")})`;
+      }
+    } else if (t === "img") {
+      const src = n.attrs.src ?? "";
+      if (src) out += `![${plain(n.attrs.alt ?? "")}](${src.replace(/\s/g, "%20").replace(/\)/g, "%29")})`;
+    } else {
+      if (t === "u" || t === "ins") st.lost.add("underlines");
+      if (t === "font" || (n.attrs.style && /(^|;)\s*(color|background)/i.test(n.attrs.style))) st.lost.add("colours");
+      if (t === "sub" || t === "sup") st.lost.add("sub- and superscripts");
+      out += inner();
+    }
+  }
+  return out;
 }

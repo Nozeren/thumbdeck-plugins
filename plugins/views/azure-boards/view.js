@@ -4,8 +4,9 @@
 // logged, day by day (w: a calendar); a search (F). Any other work item (one in the calendar, a
 // search, Related work, a #123 link) opens its page here too, and Esc goes back. The backend asks
 // Azure DevOps (backend.js); this shows what it has.
-import { branchName, isMe, rows, sprintOnly } from "./ado.js";
+import { branchName, isMe, isTask, rows, sprintOnly, typedValue } from "./ado.js";
 import { byDay, dayKey, hoursText, weeks } from "./hours.js";
+import { toMarkdown } from "./markdown.js";
 import { safe } from "./rich.js";
 
 const td = window.thumbdeck;
@@ -129,6 +130,7 @@ function detail() {
   }
   const top = showing === it.id ? box.scrollTop : 0;
   showing = it.id;
+  if (pickedComment && pickedComment.id !== it.id) pickedComment = null;
   const d = details.get(it.id);
   const p = d && !d.error ? d : null;
   const then = divider.get(it.id);
@@ -138,8 +140,11 @@ function detail() {
   const slot = (html) => `<div data-rich="${rich.push(html) - 1}"></div>`;
   const section = (title, body, cls = "") => (body ? `<section${cls ? ` class="${cls}"` : ""}><h3>${title}</h3>${body}</section>` : "");
   const editable = (action, html, kind, title) => `<span class="editable${changed.has(kind) ? " changed" : ""}" data-edit="${action}" title="${title}">${html}</span>`;
+  // Any other field: a click changes it (Space x picks one)
+  const typable = (ref, html) => `<span class="editable" data-edit-field="${esc(ref)}" title="Change it">${html}</span>`;
   const value = (f) => (f.format === "link" && /^https?:\/\//i.test(f.value) ? `<a class="link" data-href="${esc(f.value)}">${esc(f.value)}</a>`
     : EDITABLE[f.ref] ? editable(EDITABLE[f.ref], esc(valueText(f.value, f.format)), EDITABLE[f.ref], "Change it")
+    : f.ref ? typable(f.ref, esc(valueText(f.value, f.format)))
     : esc(valueText(f.value, f.format)));
   const fields = (list) => list.map((f) => `<dt>${esc(f.label)}</dt><dd>${value(f)}</dd>`).join("");
 
@@ -150,10 +155,11 @@ function detail() {
       <dt>State ${kbd("r")}</dt><dd>${editable("state", `<i class="dot ${stateClass(it.state)}"></i>${esc(it.state)}`, "state", "Change the state (r)")}${p?.reason ? ` <span class="td-muted">${esc(p.reason)}</span>` : ""}</dd>
       <dt>Assigned ${kbd("Space u")}</dt><dd>${editable("assign", esc(it.assignedTo || "Unassigned"), "assignee", "Assign it (Space u)")}</dd>
       <dt>Iteration ${kbd("Space m")}</dt><dd>${editable("iteration", esc(lastPart(it.iteration) || "—"), "iteration", `${esc(it.iteration)}: move it (Space m)`)}</dd>
-      ${p?.area ? `<dt>Area</dt><dd${changed.has("area") ? ' class="changed"' : ""}>${esc(lastPart(p.area))}</dd>` : ""}
+      ${p?.area ? `<dt>Area</dt><dd${changed.has("area") ? ' class="changed"' : ""}>${typable("System.AreaPath", esc(lastPart(p.area)))}</dd>` : ""}
       <dt>Priority ${kbd("Space n")}</dt><dd>${editable("priority", esc(it.priority ?? "—"), "priority", "Change the priority (Space n)")}</dd>
       <dt>Tags ${kbd("Space g")}</dt><dd>${editable("tags", tags || `<span class="td-muted">+ add</span>`, "tags", "Edit the tags (Space g)")}</dd>
-      ${fields(planning)}</dl>`;
+      ${fields(planning)}
+      <dt></dt><dd><span class="editable td-muted" data-edit="field" title="Change another of its fields (Space x)">+ another field ${kbd("Space x")}</span></dd></dl>`;
   const development = `<ul class="links"><li class="link" data-edit="copy-branch" title="Copy it (yy)">⎇ <code>${esc(branchName(it, data.branchPrefix))}</code> <span class="td-muted">copy</span> ${kbd("yy")}</li>
     ${(p?.development ?? []).map((x) => `<li${x.url ? ` class="link" data-href="${esc(x.url)}"` : ""}><span class="td-muted">${esc(x.kind)}</span> ${esc(x.label)}</li>`).join("")}</ul>`;
   let side = section("Properties", properties) + section("Development", development);
@@ -180,18 +186,21 @@ function detail() {
     const firstNew = activity.findIndex(isNew);
     const old = firstNew < 0 ? activity.length : firstNew;
     const folded = old > 6 && !unfolded.has(it.id) ? old - 3 : 0; // the older ones, but the last 3 before what's new
+    const pickedOne = theComment(it);
+    const yours = (x) => (x.mine && x.id != null ? `<span class="yours"><button data-comment-edit="${x.id}" title="Change it (]t, then i)">Edit</button><button data-comment-delete="${x.id}" title="Take it back (]t, then dd)">✕</button></span>` : "");
     const entry = (x) => (x.comment
-      ? `<li class="comment${isNew(x) ? " new" : ""}"><div class="by"><span class="avatar">${esc((x.by || "?")[0])}</span>${esc(x.by)} <span class="td-muted">${esc(ago(x.at))}</span></div>${slot(x.html)}</li>`
+      ? `<li class="comment${isNew(x) ? " new" : ""}${pickedOne && pickedOne.id === x.id ? " picked" : ""}"><div class="by"><span class="avatar">${esc((x.by || "?")[0])}</span>${esc(x.by)} <span class="td-muted">${esc(ago(x.at))}${x.edited ? " · edited" : ""}</span>${yours(x)}</div>${slot(x.html)}</li>`
       : `<li class="event${isNew(x) ? " new" : ""}"><span class="who">${esc(x.by)}</span> ${eventText(x)} <span class="td-muted when">· ${esc(ago(x.at))}</span></li>`);
-    main = (p.rich.length ? p.rich.map((r) => section(esc(r.label), `<div class="text" data-field="${esc(r.label)}">${slot(r.html)}</div>`)).join("")
-      : section("Description", `<p class="td-muted">No description.</p>`))
+    const writeButton = (ref, first) => `<button class="write" data-edit-field="${esc(ref)}" title="Write it, as Markdown${first ? " (Space d)" : ""}">Edit${first ? ` ${kbd("Space d")}` : ""}</button>`;
+    main = (p.rich.length ? p.rich.map((r, n) => section(`${esc(r.label)} ${dataIn(r.source) ? "" : writeButton(r.ref, n === 0)}`, `<div class="text" data-field="${esc(r.label)}">${slot(r.html)}</div>`)).join("")
+      : section(`Description ${writeButton("System.Description", true)}`, `<p class="td-muted">No description.</p>`))
       + (p.worklog ? workLogSection(p.worklog, section) : "")
       + section(`Activity <span class="td-muted">${p.comments.length ? `${p.comments.length} comment${p.comments.length > 1 ? "s" : ""}` : ""}</span>`, `<ol class="activity">
         ${folded ? `<li class="more"><button data-unfold="${it.id}">Show ${folded} earlier</button></li>` : ""}
         ${activity.map((x, n) => (n < folded ? "" : (n === firstNew ? `<li class="divider"><span>New since you last looked</span></li>` : "") + entry(x))).join("")}
       </ol>
       <div class="composer"><textarea id="compose" rows="3" placeholder="Write a comment… (Markdown works · Ctrl+Enter: send)"></textarea>
-        <div class="buttons"><span class="td-muted">${kbd("cc")} here · ${kbd("Esc")} leave</span><button id="compose-send">Comment ${kbd("Ctrl+Enter")}</button></div></div>`, "activity-section");
+        <div class="buttons"><span class="td-muted">${kbd("cc")} here · @ mentions someone · ${kbd("Esc")} leave</span><button id="compose-send">Comment ${kbd("Ctrl+Enter")}</button></div></div>`, "activity-section");
   }
 
   const typing = document.activeElement?.id === "compose" ? [$("compose").selectionStart, $("compose").selectionEnd] : null;
@@ -209,6 +218,7 @@ function detail() {
   const compose = $("compose");
   if (compose) {
     compose.value = drafts.get(it.id) ?? "";
+    mentioning(compose, draftMentions.get(it.id) ?? []);
     if (typing) {
       compose.focus();
       compose.setSelectionRange(...typing);
@@ -219,7 +229,7 @@ function detail() {
   if (!fresh.has(it.id) && !asking.has(it.id)) {
     asking.add(it.id);
     td.backend.call("detail", { id: it.id })
-      .then((v) => details.set(it.id, v), (e) => !p && details.set(it.id, { error: e.message }))
+      .then((v) => (details.set(it.id, v), remember(v.people)), (e) => !p && details.set(it.id, { error: e.message }))
       .finally(() => {
         asking.delete(it.id);
         fresh.add(it.id);
@@ -273,9 +283,11 @@ async function sendComment(it) {
   const typed = (drafts.get(it.id) ?? "").trim();
   if (!typed) return td.ui.say("write the comment first", { error: true });
   try {
-    const { error } = await td.backend.call("comment", { id: it.id, text: typed });
+    const mentions = (draftMentions.get(it.id) ?? []).filter((m) => typed.includes(`@${m.name}`));
+    const { error } = await td.backend.call("comment", { id: it.id, text: typed, mentions });
     if (error) throw new Error(error);
     drafts.delete(it.id);
+    draftMentions.delete(it.id);
     fresh.delete(it.id);
     $("compose")?.blur();
     td.ui.say(`commented on ${it.type} ${it.id}`);
@@ -292,6 +304,7 @@ let saving = null;
 const divider = new Map(); // id -> when you'd looked before, while its page is open: its new things are after it
 const unfolded = new Set(); // ids whose whole activity shows
 const drafts = new Map(); // id -> the comment being written
+const draftMentions = new Map(); // id -> the people @mentioned in it ([{ name, id }])
 
 let looking = null; // the work item whose page is open, for "last looked"
 
@@ -349,7 +362,7 @@ function pictures(box, id) {
 
 /** Asks for a value in the view's own box: choices to pick from (typing narrows them), and/or
  *  free text. Its answer, or null (Esc). */
-function ask({ label, value = "", choices = null, free = !choices, hint = "" }) {
+function ask({ label, value = "", choices = null, free = !choices, hint = "", search = null }) {
   const box = $("ask");
   const field = $("ask-input");
   $("ask-label").textContent = label;
@@ -358,9 +371,28 @@ function ask({ label, value = "", choices = null, free = !choices, hint = "" }) 
   box.hidden = false;
   field.value = value;
   let at = 0;
+  let found = []; // search(typed)'s, for what's typed now
+  let waiting = null;
   const matching = () => {
     const w = field.value.trim().toLowerCase();
-    return (choices ?? []).filter((c) => !w || field.value === value || `${c.label} ${c.note ?? ""}`.toLowerCase().includes(w));
+    const mine = (choices ?? []).filter((c) => !w || field.value === value || `${c.label} ${c.note ?? ""}`.toLowerCase().includes(w));
+    const have = new Set(mine.map((c) => String(c.value).toLowerCase()));
+    return [...mine, ...found.filter((c) => !have.has(String(c.value).toLowerCase()))];
+  };
+  const hintText = $("ask-hint").textContent;
+  // Searching as you type (people in the organization): a moment after the last key
+  const lookFor = () => {
+    clearTimeout(waiting);
+    const q = field.value.trim();
+    if (!search || q.length < 2 || field.value === value) return (found = []), draw();
+    waiting = setTimeout(async () => {
+      $("ask-hint").textContent = `Searching for “${q}”…`;
+      const got = await search(q).catch((e) => ({ choices: [], error: e.message }));
+      if (box.hidden || field.value.trim() !== q) return;
+      found = got.choices ?? [];
+      $("ask-hint").textContent = got.error ? `Couldn't search: ${got.error}` : hintText;
+      draw();
+    }, 250);
   };
   const draw = () => {
     const list = matching();
@@ -374,6 +406,7 @@ function ask({ label, value = "", choices = null, free = !choices, hint = "" }) 
   return new Promise((resolve) => {
     const done = (answer) => {
       box.hidden = true;
+      clearTimeout(waiting);
       field.removeEventListener("keydown", key);
       field.removeEventListener("input", typed);
       field.removeEventListener("blur", left);
@@ -397,7 +430,7 @@ function ask({ label, value = "", choices = null, free = !choices, hint = "" }) 
       }
       if (e.key === "Enter") return e.preventDefault(), pick();
     };
-    const typed = () => ((at = 0), draw());
+    const typed = () => ((at = 0), draw(), lookFor());
     const left = () => setTimeout(() => !box.hidden && document.activeElement !== field && done(null), 150);
     field.addEventListener("keydown", key);
     field.addEventListener("input", typed);
@@ -454,8 +487,10 @@ const edits = {
   async assign(it) {
     const choices = await options(it, "assignee");
     if (!choices) return;
-    const to = await ask({ label: `Assign ${it.type} ${it.id} (now ${it.assignedTo || "nobody"}) to…`, choices, free: true, hint: "↑↓ pick · or type an email · Enter · Esc: cancel" });
-    if (to !== null) await change(it, { assignee: to }, to ? `assigned to ${choices.find((c) => c.value === to)?.label ?? to}` : "unassigned");
+    remember(choices);
+    const to = await ask({ label: `Assign ${it.type} ${it.id} (now ${it.assignedTo || "nobody"}) to…`, choices, free: true, search: findPeople,
+      hint: "Type a name or an email: anyone in your organization · ↑↓ pick · Enter · Esc: cancel" });
+    if (to !== null) await change(it, { assignee: to }, to ? `assigned to ${people.get(to.toLowerCase())?.label ?? to}` : "unassigned");
   },
   /** The comment box at the end of its activity */
   async comment() {
@@ -552,6 +587,397 @@ async function writeLog(it, what, said) {
   }
   fresh.delete(it.id);
   logged.since = ""; // the calendar's numbers asked again
+  await load();
+}
+
+// People: the ones known (yours, the list's, a page's, found by a search), by email, with their
+// ids (an @mention needs one); anyone else in the organization through the people search
+const people = new Map();
+/** Keeps what's known of people ({ value: email, label, note, id }) */
+function remember(list) {
+  for (const p of list ?? []) {
+    if (!p?.value) continue;
+    const was = people.get(p.value.toLowerCase());
+    people.set(p.value.toLowerCase(), { ...was, ...p, label: p.label === "Me" && was?.label ? was.label : p.label, id: p.id || was?.id || "" });
+  }
+}
+/** The people search (backend.js people), as the ask box takes it */
+async function findPeople(q) {
+  const { people: found, error } = await td.backend.call("people", { text: q });
+  remember(found);
+  return { choices: found, error };
+}
+/** The people to @mention on a work item: its page's, then the list's, then the rest known */
+function mentionable(it) {
+  const out = new Map();
+  const add = (p) => p?.id && p.value && !out.has(p.value.toLowerCase()) && out.set(p.value.toLowerCase(), people.get(p.value.toLowerCase()) ?? p);
+  for (const p of details.get(it?.id)?.people ?? []) add(p);
+  for (const i of data.items) add({ value: i.assignee, label: i.assignedTo, note: i.assignee, id: i.assigneeId });
+  for (const p of people.values()) add(p);
+  return [...out.values()].filter((p) => !isMe(p.value, data.me));
+}
+
+// @mentions while writing (a comment, a description): @ and a few letters offer people; the one
+// picked becomes @Their Name, which Azure DevOps turns into a mention (and tells them)
+const picked = new WeakMap(); // textarea -> Map(name -> id)
+let suggest = null; // { area, start, list, at, q }
+let suggestWait = null;
+
+/** The @… being typed before the cursor: { start, q } or null */
+function atMention(area) {
+  const before = area.value.slice(0, area.selectionStart);
+  const m = /(^|[\s(])@([^\s@]{0,30}(?: [^\s@]{0,30})?)$/.exec(before);
+  if (!m) return null;
+  const q = m[2];
+  const names = [...(picked.get(area)?.keys() ?? [])];
+  if (names.some((n) => q.startsWith(`${n} `) || q === `${n} `)) return null; // already one
+  return { start: before.length - q.length - 1, q };
+}
+
+/** Where the cursor is in a textarea, on the screen: { x, y, h (a line's height) } (a hidden
+ *  copy of it, laid out the same, up to the cursor) */
+function caretAt(area) {
+  const s = getComputedStyle(area);
+  const copy = document.createElement("div");
+  for (const k of ["boxSizing", "width", "borderTopWidth", "borderRightWidth", "borderBottomWidth", "borderLeftWidth", "paddingTop", "paddingRight",
+    "paddingBottom", "paddingLeft", "fontStyle", "fontVariant", "fontWeight", "fontSize", "lineHeight", "fontFamily", "letterSpacing", "wordSpacing", "tabSize", "textIndent"]) copy.style[k] = s[k];
+  Object.assign(copy.style, { position: "absolute", visibility: "hidden", whiteSpace: "pre-wrap", overflowWrap: "break-word", top: "0", left: "-9999px", height: "auto" });
+  copy.textContent = area.value.slice(0, area.selectionStart);
+  const mark = document.createElement("span");
+  mark.textContent = "\u200b";
+  copy.append(mark);
+  document.body.append(copy);
+  const r = area.getBoundingClientRect();
+  const at = { x: r.left + mark.offsetLeft - area.scrollLeft, y: r.top + mark.offsetTop - area.scrollTop, h: parseFloat(s.lineHeight) || parseFloat(s.fontSize) * 1.4 || 18 };
+  copy.remove();
+  return at;
+}
+
+function drawSuggest() {
+  const el = $("mention");
+  if (!suggest || !suggest.list.length) return void (el.hidden = true);
+  // Under the @… being typed (over it, near the bottom of the window)
+  const c = caretAt(suggest.area);
+  const width = 340;
+  el.style.width = `${width}px`;
+  el.style.left = `${Math.max(8, Math.min(c.x - 12, window.innerWidth - width - 8))}px`;
+  const below = window.innerHeight - (c.y + c.h) > 200;
+  el.style.top = below ? `${c.y + c.h + 2}px` : "";
+  el.style.bottom = below ? "" : `${window.innerHeight - c.y + 2}px`;
+  el.innerHTML = suggest.list.map((p, n) => `<li class="${n === suggest.at ? "cursor" : ""}" data-mention="${n}"><span class="avatar">${esc((p.label || "?")[0])}</span>${esc(p.label)} <span class="td-muted">${esc(p.note ?? p.value)}</span></li>`).join("")
+    + `<li class="td-muted hint">↑↓ · Enter or Tab: mention · Esc</li>`;
+  el.hidden = false;
+}
+
+function closeSuggest() {
+  suggest = null;
+  clearTimeout(suggestWait);
+  $("mention").hidden = true;
+}
+
+/** Offers people for the @… being typed (the ones known at once, the organization's a moment later) */
+function offer(area) {
+  const m = atMention(area);
+  if (!m) return closeSuggest();
+  const it = showingItem();
+  const q = m.q.toLowerCase();
+  const local = mentionable(it).filter((p) => !q || `${p.label} ${p.value}`.toLowerCase().includes(q)).slice(0, 8);
+  suggest = { area, start: m.start, list: local, at: 0, q: m.q };
+  drawSuggest();
+  clearTimeout(suggestWait);
+  if (m.q.length < 2) return;
+  suggestWait = setTimeout(async () => {
+    const { choices } = await findPeople(m.q).catch(() => ({ choices: [] }));
+    if (!suggest || suggest.area !== area || suggest.q !== m.q) return;
+    const have = new Set(suggest.list.map((p) => p.value.toLowerCase()));
+    suggest.list = [...suggest.list, ...choices.filter((p) => p.id && !have.has(p.value.toLowerCase()) && !isMe(p.value, data.me))].slice(0, 10);
+    drawSuggest();
+  }, 250);
+}
+
+/** The highlighted person, mentioned where the @… is */
+function pickMention(n = suggest?.at) {
+  const p = suggest?.list[n];
+  if (!p) return closeSuggest();
+  const { area, start } = suggest;
+  const name = p.label.replace(/^Me$/, p.value);
+  const end = area.selectionStart;
+  area.value = `${area.value.slice(0, start)}@${name} ${area.value.slice(end)}`;
+  const at = start + name.length + 2;
+  area.setSelectionRange(at, at);
+  if (!picked.has(area)) picked.set(area, new Map());
+  picked.get(area).set(name, p.id);
+  closeSuggest();
+  area.dispatchEvent(new Event("input", { bubbles: true }));
+  area.focus();
+}
+
+/** The people mentioned in a text: the ones picked whose @Name is still in it */
+const mentionsIn = (area, text) => [...(picked.get(area) ?? new Map())].filter(([name]) => text.includes(`@${name}`)).map(([name, id]) => ({ name, id }));
+
+/** Lets a textarea mention people (mentions: the ones already in its text) */
+function mentioning(area, mentions = []) {
+  picked.set(area, new Map(mentions.map((m) => [m.name, m.id])));
+  if (area.dataset.mentioning) return;
+  area.dataset.mentioning = "1";
+  area.addEventListener("input", () => offer(area));
+  area.addEventListener("click", () => offer(area));
+  area.addEventListener("blur", () => setTimeout(() => suggest?.area === area && document.activeElement !== area && closeSuggest(), 150));
+  area.addEventListener("keydown", (e) => {
+    if (!suggest || suggest.area !== area || !suggest.list.length) return;
+    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      suggest.at = (suggest.at + (e.key === "ArrowDown" ? 1 : -1) + suggest.list.length) % suggest.list.length;
+      drawSuggest();
+    } else if ((e.key === "Enter" && !e.ctrlKey && !e.metaKey) || e.key === "Tab") pickMention();
+    else if (e.key === "Escape") closeSuggest();
+    else return;
+    e.preventDefault();
+    e.stopPropagation(); // not the comment box's own (Esc: leave it)
+  });
+}
+$("mention").addEventListener("mousedown", (e) => {
+  const li = e.target.closest("[data-mention]");
+  e.preventDefault();
+  if (li) pickMention(Number(li.dataset.mention));
+});
+
+/** Asks for a long text in the view's editor (Markdown, @mentions): { text, mentions }, or null
+ *  (Esc / Cancel; asked first if it was changed) */
+function write({ label, value = "", note = "", lost = [], mentions = [], hint = "" }) {
+  const box = $("editor");
+  const area = $("editor-text");
+  $("editor-label").textContent = label;
+  $("editor-note").textContent = note;
+  $("editor-lost").hidden = !lost.length;
+  $("editor-lost").textContent = lost.length ? `Markdown can't keep its ${lost.join(", ")}: saving it from here loses them (Azure DevOps' editor keeps them).` : "";
+  $("editor-hint").textContent = hint || "Markdown · @ mentions someone · #123 links a work item · Ctrl+Enter: save · Esc: cancel";
+  box.hidden = false;
+  area.value = value;
+  mentioning(area, mentions);
+  area.focus();
+  area.setSelectionRange(area.value.length, area.value.length);
+  area.scrollTop = area.scrollHeight;
+  return new Promise((resolve) => {
+    const done = (answer) => {
+      box.hidden = true;
+      closeSuggest();
+      area.removeEventListener("keydown", key);
+      $("editor-ok").onclick = $("editor-cancel").onclick = null;
+      area.blur();
+      td.keys.take();
+      resolve(answer);
+    };
+    const save = () => done({ text: area.value, mentions: mentionsIn(area, area.value) });
+    const cancel = async () => {
+      if (area.value !== value && !(await td.ui.confirm("Leave without saving what you changed?", { yes: "Leave it", no: "Keep writing" }))) return area.focus();
+      done(null);
+    };
+    const key = (e) => {
+      if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) return e.preventDefault(), save();
+      if (e.key === "Escape") return e.preventDefault(), cancel();
+    };
+    area.addEventListener("keydown", key);
+    $("editor-ok").onclick = save;
+    $("editor-cancel").onclick = cancel;
+  });
+}
+
+// Making work items: o, a task under the highlighted story or bug (beside it, for a task);
+// Space a, any type, under it or on its own. Yours, in the current sprint.
+/** Where a new task goes for the highlighted work item: { parent (a work item, or null), project } */
+function taskPlace(it) {
+  if (!isTask(it.type)) return { parent: it, project: it.project };
+  const parent = data.items.find((i) => i.id === it.parent) ?? (it.parent ? { id: it.parent, type: "", title: `#${it.parent}`, project: it.project } : null);
+  return { parent, project: it.project };
+}
+const named = (i) => `${i.type ? `${i.type} ` : ""}${i.id}${i.title ? ` “${i.title}”` : ""}`;
+
+/** Makes a work item (title: asked if none) and shows it */
+async function create({ type = "", parent = null, project, title = "" }) {
+  const what = type || "task";
+  const t = (title || (await ask({ label: `New ${what.toLowerCase()} ${parent ? `under ${named(parent)}` : `in ${project}`}: its title`, hint: "Yours, in the current sprint · Enter: make it · Esc: cancel" })) || "").trim();
+  if (!t) return;
+  td.ui.say(`making the ${what.toLowerCase()}…`);
+  try {
+    const made = await td.backend.call("create", { parent: parent?.id ?? null, type, title: t, project });
+    await load();
+    td.ui.say(`made ${made.type} ${made.id}${made.iteration ? ` in ${lastPart(made.iteration)}` : ""}${made.error ? ` (${made.error})` : ""}`);
+    if (mode === "list" && select(made.id)) return;
+    openItem(made.id);
+  } catch (e) {
+    td.ui.say(e.message, { error: true });
+  }
+}
+
+async function newTask(it, title = "") {
+  if (!it) return td.ui.say("highlight the story or bug to put the task under", { error: true });
+  const { parent, project } = taskPlace(it);
+  await create({ parent, project, title });
+}
+
+async function addItem(it) {
+  if (!it) return td.ui.say("highlight a work item of the project first", { error: true });
+  const types = await options(it, "type");
+  const type = types && (await ask({ label: `Add a work item in ${it.project}: its type`, choices: types }));
+  if (!type) return;
+  const where = await ask({ label: `The new ${type.toLowerCase()}: where?`, choices: [
+    { value: "under", label: `Under ${named(it)}` },
+    ...(it.parent ? [{ value: "beside", label: `Beside it, under #${it.parent}` }] : []),
+    { value: "alone", label: `On its own, in ${it.project}` },
+  ] });
+  if (!where) return;
+  const parent = where === "under" ? it : where === "beside" ? taskPlace({ ...it, type: "Task" }).parent : null;
+  await create({ type, parent, project: it.project });
+}
+
+// Changing any field: its description (Space d, as Markdown), or any other (Space x, or a click
+// on it in the properties)
+async function typedFieldsOf(it) {
+  try {
+    return await td.backend.call("fields", { id: it.id });
+  } catch (e) {
+    td.ui.say(e.message, { error: true });
+    return null;
+  }
+}
+const shortValue = (f) => {
+  const v = typedValue(f.kind, f.value);
+  return f.kind === "html" ? (v ? "rich text" : "empty") : v.length > 40 ? `${v.slice(0, 40)}…` : v || "empty";
+};
+
+/** Edits its main text (Description, or Repro steps…: picked when its type has several) */
+async function editText(it) {
+  const got = await typedFieldsOf(it);
+  if (!got) return;
+  const texts = got.fields.filter((f) => (f.kind === "html" || f.kind === "long") && !dataIn(f.value));
+  if (!texts.length) return td.ui.say(`${it.type} ${it.id} has no text to write`, { error: true });
+  const order = (f) => (f.ref === "System.Description" ? 0 : f.value ? 1 : 2);
+  texts.sort((a, b) => order(a) - order(b));
+  // Straight to it when there's no other text written (a bug's repro steps: asked which)
+  const ref = !texts.slice(1).some((f) => f.value)
+    ? texts[0].ref
+    : await ask({ label: `Which text of ${it.type} ${it.id}?`, choices: texts.map((f) => ({ value: f.ref, label: f.name, note: shortValue(f) })) });
+  const f = ref && texts.find((x) => x.ref === ref);
+  if (f) await editField(it, f, got.rev);
+}
+
+/** Picks one of its fields to change */
+async function pickField(it) {
+  const got = await typedFieldsOf(it);
+  if (!got) return;
+  const ref = await ask({ label: `Change a field of ${it.type} ${it.id}`, choices: got.fields.map((f) => ({ value: f.ref, label: f.name, note: shortValue(f) })),
+    hint: "Type to narrow · ↑↓ pick · Enter · Esc (state r, assignee Space u, title i, tags Space g, priority Space n, iteration Space m)" });
+  const f = ref && got.fields.find((x) => x.ref === ref);
+  if (f) await editField(it, f, got.rev);
+}
+
+/** Changes the field with this reference name (clicked in its properties) */
+async function editRef(it, ref) {
+  const got = await typedFieldsOf(it);
+  const f = got?.fields.find((x) => x.ref.toLowerCase() === String(ref).toLowerCase());
+  if (got && !f) return td.ui.say(`${ref} can't be changed from here`, { error: true });
+  if (f) await editField(it, f, got.rev);
+}
+
+/** A text field that holds data (a JSON list or object: a work log…), not words */
+const dataIn = (v) => /^\s*[[{]/.test(String(v ?? "").replace(/&quot;/g, '"')) && /^\s*[[{][\s\S]*[\]}]\s*$/.test(String(v ?? "").replace(/<[^>]+>/g, ""));
+
+/** Asks a field's new value, as its kind is typed, and writes it */
+async function editField(it, f, rev) {
+  const label = `${f.name} of ${it.type} ${it.id}`;
+  const now = typedValue(f.kind, f.value);
+  let typed;
+  let mentions = [];
+  if ((f.kind === "html" || f.kind === "long") && dataIn(now)) return td.ui.say(`${f.name} holds data (JSON), not text: change it in Azure DevOps${/worklog/i.test(f.ref) ? " (or Space l, with the Hours field setting)" : ""}`, { error: true });
+  if (f.kind === "html" || f.kind === "long") {
+    const md = f.kind === "long" || f.markdown ? { text: now, mentions: [], lost: [] } : toMarkdown(now);
+    const got = await write({ label, value: md.text, mentions: md.mentions, lost: md.lost,
+      note: f.markdown ? "Kept as Markdown" : f.kind === "html" ? "Written as Markdown, kept as Azure DevOps' rich text" : "" });
+    if (!got) return;
+    if (got.text.trim() === md.text.trim()) return td.ui.say("nothing changed");
+    typed = got.text;
+    mentions = got.mentions;
+  } else {
+    const empty = f.required ? [] : [{ value: "\u0000", label: "(empty)", note: "nothing in it" }];
+    let choices = null;
+    let search = null;
+    if (f.allowed.length) choices = [...f.allowed.map((v) => ({ value: v, label: v })), ...empty];
+    else if (f.kind === "yes-no") choices = [{ value: "yes", label: "Yes" }, { value: "no", label: "No" }, ...empty];
+    else if (f.kind === "path" && f.ref === "System.AreaPath") choices = await options(it, "area");
+    else if (f.kind === "person") {
+      choices = [...(data.me ? [{ value: data.me, label: "Me", note: data.me }] : []), ...mentionable(it), ...empty];
+      search = findPeople;
+    }
+    const hint = { date: "A day, YYYY-MM-DD · empty: none · Enter · Esc", number: "A number · empty: none · Enter · Esc", integer: "A whole number · empty: none · Enter · Esc" }[f.kind];
+    typed = await ask({ label: `${label}${now ? ` (now ${now})` : ""}`, value: choices ? "" : now, choices, free: !choices || f.kind === "person" || f.kind === "path", search, hint });
+    if (typed === null) return;
+    if (typed === "\u0000") typed = "";
+    if (typed.trim() === now) return td.ui.say("nothing changed");
+  }
+  try {
+    const { error } = await td.backend.call("setField", { id: it.id, ref: f.ref, kind: f.kind, value: typed, had: f.value != null && f.value !== "", rev, markdown: f.markdown, mentions });
+    if (error) throw new Error(error);
+    fresh.delete(it.id);
+    td.ui.say(`${it.type} ${it.id}: ${f.name} ${typed.trim() ? "changed" : "emptied"}`);
+  } catch (e) {
+    td.ui.say(e.message, { error: true });
+  }
+  await load();
+}
+
+// Your comments: ]t / [t highlight one, i (or Edit) changes it, dd (or ✕) takes it back
+let pickedComment = null; // { id: the work item's, comment: its id }
+
+/** The comments on the shown page, in the order they show */
+const shownComments = (it) => [...(details.get(it?.id)?.comments ?? [])].filter((c) => c.at).sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
+const theComment = (it) => (pickedComment && it && pickedComment.id === it.id ? shownComments(it).find((c) => c.id === pickedComment.comment) : null);
+
+/** Highlights the next (by 1) or previous (-1) comment */
+function nextComment(it, by) {
+  const list = shownComments(it);
+  if (!it || !list.length) return td.ui.say("no comments on it");
+  const at = list.findIndex((c) => c.id === theComment(it)?.id);
+  const to = at < 0 ? (by > 0 ? 0 : list.length - 1) : at + by;
+  if (to < 0 || to >= list.length) {
+    pickedComment = null;
+    detail();
+    return td.ui.say(by > 0 ? "that was the last comment" : "that was the first comment");
+  }
+  pickedComment = { id: it.id, comment: list[to].id };
+  if (list[to].by) td.ui.say(list[to].mine ? "your comment: i edits it, dd takes it back" : `${list[to].by}'s comment`);
+  detail();
+  document.querySelector("#detail .comment.picked")?.scrollIntoView({ block: "center" });
+}
+
+async function editComment(it, c) {
+  if (!c?.mine) return td.ui.say("only your own comments can be changed", { error: true });
+  const md = c.markdown ? { text: c.source, mentions: [], lost: [] } : toMarkdown(c.source);
+  const got = await write({ label: `Your comment on ${it.type} ${it.id}`, value: md.text, mentions: md.mentions, lost: md.lost });
+  if (!got || got.text.trim() === md.text.trim()) return;
+  try {
+    await td.backend.call("editComment", { id: it.id, comment: c.id, text: got.text, mentions: got.mentions, markdown: c.markdown });
+    fresh.delete(it.id);
+    td.ui.say("comment changed");
+  } catch (e) {
+    td.ui.say(e.message, { error: true });
+  }
+  detail();
+}
+
+async function deleteComment(it, c) {
+  if (!c) return td.ui.say("highlight your comment first (]t)", { error: true });
+  if (!c.mine) return td.ui.say("only your own comments can be taken back", { error: true });
+  const preview = (c.source ? toMarkdown(c.source).text : "").replace(/\s+/g, " ").slice(0, 80);
+  if (!(await td.ui.confirm(`Take back your comment on ${it.type} ${it.id}?${preview ? `\n\n“${preview}”` : ""}`, { yes: "Take it back", no: "Keep it" }))) return;
+  try {
+    const { error } = await td.backend.call("deleteComment", { id: it.id, comment: c.id });
+    if (error) throw new Error(error);
+    pickedComment = null;
+    fresh.delete(it.id);
+    td.ui.say("comment taken back");
+  } catch (e) {
+    td.ui.say(e.message, { error: true });
+  }
   await load();
 }
 
@@ -702,6 +1128,13 @@ function actPage(action) {
     case "leave": return goBack();
     case "state": case "assign": case "comment": case "title": case "tags": case "priority": case "iteration": case "log":
       return it && $("ask").hidden && (details.get(it.id)?.item || action === "comment" || action === "log" ? edits[action](it) : td.ui.say("its page is still loading", { error: true }));
+    case "new": return $("ask").hidden && newTask(details.get(it?.id)?.item ?? it);
+    case "add": return $("ask").hidden && addItem(details.get(it?.id)?.item ?? it);
+    case "description": return it && $("ask").hidden && editText(it);
+    case "field": return it && $("ask").hidden && pickField(it);
+    case "next-thread": return nextComment(it, 1);
+    case "previous-thread": return nextComment(it, -1);
+    case "delete": return it && deleteComment(it, theComment(it));
     case "refresh":
       if (it) fresh.delete(it.id);
       td.ui.say("looking again…");
@@ -900,7 +1333,18 @@ $("filter").addEventListener("input", () => {
 
 // The keys (vim's names, plugin API 2) for the actions as this view calls them
 const ALIAS = { yank: "copy-branch", search: "filter", "search-wide": "search", replace: "state", change: "comment", edit: "title", "unfold-all": "fold", "fold-all": "fold" };
-td.on("key", ({ action }) => act(ALIAS[action] ?? action));
+td.on("key", ({ action }) => {
+  // A comment highlighted (]t): i changes it, Esc lets it go
+  const it = showingItem();
+  const c = theComment(it);
+  if (c && action === "edit") return $("ask").hidden && editComment(it, c);
+  if (c && action === "leave") return (pickedComment = null), detail();
+  act(ALIAS[action] ?? action);
+});
+// :task Its title — a task under the highlighted work item, with that title
+td.on("command", ({ name, arg }) => {
+  if (/^(task|new-task)$/i.test(name)) return $("ask").hidden && newTask(showingItem(), String(arg ?? "").trim());
+});
 
 /** What a key or a button does */
 function act(action) {
@@ -936,6 +1380,13 @@ function act(action) {
     case "sprint": return toggleSprint();
     case "state": case "assign": case "comment": case "title": case "tags": case "priority": case "iteration": case "log":
       return it && $("ask").hidden && edits[action](it);
+    case "new": return $("ask").hidden && newTask(it);
+    case "add": return $("ask").hidden && addItem(it);
+    case "description": return it && $("ask").hidden && editText(it);
+    case "field": return it && $("ask").hidden && pickField(it);
+    case "next-thread": return nextComment(it, 1);
+    case "previous-thread": return nextComment(it, -1);
+    case "delete": return it && deleteComment(it, theComment(it));
     case "refresh":
       fresh.clear();
       td.ui.say("looking again…");
@@ -943,7 +1394,11 @@ function act(action) {
   }
 }
 // The comment box: kept while you write (a look again redraws the page), Ctrl+Enter sends
-document.addEventListener("input", (e) => e.target.id === "compose" && showing && drafts.set(showing, e.target.value));
+document.addEventListener("input", (e) => {
+  if (e.target.id !== "compose" || !showing) return;
+  drafts.set(showing, e.target.value);
+  draftMentions.set(showing, mentionsIn(e.target, e.target.value));
+});
 document.addEventListener("keydown", (e) => {
   if (e.target.id !== "compose") return;
   if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
@@ -994,6 +1449,16 @@ document.addEventListener("click", (e) => {
   if (earlier) {
     unfolded.add(Number(earlier.dataset.unfold));
     return detail();
+  }
+  const fieldClick = e.target.closest("[data-edit-field]");
+  if (fieldClick) return showingItem() && $("ask").hidden && editRef(showingItem(), fieldClick.dataset.editField);
+  const commentClick = e.target.closest("[data-comment-edit], [data-comment-delete]");
+  if (commentClick) {
+    const it = showingItem();
+    const id = Number(commentClick.dataset.commentEdit ?? commentClick.dataset.commentDelete);
+    const c = shownComments(it).find((x) => x.id === id);
+    pickedComment = c ? { id: it.id, comment: c.id } : null;
+    return commentClick.dataset.commentEdit != null ? editComment(it, c) : deleteComment(it, c);
   }
   const button = e.target.closest("[data-edit]");
   if (button) return act(button.dataset.edit);

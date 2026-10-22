@@ -9,19 +9,35 @@ import { readFileSync } from "node:fs";
 // this repository.
 import { serve } from "../../../packages/backend/index.js";
 import {
-  auth, changes, commentHtml, current, fieldSettings, gather, history, ids, isMe, item, orgUrl, page, patch, problem, searchWiql, snapshot, text, wiql, within,
+  MENTIONED_WIQL, areaPaths, auth, changes, commentHtml, createOps, creatable, current, fieldPatch, fieldSettings, fieldValue, gather, history, ids, isMe, isTask,
+  item, mentions, orgUrl, page, patch, pickerPeople, problem, searchWiql, snapshot, taskType, text, typedFields, wiql, within,
 } from "./ado.js";
 import {
   HOURS_FIELD, activitiesIn, applyLog, entries as logEntries, fieldUse, hoursSetting, hoursWiql, logRows, logValue, logged, loggedLog, notHours, notLog,
 } from "./hours.js";
-import { richHtml } from "./markdown.js";
+import { markdown, richHtml } from "./markdown.js";
 
 const demoFile = (f) => JSON.parse(readFileSync(new URL(`./testdata/${f}`, import.meta.url), "utf8"));
 const DEMO_ME = "me@example.test";
+// The sample's people (anyone in the organization, for the people search and @mentions)
+const DEMO_PEOPLE = [
+  ["Me", DEMO_ME], ["Ann", "ann@example.test"], ["Bob", "bob@example.test"], ["Carol", "carol@example.test"], ["Dana", "dana@example.test"],
+  ["Erik Lund", "erik.lund@example.test"], ["Femi Adeyemi", "femi@example.test"], ["Grace Ho", "grace.ho@example.test"],
+].map(([name, email]) => ({ value: email, label: name, note: email, id: `demo-${email.split("@")[0]}` }));
+const demoPerson = (email) => DEMO_PEOPLE.find((p) => p.value === email);
+// Azure DevOps' own fields the sample's types have (besides testdata/fields.json), for typing them
+const DEMO_BUILT_IN = [
+  ["System.Description", "Description", "html"], ["System.AreaPath", "Area Path", "treePath"], ["Microsoft.VSTS.Common.AcceptanceCriteria", "Acceptance Criteria", "html"],
+  ["Microsoft.VSTS.TCM.ReproSteps", "Repro Steps", "html"], ["Microsoft.VSTS.Scheduling.RemainingWork", "Remaining Work", "double"],
+  ["Microsoft.VSTS.Scheduling.OriginalEstimate", "Original Estimate", "double"], ["Microsoft.VSTS.Scheduling.CompletedWork", "Completed Work", "double"],
+  ["Microsoft.VSTS.Scheduling.StoryPoints", "Story Points", "double"], ["Microsoft.VSTS.Scheduling.Effort", "Effort", "double"],
+  ["Microsoft.VSTS.Common.Severity", "Severity", "string", ["1 - Critical", "2 - High", "3 - Medium", "4 - Low"]],
+  ["Microsoft.VSTS.Scheduling.DueDate", "Due Date", "dateTime"],
+];
 let demo = null; // { items, comments, iterations, fields, updates, worklog }: the sample, as changed in memory
 let settings = {
   organization: "", token: "", show: "assigned", projects: [], hidden_states: ["Closed", "Done", "Removed"], refresh_minutes: 5,
-  branch_prefix: "feature/", team: "", notify_assigned: true, notify_state: true, notify_comments: true, fields: [],
+  branch_prefix: "feature/", team: "", notify_assigned: true, notify_state: true, notify_comments: true, notify_mentions: true, fields: [],
   hours_field: "", hours_unit: "hours", hours_per_day: 8,
 };
 // How many it shows: yours (the most recently changed), and with what's under and above them
@@ -32,10 +48,14 @@ let note = ""; // what it couldn't show, said at the top of the view
 let error = "";
 let updated = null;
 let me = ""; // your uniqueName (an email), for "not your own changes"
+let myId = ""; // your identity's id, for the @mentions of you
 let sprints = {}; // project -> its current iteration's path (null: none)
 let sprintOnly = false; // only the current sprint's (kept in storage)
 const iterationsOf = new Map(); // project -> the team's iterations
-let types = null; // the organization's fields: ref (lowercase) -> { name, type } (once a start)
+let types = null; // the organization's fields: ref (lowercase) -> { name, type, readOnly } (once a start)
+const typeFieldsOf = new Map(); // "project/type" -> its fields (with their allowed values)
+const categoriesOf = new Map(); // project -> its work item type categories
+const areasOf = new Map(); // project -> its area paths
 const logs = new Map(); // id -> { rev, how, scale, entries: [{ at, hours }] }: what you logged on it, at that revision (how: the Hours field setting)
 const MAX_LOGGED = 400; // work items looked into for the hours, the most recently changed
 const activities = new Set(); // the activities in the work logs read (for a new entry's)
@@ -91,7 +111,7 @@ async function fieldTypes() {
   if (!types) {
     const all = isDemo() ? demo.fields : await ado("/_apis/wit/fields?api-version=7.1").then((a) => a.value ?? [], () => null);
     if (!all) return new Map(); // asked again next time
-    types = new Map(all.map((x) => [x.referenceName.toLowerCase(), { name: x.name, type: x.type }]));
+    types = new Map(all.map((x) => [x.referenceName.toLowerCase(), { name: x.name, type: x.type, readOnly: !!x.readOnly }]));
   }
   return types;
 }
@@ -121,9 +141,15 @@ function load(tb) {
   return looking;
 }
 
-/** Who you are (your uniqueName: an email), once */
+/** Who you are (your uniqueName: an email, and your identity's id), once */
 async function whoAmI() {
-  if (!me) me = isDemo() ? DEMO_ME : await ado("/_apis/connectionData").then((c) => c.authenticatedUser?.properties?.Account?.$value ?? "", () => "");
+  if (me) return me;
+  if (isDemo()) [me, myId] = [DEMO_ME, demoPerson(DEMO_ME).id];
+  else {
+    const c = await ado("/_apis/connectionData").catch(() => null);
+    me = c?.authenticatedUser?.properties?.Account?.$value ?? "";
+    myId = c?.authenticatedUser?.id ?? "";
+  }
   return me;
 }
 
@@ -201,12 +227,39 @@ async function tell(tb, watched) {
     if (c.kind === "state" && settings.notify_state) said.push([`${name}: ${c.from} → ${c.to}`, `${it.title}${by}`]);
     if (c.kind === "comments" && settings.notify_comments) {
       const latest = (await comments(it).catch(() => [])).filter((x) => x.createdDate > since && !isMe(x.createdBy?.uniqueName, me));
-      if (latest.length) said.push([`${latest.length > 1 ? `${latest.length} comments` : "A comment"} on ${name}`, `${latest[0].createdBy?.displayName ?? ""}: ${text(latest[0].text).slice(0, 160)}`]);
+      const mention = settings.notify_mentions && latest.find((x) => mentions(x, myId));
+      if (mention) said.push([`${mention.createdBy?.displayName ?? "Someone"} mentioned you on ${name}`, `${it.title}: ${text(mention.text).slice(0, 160)}`]);
+      else if (latest.length) said.push([`${latest.length > 1 ? `${latest.length} comments` : "A comment"} on ${name}`, `${latest[0].createdBy?.displayName ?? ""}: ${text(latest[0].text).slice(0, 160)}`]);
     }
   }
+  said.push(...(await mentioned(tb, settings.notify_comments ? new Set(watched.map((i) => i.id)) : new Set()).catch(() => [])));
   if (said.length > 4) tb.notify(`${said.length} changes on your work items`, said.map(([t]) => t).join(" · "));
   else for (const [title, body] of said) tb.notify(title, body);
   await tb.storage.set("seen", { key, at: new Date().toISOString(), items: snapshot(watched) }).catch(() => {});
+}
+
+/** The @mentions of you since the last look, on work items that aren't yours (yours: told
+ *  with their comments, in tell); those work items' comment counts kept in storage, so only
+ *  ones with new comments are read. [[title, body]] */
+async function mentioned(tb, told) {
+  if (!settings.notify_mentions || isDemo() || !myId) return [];
+  const key = settings.organization.trim().toLowerCase();
+  const kept = await tb.storage.get("mentioned").catch(() => undefined);
+  const before = kept?.key === key ? kept : null;
+  const want = ids(await ado("/_apis/wit/wiql?$top=100&api-version=7.1", { method: "POST", body: JSON.stringify({ query: MENTIONED_WIQL }) })).slice(0, 100);
+  const found = want.length ? await workItems(want) : [];
+  const counts = Object.fromEntries(found.map((w) => [w.id, w.fields?.["System.CommentCount"] ?? 0]));
+  const said = [];
+  if (before) {
+    for (const w of found) {
+      if (told.has(w.id) || counts[w.id] <= (before.counts?.[w.id] ?? 0)) continue;
+      const it = item(w, settings.organization.trim(), false);
+      const latest = (await comments(it).catch(() => [])).filter((c) => c.createdDate > before.at && !isMe(c.createdBy?.uniqueName, me) && mentions(c, myId));
+      if (latest.length) said.push([`${latest[0].createdBy?.displayName ?? "Someone"} mentioned you on ${it.type} ${it.id}`, `${it.title}: ${text(latest[0].text).slice(0, 160)}`]);
+    }
+  }
+  await tb.storage.set("mentioned", { key, at: new Date().toISOString(), counts }).catch(() => {});
+  return said;
 }
 
 /** A work item's revisions (what changed in each), oldest first: 200 at a time, up to 1000 */
@@ -235,17 +288,34 @@ function schedule(tb) {
 
 function start() {
   me = "";
+  myId = "";
   logs.clear();
   activities.clear();
   types = null;
   iterationsOf.clear();
+  typeFieldsOf.clear();
+  categoriesOf.clear();
+  areasOf.clear();
   demo = isDemo()
     ? {
       items: demoFile("workitems.json").value, comments: demoFile("comments.json"), iterations: demoFile("iterations.json").value,
       fields: demoFile("fields.json").value, updates: demoFile("updates.json"), worklog: demoFile("worklog.json"),
     }
     : null;
-  if (demo) demoHours();
+  if (demo) {
+    demoHours();
+    // Its people have ids (for @mentions), as Azure DevOps' do
+    const withId = (who) => who && typeof who === "object" && who.uniqueName && (who.id ??= demoPerson(who.uniqueName)?.id);
+    for (const w of demo.items) for (const v of Object.values(w.fields)) withId(v);
+    let n = 0;
+    for (const list of Object.values(demo.comments)) {
+      for (const c of list) {
+        c.id ??= ++n;
+        c.createdBy.uniqueName ??= DEMO_PEOPLE.find((p) => p.label === c.createdBy.displayName)?.value;
+        withId(c.createdBy);
+      }
+    }
+  }
 }
 
 /** The hours in one of the hours field's units: 1, or a working day's in days */
@@ -343,7 +413,7 @@ serve({
     load(tb);
     schedule(tb);
   },
-  list: () => ({ org: settings.organization.trim().toLowerCase(), orgUrl: settings.organization.trim() ? orgUrl(settings.organization) : "", items, error, note, warning: fieldSettings(settings.fields).problems.join(" · "), updated, branchPrefix: settings.branch_prefix, me, sprints, sprintOnly }),
+  list: () => ({ org: settings.organization.trim().toLowerCase(), orgUrl: settings.organization.trim() ? orgUrl(settings.organization) : "", items, error, note, warning: fieldSettings(settings.fields).problems.join(" · "), updated, branchPrefix: settings.branch_prefix, me, myId, sprints, sprintOnly }),
   async refresh(_p, tb) {
     await load(tb);
     return { error };
@@ -450,10 +520,26 @@ serve({
         // A Markdown comment (format "markdown", or 0): Azure DevOps' own rendering, or ours
         const md = /^markdown$/i.test(String(c.format)) || c.format === 0;
         const html = md && c.renderedText ? c.renderedText : richHtml(c.text, { format: md ? "markdown" : "", workItem: (x) => `${orgUrl(org)}/_workitems/edit/${x}` });
-        return { by: c.createdBy?.displayName ?? "", byId: c.createdBy?.uniqueName ?? "", at: c.createdDate ?? "", html };
+        // Yours can be changed and taken back (with what was written, to edit it)
+        const mine = isMe(c.createdBy?.uniqueName, me);
+        return {
+          id: c.id ?? null, by: c.createdBy?.displayName ?? "", byId: c.createdBy?.uniqueName ?? "", byUid: c.createdBy?.id ?? "", at: c.createdDate ?? "", html,
+          edited: !!c.modifiedDate && c.modifiedDate !== c.createdDate && (Date.parse(c.modifiedDate) - Date.parse(c.createdDate) > 5000),
+          mine, source: mine ? (c.text ?? "") : undefined, markdown: md,
+        };
       })
       .sort((a, b) => (b.at > a.at ? 1 : b.at < a.at ? -1 : 0));
     p.history = history(await updates(id).catch(() => [])); // history is extra too
+    // The people on it (with their ids), for @mentioning them
+    const people = new Map();
+    const add = (who) => who?.uniqueName && who.id && !people.has(who.uniqueName.toLowerCase()) && people.set(who.uniqueName.toLowerCase(), { value: who.uniqueName, label: who.displayName || who.uniqueName, note: who.uniqueName, id: who.id });
+    for (const v of Object.values(w.fields ?? {})) if (v && typeof v === "object") add(v);
+    for (const c of p.comments) add({ uniqueName: c.byId, displayName: c.by, id: c.byUid });
+    p.people = [...people.values()];
+    // Its rich text as written (for editing it as Markdown)
+    const md = new Set(Object.entries(w.multilineFieldsFormat ?? {}).filter(([, f]) => /^markdown$/i.test(f)).map(([k]) => k.toLowerCase()));
+    p.rich = p.rich.map((r) => ({ ...r, source: w.fields?.[r.ref] ?? "", markdown: md.has(r.ref.toLowerCase()) }));
+    p.item.rev = w.rev ?? p.item.rev;
     return p;
   },
   /** What a field can be changed to: state (the type's states), iteration (the team's), assignee
@@ -473,10 +559,12 @@ serve({
     }
     if (field === "assignee") {
       const people = new Map();
-      if (me) people.set(me.toLowerCase(), { value: me, label: "Me", note: me });
-      for (const i of items) if (i.assignee && !people.has(i.assignee.toLowerCase())) people.set(i.assignee.toLowerCase(), { value: i.assignee, label: i.assignedTo, note: i.assignee });
+      if (me) people.set(me.toLowerCase(), { value: me, label: "Me", note: me, id: myId });
+      for (const i of items) if (i.assignee && !people.has(i.assignee.toLowerCase())) people.set(i.assignee.toLowerCase(), { value: i.assignee, label: i.assignedTo, note: i.assignee, id: i.assigneeId });
       return [...people.values(), { value: "", label: "Unassigned" }];
     }
+    if (field === "type") return (await kinds(it.project)).map((t) => ({ value: t, label: t }));
+    if (field === "area") return (await areas(it.project)).map((a) => ({ value: a, label: a.split("\\").pop(), note: a }));
     throw new Error(`no options for ${field}`);
   },
   /** Changes a work item: { id, set: { state | assignee | title | tags | priority | iteration } } */
@@ -488,17 +576,133 @@ serve({
     await load(tb);
     return { error };
   },
-  /** Adds a comment (what was typed, as plain text) */
-  async comment({ id, text: typed }, tb) {
+  /** Adds a comment (what was typed, as Markdown; mentions: the people picked for @Name) */
+  async comment({ id, text: typed, mentions: people = [] }, tb) {
     const it = await known(id);
     if (!String(typed ?? "").trim()) throw new Error("an empty comment");
+    const html = commentHtml(typed, isDemo() ? "demo" : settings.organization, people);
     if (isDemo()) {
-      (demo.comments[id] ??= []).push({ text: commentHtml(typed, "demo"), createdBy: { displayName: "Me", uniqueName: DEMO_ME }, createdDate: new Date().toISOString() });
+      const list = (demo.comments[id] ??= []);
+      const now = new Date().toISOString();
+      list.push({ id: Math.max(0, ...Object.values(demo.comments).flat().map((c) => c.id ?? 0)) + 1, text: html, createdBy: { displayName: "Me", uniqueName: DEMO_ME, id: myId }, createdDate: now, modifiedDate: now });
       changeDemo(id, {}, { comments: 1 });
     } else {
       await ado(`/${encodeURIComponent(it.project)}/_apis/wit/workItems/${id}/comments?api-version=7.1-preview.4`,
-        { method: "POST", body: JSON.stringify({ text: commentHtml(typed, settings.organization) }) }, { writing: true });
+        { method: "POST", body: JSON.stringify({ text: html }) }, { writing: true });
     }
+    await load(tb);
+    return { error };
+  },
+  /** Changes one of your comments: { id, comment (its id), text (Markdown), mentions, markdown
+   *  (it's a Markdown comment: kept as one) } */
+  async editComment({ id, comment, text: typed, mentions: people = [], markdown: md = false }) {
+    const it = await known(id);
+    if (!String(typed ?? "").trim()) throw new Error("an empty comment: take it back instead (dd)");
+    const body = md ? String(typed).trim() : commentHtml(typed, isDemo() ? "demo" : settings.organization, people);
+    if (isDemo()) {
+      const c = (demo.comments[id] ?? []).find((x) => x.id === comment);
+      if (!c || !isMe(c.createdBy?.uniqueName, DEMO_ME)) throw new Error("only your own comments can be changed");
+      Object.assign(c, { text: body, modifiedDate: new Date().toISOString() });
+    } else {
+      await ado(`/${encodeURIComponent(it.project)}/_apis/wit/workItems/${id}/comments/${Number(comment)}?api-version=7.1-preview.4`,
+        { method: "PATCH", body: JSON.stringify({ text: body }) }, { writing: true });
+    }
+    return { error: "" };
+  },
+  /** Takes back one of your comments */
+  async deleteComment({ id, comment }, tb) {
+    const it = await known(id);
+    if (isDemo()) {
+      const list = demo.comments[id] ?? [];
+      const at = list.findIndex((x) => x.id === comment);
+      if (at < 0 || !isMe(list[at].createdBy?.uniqueName, DEMO_ME)) throw new Error("only your own comments can be taken back");
+      list.splice(at, 1);
+      changeDemo(id, {}, { comments: -1 });
+    } else {
+      await ado(`/${encodeURIComponent(it.project)}/_apis/wit/workItems/${id}/comments/${Number(comment)}?api-version=7.1-preview.4`, { method: "DELETE" }, { writing: true });
+    }
+    await load(tb);
+    return { error };
+  },
+  /** People in the organization whose name or email has what was typed (Azure DevOps' people
+   *  picker): { people: [{ value: email, label, note, id }], error } */
+  async people({ text: typed }) {
+    const t = String(typed ?? "").trim();
+    if (t.length < 2) return { people: [], error: "" };
+    if (isDemo()) return { people: DEMO_PEOPLE.filter((p) => `${p.label} ${p.value}`.toLowerCase().includes(t.toLowerCase())), error: "" };
+    try {
+      const a = await ado("/_apis/IdentityPicker/Identities?api-version=7.1-preview.1", {
+        method: "POST",
+        body: JSON.stringify({
+          query: t, identityTypes: ["user"], operationScopes: ["ims", "source"], options: { MinResults: 5, MaxResults: 20 },
+          properties: ["DisplayName", "Mail", "SignInAddress", "SubjectDescriptor"],
+        }),
+      });
+      return { people: pickerPeople(a), error: "" };
+    } catch (e) {
+      return { people: [], error: e.message };
+    }
+  },
+  /** Makes a work item: { parent (an id; none: on its own, in project), type (none: a task), title }.
+   *  It's yours, in the current sprint (the team's; none found: the parent's iteration), in the
+   *  parent's area. { id, type, error } */
+  async create({ parent = null, type = "", title, project = "" }, tb) {
+    const t = String(title ?? "").trim();
+    if (!t) throw new Error("a work item needs a title");
+    const org = settings.organization.trim();
+    await whoAmI();
+    const up = parent != null ? await known(Number(parent)) : null;
+    const proj = up?.project || project;
+    if (!proj) throw new Error("which project? Highlight a work item of it first");
+    const kind = type || taskType(await categories(proj));
+    if (!(proj in sprints)) sprints[proj] = await iterations(proj).then((all) => (iterationsOf.set(proj, all), current(all)), () => null);
+    const iteration = sprints[proj] || up?.iteration || "";
+    const ops = createOps({ title: t, assignee: me, iteration, area: up?.area ?? "", parent: up?.id ?? null, org });
+    let made;
+    if (isDemo()) made = createDemo(proj, kind, ops, up);
+    else {
+      made = await ado(`/${encodeURIComponent(proj)}/_apis/wit/workitems/${encodeURIComponent(`$${kind}`)}?api-version=7.1`,
+        { method: "POST", body: JSON.stringify(ops), headers: { "Content-Type": "application/json-patch+json" } }, { writing: true });
+    }
+    await load(tb);
+    return { id: made.id, type: kind, iteration, error };
+  },
+  /** The fields of a work item that can be typed here (its type's, but the ones with a key of
+   *  their own), with their values: { rev, fields: [{ ref, name, kind, value, allowed, required,
+   *  help, markdown }] } */
+  async fields({ id }) {
+    const w = isDemo() ? demo.items.find((x) => x.id === id) : await ado(`/_apis/wit/workitems/${id}?api-version=7.1`);
+    if (!w) throw new Error(`There's no work item ${id}, or the token can't see it`);
+    const project = w.fields?.["System.TeamProject"] ?? "";
+    const type = w.fields?.["System.WorkItemType"] ?? "";
+    const known = new Map(await fieldTypes());
+    let of;
+    if (isDemo()) {
+      for (const [ref, name, t] of DEMO_BUILT_IN) if (!known.has(ref.toLowerCase())) known.set(ref.toLowerCase(), { name, type: t });
+      of = [...DEMO_BUILT_IN.map(([referenceName, name, , allowedValues]) => ({ referenceName, name, allowedValues })),
+        ...demo.fields.filter((f) => !DEMO_BUILT_IN.some(([r]) => r === f.referenceName)).map((f) => ({ referenceName: f.referenceName, name: f.name }))];
+    } else {
+      const key = `${project}/${type}`;
+      if (!typeFieldsOf.has(key)) typeFieldsOf.set(key, (await ado(`/${encodeURIComponent(project)}/_apis/wit/workitemtypes/${encodeURIComponent(type)}/fields?$expand=allowedValues&api-version=7.1`)).value ?? []);
+      of = typeFieldsOf.get(key);
+    }
+    const md = Object.entries(w.multilineFieldsFormat ?? {}).filter(([, f]) => /^markdown$/i.test(f)).map(([k]) => k);
+    return { rev: w.rev ?? null, project, fields: typedFields(of, known, w.fields ?? {}, { markdown: md }) };
+  },
+  /** Sets one field: { id, ref, kind, value (as typed; null or "": empty it), had (it had a
+   *  value), rev, markdown (keep it as Markdown), mentions (in rich text: the people picked
+   *  for @Name) }. Rich text (html) is typed as Markdown and written as HTML; refused if the
+   *  work item changed since rev */
+  async setField({ id, ref, kind, value: typed, had = true, rev = null, markdown: md = false, mentions: people = [] }, tb) {
+    if (!/^[\w.]+$/.test(String(ref))) throw new Error("which field?");
+    const { value, problem: wrong } = fieldValue(kind, typed);
+    if (wrong) throw new Error(`${ref}: ${wrong}`);
+    const org = settings.organization.trim();
+    const written = value != null && kind === "html" && !md ? markdown(value, { workItem: (x) => `${orgUrl(org)}/_workitems/edit/${x}`, mentions: people }) : value;
+    const ops = fieldPatch(ref, written, { rev, had, markdown: md });
+    if (!ops.length) return { error: "" };
+    if (isDemo()) changeDemo(id, {}, { fields: { [ref]: written ?? undefined } });
+    else await ado(`/_apis/wit/workitems/${id}?api-version=7.1`, { method: "PATCH", body: JSON.stringify(ops), headers: { "Content-Type": "application/json-patch+json" } }, { writing: true });
     await load(tb);
     return { error };
   },
@@ -563,6 +767,54 @@ serve({
     return `data:${type.split(";")[0]};base64,${bytes.toString("base64")}`;
   },
 });
+
+/** A project's work item type categories (once) */
+async function categories(project) {
+  if (isDemo()) return [];
+  if (!categoriesOf.has(project)) categoriesOf.set(project, (await ado(`/${encodeURIComponent(project)}/_apis/wit/workitemtypecategories?api-version=7.1`)).value ?? []);
+  return categoriesOf.get(project);
+}
+
+/** The types a work item can be made as in a project */
+async function kinds(project) {
+  if (isDemo()) return ["Task", "Bug", "User Story", "Feature", "Epic"];
+  const all = (await ado(`/${encodeURIComponent(project)}/_apis/wit/workitemtypes?api-version=7.1`)).value ?? [];
+  const made = creatable(all, await categories(project));
+  const task = taskType(await categories(project));
+  return [...made.filter((t) => isTask(t, task)), ...made.filter((t) => !isTask(t, task))]; // a task first
+}
+
+/** A project's area paths (once) */
+async function areas(project) {
+  if (isDemo()) return ["Shop", "Shop\\Accounts", "Shop\\Checkout", "Shop\\Search", "Backoffice", "Backoffice\\Reports"].filter((a) => a.split("\\")[0] === project);
+  if (!areasOf.has(project)) areasOf.set(project, areaPaths(await ado(`/${encodeURIComponent(project)}/_apis/wit/classificationnodes/Areas?$depth=10&api-version=7.1`)));
+  return areasOf.get(project);
+}
+
+/** A new sample work item, in memory (its parent's relations and children too) */
+function createDemo(project, type, ops, up) {
+  const id = Math.max(...demo.items.map((w) => w.id)) + 1;
+  const now = new Date().toISOString();
+  const fields = { "System.Id": id, "System.WorkItemType": type, "System.TeamProject": project, "System.State": "New", "System.Reason": "New",
+    "System.CreatedBy": { displayName: "Me", uniqueName: DEMO_ME, id: myId }, "System.CreatedDate": now, "System.ChangedDate": now,
+    "System.ChangedBy": { displayName: "Me", uniqueName: DEMO_ME, id: myId }, "System.CommentCount": 0 };
+  const relations = [];
+  for (const op of ops) {
+    if (op.path === "/relations/-") relations.push({ ...op.value, attributes: { name: "Parent" } });
+    else {
+      const key = op.path.replace("/fields/", "");
+      fields[key] = key === "System.AssignedTo" ? { ...(demoPerson(op.value) ?? {}), displayName: op.value === DEMO_ME ? "Me" : op.value, uniqueName: op.value } : op.value;
+    }
+  }
+  if (up) {
+    fields["System.Parent"] = up.id;
+    const parent = demo.items.find((w) => w.id === up.id);
+    (parent.relations ??= []).push({ rel: "System.LinkTypes.Hierarchy-Forward", url: `https://dev.azure.com/contoso/_apis/wit/workItems/${id}`, attributes: { name: "Child" } });
+  }
+  demo.items.push({ id, rev: 1, fields, relations });
+  demo.updates[id] = [{ rev: 1, revisedBy: { displayName: "Me", uniqueName: DEMO_ME }, revisedDate: "9999-01-01T00:00:00Z", fields: { "System.State": { newValue: "New" }, "System.ChangedDate": { newValue: now } } }];
+  return { id };
+}
 
 /** A change to the sample work items, in memory, as Azure DevOps would make it */
 function changeDemo(id, set, { comments: more = 0, fields = {} } = {}) {
