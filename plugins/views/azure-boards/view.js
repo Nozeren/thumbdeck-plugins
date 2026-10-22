@@ -170,7 +170,7 @@ function detail() {
       return of.length ? `<h4>${esc(k)}</h4><ul class="links">${of.map((r) => `<li class="link" data-goto="${r.id}" data-url="${esc(r.url)}">
         <span class="type ${esc(r.type)}">${esc(r.type)}</span> <span class="id">${r.id}</span> <span class="title">${esc(r.title)}</span>
         <span class="state"><i class="dot ${stateClass(r.state)}"></i>${esc(r.state)}</span></li>`).join("")}</ul>` : "";
-    }).join(""))
+    }).join("") + `<p class="add"><span class="editable td-muted" data-edit="add" title="Add a work item of any type: under it, beside it or on its own (Space a)">+ add ${kbd("Space a")}</span></p>`)
       + section("Links", p.links.length ? `<ul class="links">${p.links.map((l) => `<li class="link" data-href="${esc(l.url)}">${esc(l.label)}</li>`).join("")}</ul>` : "")
       + section("Attachments", p.attachments.length ? `<ul class="links">${p.attachments.map((f) => `<li class="link" data-href="${esc(f.url)}">${esc(f.name)} <span class="td-muted">${bytes(f.size)}</span></li>`).join("")}</ul>` : "")
       + section("Details", `<dl class="fields">${fields([...p.other, { label: "Project", value: it.project },

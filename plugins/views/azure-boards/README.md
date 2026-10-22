@@ -34,6 +34,7 @@ Your Azure DevOps work items in thumbdeck: to see them, change them and be told 
   current sprint (your team's; the parent's iteration if no sprint is found), in the parent's
   area. `:task Its title` does the same without asking. `Space a` adds any type the project has:
   its type, then under the highlighted one, beside it or on its own. The new one is highlighted.
+  **+ add** under its Related work does what `Space a` does, with the mouse.
 - **Changes, from the keyboard**: `r` its state (the ones its type has), `Space u` assign it, `cc`
   write a comment, `i` its title, `Space g` its tags, `Space n` its priority, `Space m` move it to
   another iteration. **Or with the mouse**: click its title, state, or a property; in the box,
