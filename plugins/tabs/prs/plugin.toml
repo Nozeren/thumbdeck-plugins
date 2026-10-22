@@ -1,6 +1,6 @@
 id = "prs"
 name = "Pull requests"
-version = "3.1.0"
+version = "3.1.1"
 api = 2
 description = "The open PRs that concern you in every repo you're in: to review again, to review, reviewed, yours; reviewed with comments, suggestions and a verdict; merged, failed checks read and re-run, yours edited; notifications"
 homepage = "https://github.com/Nozeren/thumbdeck-plugins/tree/main/plugins/tabs/prs"
