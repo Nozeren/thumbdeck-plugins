@@ -97,21 +97,21 @@ function renderProfiles() {
   const rules = data.rules.filter((r) => r.dir === p.dir);
   $("details").innerHTML = `
     <div class="who">${avatar(p, "big")}<div><h3>${esc(p.name)}</h3><div class="td-sub">${esc(p.email || "not signed in")}</div></div></div>
+    <div class="td-actions">
+      <button class="primary" data-act="open">Open the window <kbd>Enter</kbd></button>
+      <button data-act="edit">Edit <kbd>i</kbd></button><button data-act="move">Move <kbd>Space m</kbd></button>
+      <button class="danger" data-act="delete">${p.hidden ? "Unhide" : "Delete"} <kbd>dd</kbd></button>
+    </div>
     <dl class="facts">
       <dt>Tenant</dt><dd>${esc(t.name)}${t.domains[0] ? ` <span class="td-muted">@${esc(t.domains.join(", @"))}</span>` : ""}</dd>
       ${p.role ? `<dt>Role</dt><dd><span class="role" style="color:${roleColor(p.role)}">${esc(p.role)}</span></dd>` : ""}
       <dt>${esc(data.browser)}</dt><dd>${esc(p.dir)}${p.name !== p.chromeName && !p.pending ? ` <span class="td-muted">“${esc(p.chromeName)}”</span>` : ""}${p.open ? ' <span class="td-green">· window open</span>' : ""}${p.pending ? ' <span class="td-muted">· shows its account once you sign in</span>' : ""}</dd>
       ${p.used ? `<dt>Last used</dt><dd>${esc(ago(p.used))}</dd>` : ""}
     </dl>
-    <div class="td-sect"><h5>Shortcuts <span class="r">i to change</span></h5>
+    <div class="td-sect"><h5>Shortcuts <button class="inline" data-act="edit" title="Change them (i)">Edit <kbd>i</kbd></button></h5>
       ${p.shortcuts.length ? p.shortcuts.map(([name, url], k) => `<div class="td-item short" data-short="${k}">${k < 26 ? `<kbd style="margin:0">'${"abcdefghijklmnopqrstuvwxyz"[k]}</kbd>` : '<span style="width:17px"></span>'}${esc(name)}<span class="u">${esc(url.replace(/^https?:\/\//, ""))}</span></div>`).join("") : '<div class="td-muted">None yet: the pages you open in this profile, one key each.</div>'}</div>
     <div class="td-sect"><h5>Links that open here <span class="r">Tab: all rules</span></h5>
-      ${rules.length ? rules.map((r) => `<div class="td-item pat">${esc(r.pattern)}</div>`).join("") : '<div class="td-muted">None.</div>'}</div>
-    <div class="td-actions">
-      <button class="primary" data-act="open">Open the window <kbd>Enter</kbd></button>
-      <button data-act="edit">Edit <kbd>i</kbd></button><button data-act="move">Move <kbd>Space m</kbd></button>
-      <button class="danger" data-act="delete">${p.hidden ? "Unhide" : "Delete"} <kbd>dd</kbd></button>
-    </div>`;
+      ${rules.length ? rules.map((r) => `<div class="td-item pat">${esc(r.pattern)}</div>`).join("") : '<div class="td-muted">None.</div>'}</div>`;
 }
 
 function renderRules() {
