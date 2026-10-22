@@ -36,14 +36,18 @@ export function searches(repos) {
 /** One PR's details for the review page: description, checks, review threads */
 export const PR_QUERY = `query($owner: String!, $name: String!, $number: Int!) {
   repository(owner: $owner, name: $name) {
+    mergeCommitAllowed squashMergeAllowed rebaseMergeAllowed deleteBranchOnMerge viewerDefaultMergeMethod
     pullRequest(number: $number) {
-      body url headRefOid headRefName baseRefName
+      id title body url isDraft headRefOid headRefName baseRefName mergeStateStatus reviewDecision viewerCanUpdate
+      headRepository { nameWithOwner }
       author { login }
+      suggestedReviewers { reviewer { login name } }
       labels(first: 20) { nodes { name } }
       reviewRequests(first: 20) { nodes { requestedReviewer { ... on User { login } ... on Team { name } } } }
       latestReviews(first: 20) { nodes { author { login } state } }
       commits(last: 1) { nodes { commit { statusCheckRollup { contexts(first: 50) { nodes {
-        __typename ... on CheckRun { name status conclusion } ... on StatusContext { context state }
+        __typename ... on CheckRun { name status conclusion databaseId detailsUrl checkSuite { workflowRun { databaseId } } }
+        ... on StatusContext { context state targetUrl }
       } } } } } }
       reviewThreads(first: 100) { nodes {
         id isResolved isOutdated path line startLine diffSide
@@ -52,6 +56,12 @@ export const PR_QUERY = `query($owner: String!, $name: String!, $number: Int!) {
     }
   }
 }`;
+
+export const PEOPLE_QUERY = `query($owner: String!, $name: String!, $q: String!) {
+  repository(owner: $owner, name: $name) { assignableUsers(first: 20, query: $q) { nodes { login name } } }
+}`;
+export const READY_MUTATION = `mutation($id: ID!) { markPullRequestReadyForReview(input: { pullRequestId: $id }) { pullRequest { isDraft } } }`;
+export const DRAFT_MUTATION = `mutation($id: ID!) { convertPullRequestToDraft(input: { pullRequestId: $id }) { pullRequest { isDraft } } }`;
 
 export const REPLY_MUTATION = `mutation($thread: ID!, $body: String!) {
   addPullRequestReviewThreadReply(input: { pullRequestReviewThreadId: $thread, body: $body }) { comment { id } }
@@ -158,9 +168,16 @@ export function aboutFrom(response, setup) {
   const pr = at(response, "data.repository.pullRequest") ?? {};
   const checks = nodes(pr, "commits.nodes.0.commit.statusCheckRollup.contexts.nodes").map((c) =>
     c.__typename === "StatusContext"
-      ? { name: str(c, "context"), state: CHECK_STATE[str(c, "state")] ?? "pending" }
-      : { name: str(c, "name"), state: str(c, "status") === "COMPLETED" ? (CHECK_STATE[str(c, "conclusion")] ?? "neutral") : "pending", detail: str(c, "status") === "COMPLETED" ? "" : str(c, "status").toLowerCase().replace("_", " ") },
+      ? { name: str(c, "context"), state: CHECK_STATE[str(c, "state")] ?? "pending", ...(str(c, "targetUrl") ? { url: str(c, "targetUrl") } : {}) }
+      : {
+        name: str(c, "name"), state: str(c, "status") === "COMPLETED" ? (CHECK_STATE[str(c, "conclusion")] ?? "neutral") : "pending", detail: str(c, "status") === "COMPLETED" ? "" : str(c, "status").toLowerCase().replace("_", " "),
+        // A GitHub Actions job: its id (its steps and log), its run's (re-running it)
+        ...(c.databaseId ? { job: Number(c.databaseId) } : {}), ...(at(c, "checkSuite.workflowRun.databaseId") ? { run: Number(at(c, "checkSuite.workflowRun.databaseId")) } : {}),
+        ...(str(c, "detailsUrl") ? { url: str(c, "detailsUrl") } : {}),
+      },
   );
+  const repo = at(response, "data.repository") ?? {};
+  const head = str(pr, "headRepository.nameWithOwner");
   const reviewers = nodes(pr, "latestReviews.nodes")
     .filter((r) => !setup.bots.includes(str(r, "author.login")))
     .map((r) => ({ name: short(str(r, "author.login")), state: REVIEW_STATE[str(r, "state")] ?? str(r, "state").toLowerCase() }));
@@ -177,7 +194,111 @@ export function aboutFrom(response, setup) {
     checks,
     reviewers,
     labels: nodes(pr, "labels.nodes").map((l) => str(l, "name")),
+    // For changing it: its id, title, merging (the repo's methods), reviewers to ask
+    id: str(pr, "id"),
+    title: str(pr, "title"),
+    draft: pr.isDraft === true,
+    headOid: str(pr, "headRefOid"),
+    canUpdate: pr.viewerCanUpdate !== false,
+    merge: {
+      state: str(pr, "mergeStateStatus"), decision: str(pr, "reviewDecision"), methods: mergeMethods(repo),
+      autoDelete: repo.deleteBranchOnMerge === true, fork: !!head && !!str(pr, "url") && !str(pr, "url").includes(`github.com/${head}/pull/`),
+    },
+    suggested: nodes(pr, "suggestedReviewers").map((r) => str(r, "reviewer.login")).filter((l) => l && !setup.bots.includes(l)),
   };
+}
+
+// Merging: the methods the repo allows, the default (the one you used last) first
+const METHODS = [["squash", "squashMergeAllowed", "Squash and merge"], ["merge", "mergeCommitAllowed", "Create a merge commit"], ["rebase", "rebaseMergeAllowed", "Rebase and merge"]];
+/** [{ value: "squash" | "merge" | "rebase", label }] (unknown settings: all three) */
+export function mergeMethods(repo) {
+  const known = METHODS.some(([, k]) => typeof repo?.[k] === "boolean");
+  const allowed = METHODS.filter(([, k]) => !known || repo[k] === true).map(([value, , label]) => ({ value, label }));
+  const first = String(repo?.viewerDefaultMergeMethod ?? "").toLowerCase();
+  return [...allowed.filter((m) => m.value === first), ...allowed.filter((m) => m.value !== first)];
+}
+
+/** Why GitHub won't merge it now, in words ("": it will; warn: it will, but…) */
+export function mergeBlocker(m, draft = false) {
+  if (draft) return { why: "it's a draft: Space d marks it ready for review first" };
+  const decision = { CHANGES_REQUESTED: "changes were requested", REVIEW_REQUIRED: "it needs an approving review" }[m?.decision];
+  switch (m?.state) {
+    case "CLEAN": case "HAS_HOOKS": return { why: "" };
+    case "UNSTABLE": return { why: "", warn: "some checks that aren't required failed" };
+    case "BEHIND": return { why: "it's behind its base branch: update its branch first" };
+    case "DIRTY": return { why: "it has merge conflicts" };
+    case "DRAFT": return { why: "it's a draft: Space d marks it ready for review first" };
+    case "BLOCKED": return { why: decision ?? "required checks haven't passed, or its branch rules don't allow it yet" };
+    case "UNKNOWN": case "": case undefined: return { why: "", warn: "GitHub hasn't worked out yet whether it can be merged" };
+    default: return { why: "", warn: m.state.toLowerCase() };
+  }
+}
+
+// Failed checks (GitHub Actions jobs): which step failed, and the end of its log
+/** The first failed step of a job (repos/…/actions/jobs/{id}): its name, or "" */
+export const failedStep = (job) => (job?.steps ?? []).find((s) => ["failure", "timed_out", "cancelled"].includes(s.conclusion))?.name ?? "";
+
+/** The end of a job's log: the lines up to its last error (the post steps after it left out),
+ *  without their timestamps; at most `max` lines */
+export function logTail(log, max = 30) {
+  const lines = String(log ?? "").replace(/\r/g, "").split("\n").map((l) => l.replace(/^\d{4}-\d\d-\d\dT[\d:.]+Z ?/, "").replace(/\x1b\[[\d;]*m/g, ""));
+  let end = lines.length;
+  for (let i = lines.length - 1; i >= 0; i--) if (lines[i].includes("##[error]")) { end = i + 1; break; }
+  while (end > 0 && !lines[end - 1].trim()) end--;
+  return lines.slice(Math.max(0, end - max), end).map((l) => l.replace(/^##\[(error|warning|group|endgroup|debug)\]/, (m, k) => (k === "error" ? "Error: " : k === "warning" ? "Warning: " : k === "group" ? "▸ " : ""))).join("\n");
+}
+
+// Notifications (the backend): what changed since the last look, told once
+const FAILED = new Set(["FAILURE", "ERROR"]);
+/** What the notifications compare: url -> what matters of each PR */
+export const snapshot = (prs) => Object.fromEntries(prs.map((p) => [p.url, {
+  category: p.category, checks: p.checks, reviews: Object.fromEntries(p.reviewers.map((r) => [r.name, r.state])),
+}]));
+
+/** What changed since the last look (before null: the first, nothing is news): [{ kind: review |
+ *  approved | changes | checks, pr, by }] */
+export function prEvents(before, prs) {
+  if (!before) return [];
+  const out = [];
+  const asked = (c) => c === "review" || c === "re-review";
+  for (const p of prs) {
+    const was = before[p.url];
+    if (asked(p.category) && !asked(was?.category)) out.push({ kind: "review", pr: p });
+    if (p.category !== "mine" || !was) continue;
+    for (const r of p.reviewers) {
+      const prev = was.reviews?.[r.name];
+      if (r.state === "APPROVED" && prev !== "APPROVED") out.push({ kind: "approved", pr: p, by: r.name });
+      if (r.state === "CHANGES_REQUESTED" && prev !== "CHANGES_REQUESTED") out.push({ kind: "changes", pr: p, by: r.name });
+    }
+    if (FAILED.has(p.checks) && !FAILED.has(was.checks)) out.push({ kind: "checks", pr: p });
+  }
+  return out;
+}
+
+/** The events as notifications ([title, body]), as the settings want them (more than four: one) */
+export function notices(events, s = {}) {
+  const on = { review: s.notify_review !== false, approved: s.notify_verdicts !== false, changes: s.notify_verdicts !== false, checks: s.notify_checks !== false };
+  const said = events.filter((e) => on[e.kind]).map(({ kind, pr: p, by }) => {
+    const pr = `${p.repo} #${p.number}`;
+    const title = { review: `Review asked: ${pr}`, approved: `@${by} approved ${pr}`, changes: `@${by} requested changes on ${pr}`, checks: `Checks failed on ${pr}` }[kind];
+    return [title, `${p.title}${kind === "review" && p.author !== "unknown" ? ` (@${p.author})` : ""}`];
+  });
+  return said.length > 4 ? [[`${said.length} changes on your pull requests`, said.map(([t]) => t).join(" · ")]] : said;
+}
+
+/** People to ask for a review (repository.assignableUsers): [{ value: login, label, note }] */
+export const peopleFrom = (response) => nodes(response, "data.repository.assignableUsers.nodes")
+  .map((u) => ({ value: str(u, "login"), label: str(u, "login"), note: str(u, "name") })).filter((u) => u.value);
+
+/** Who to ask, typed: logins and teams (org/team), separated by spaces or commas */
+export function reviewersFrom(typed) {
+  const reviewers = [];
+  const teams = [];
+  for (const w of String(typed ?? "").split(/[\s,]+/).map((x) => x.replace(/^@/, "")).filter(Boolean)) {
+    if (w.includes("/")) teams.push(w.split("/").pop());
+    else reviewers.push(w);
+  }
+  return { reviewers, team_reviewers: teams };
 }
 
 /** The review threads of a PR, as the review page takes them (outdated ones: line null) */

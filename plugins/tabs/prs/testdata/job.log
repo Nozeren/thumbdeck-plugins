@@ -1,0 +1,18 @@
+2026-10-22T09:12:01.1000000Z ##[group]Run behave features/
+2026-10-22T09:12:01.1000000Z behave features/
+2026-10-22T09:12:01.1000000Z ##[endgroup]
+2026-10-22T09:12:09.3000000Z Feature: Checkout # features/checkout.feature:1
+2026-10-22T09:12:09.4000000Z   Scenario: A member's discount comes off before tax
+2026-10-22T09:12:09.4000000Z     Given a member with 3 items in the cart ... passed
+2026-10-22T09:12:09.5000000Z     When they check out ... passed
+2026-10-22T09:12:09.5000000Z     Then the total is 22.32 ... failed
+2026-10-22T09:12:09.5000000Z       Assertion Failed: expected 22.32, got 24.80
+2026-10-22T09:12:09.6000000Z
+2026-10-22T09:12:09.6000000Z Failing scenarios:
+2026-10-22T09:12:09.6000000Z   features/checkout.feature:12  A member's discount comes off before tax
+2026-10-22T09:12:09.6000000Z
+2026-10-22T09:12:09.6000000Z 0 features passed, 1 failed, 0 skipped
+2026-10-22T09:12:09.6000000Z 4 scenarios passed, 1 failed, 0 skipped
+2026-10-22T09:12:09.7000000Z ##[error]Process completed with exit code 1.
+2026-10-22T09:12:09.9000000Z Post job cleanup.
+2026-10-22T09:12:10.0000000Z Cleaning up orphan processes

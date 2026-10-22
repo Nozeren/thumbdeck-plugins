@@ -25,7 +25,7 @@ recommended = true
 [[plugin]]
 id = "prs"
 name = "Pull requests"
-description = "The open PRs that concern you in every repo you're in; review them with comments, suggestions and a verdict"
+description = "The open PRs that concern you in every repo you're in, reviewed with comments, suggestions and a verdict; merged, failed checks read and re-run, yours edited; notifications (with gh)"
 source = "https://github.com/Nozeren/thumbdeck-plugins#plugins/tabs/prs"
 recommended = true
 

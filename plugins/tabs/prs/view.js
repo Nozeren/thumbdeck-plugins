@@ -3,8 +3,9 @@
 // a preview. Its review page can comment, suggest, answer threads and approve or request
 // changes. Read and written with the GitHub CLI (gh), so it uses your gh login.
 import {
-  aboutFrom, ago, checkSign, newer, contentsPath, descriptionHtml, filterPrs, FILTERS, isStale, PR_QUERY, REPLY_MUTATION, RESOLVE_MUTATION,
-  reviewPayload, reviewText, SEARCH_QUERY, searches, sortPrs, threadsFrom, UNRESOLVE_MUTATION,
+  aboutFrom, ago, checkSign, newer, contentsPath, descriptionHtml, DRAFT_MUTATION, failedStep, filterPrs, FILTERS, isStale, logTail, mergeBlocker, PEOPLE_QUERY,
+  peopleFrom, PR_QUERY, READY_MUTATION, REPLY_MUTATION, RESOLVE_MUTATION, reviewersFrom, reviewPayload, reviewText, SEARCH_QUERY, searches, sortPrs, threadsFrom,
+  UNRESOLVE_MUTATION,
 } from "./prs.js";
 
 const td = window.thumbdeck;
@@ -20,6 +21,9 @@ let cursor = 0; // in the shown (filtered) list
 let visible = true;
 let filter = "all";
 let fetchedAt = 0;
+// The backend (when Node runs it) says how many wait for you and tells what changed
+let backendUp = false;
+await td.backend.call("hello").then(() => (backendUp = true), () => {});
 
 /** Run the GitHub CLI; its output, or an error with its message */
 async function gh(args, input) {
@@ -72,8 +76,10 @@ async function refresh() {
     details.clear();
     // The avatar holds up a sign while PRs wait for your review; the Plugins pane says how many
     const waiting = data.prs.filter((p) => p.category === "review" || p.category === "re-review").length;
-    td.ui.mood("review", waiting);
-    td.ui.status(waiting ? `${waiting} to review` : null);
+    if (!backendUp) {
+      td.ui.mood("review", waiting);
+      td.ui.status(waiting ? `${waiting} to review` : null);
+    }
     error = "";
     cursor = Math.min(cursor, Math.max(0, shown().length - 1));
   } catch (e) {
@@ -155,10 +161,18 @@ function renderDetails(p) {
     ? p.reviewers.map((r) => { const [word, color] = VERDICT[r.state] ?? [r.state.toLowerCase(), "grey"];
         return `<div class="td-item">${faces([r])}@${esc(r.name)}<span class="r td-${color}">${esc(word)}</span></div>`; }).join("")
     : `<div class="td-muted">No reviewers asked</div>`;
+  const failed = failures.get(p.url) ?? [];
   const checks = more?.about?.checks?.length
     ? more.about.checks.map((c) => { const s = { success: "pass", failure: "fail", pending: "run", neutral: "none" }[c.state] ?? "none";
-        return `<div class="td-item"><span class="${SIGN_COLOR[s]}">${SIGN[s]}</span>${esc(c.name)}${c.detail ? `<span class="r td-muted">${esc(c.detail)}</span>` : ""}</div>`; }).join("")
+        const f = c.state === "failure" ? failed.find((x) => x.name === c.name) : null;
+        return `<div class="td-item"><span class="${SIGN_COLOR[s]}">${SIGN[s]}</span>${esc(c.name)}${c.detail ? `<span class="r td-muted">${esc(c.detail)}</span>` : ""}${c.url && c.state === "failure" ? `<span class="r"><a href="#" data-url="${esc(c.url)}">log ↗</a></span>` : ""}</div>`
+          + (f ? `<div class="failed">${f.reading ? `<span class="td-muted">Reading its log…</span>` : f.error ? `<span class="td-muted">${esc(f.error)}</span>`
+            : `${f.step ? `<div>Failed at <span class="step">${esc(f.step)}</span></div>` : ""}${f.tail ? `<pre>${esc(f.tail)}</pre>` : ""}`}</div>` : ""); }).join("")
+      + (more.about.checks.some((c) => c.state === "failure" && (c.run || c.job)) ? `<div class="td-actions"><button id="rerun">Re-run failed <kbd>Space r</kbd></button></div>` : "")
     : `<div class="td-muted">${more?.error ? esc(more.error) : more ? "No checks" : "Reading…"}</div>`;
+  const block = more?.about ? mergeBlocker(more.about.merge, more.about.draft) : null;
+  const mergeNote = block ? (block.why ? `<span class="td-muted merge-note">Can't merge yet: ${esc(block.why)}</span>` : `<button id="merge">Merge <kbd>Space m</kbd></button>${block.warn ? `<span class="td-yellow merge-note">${esc(block.warn)}</span>` : ""}`) : "";
+  const mine = p.category === "mine";
   const description = more?.about ? descriptionHtml(more.about.description, esc) || `<p class="td-muted">No description.</p>` : `<p class="td-muted">${more?.error ? "" : "Reading…"}</p>`;
   $("details").innerHTML = `<h3>${esc(p.title)}${p.draft ? ` <span class="draft">draft</span>` : ""}</h3>
     <div class="td-sub"><span class="repo">${esc(p.repo)}</span><span>#${p.number}</span><span>@${esc(p.author)}</span><span>${ago(p.updated)}</span>
@@ -168,7 +182,8 @@ function renderDetails(p) {
     <div class="td-sect"><h5>Checks</h5>${checks}</div>
     <div class="td-sect"><h5>Description</h5><div class="desc">${description}</div></div>
     ${p.labels.length ? `<div class="td-sect"><h5>Labels</h5><div class="td-actions">${p.labels.map((l) => `<span class="td-tag">${esc(l)}</span>`).join("")}</div></div>` : ""}
-    <div class="td-actions"><button class="primary" id="review">Review it <kbd>Enter</kbd></button><button id="open">Open in the browser <kbd>gx</kbd></button></div>
+    <div class="td-actions"><button class="primary" id="review">Review it <kbd>Enter</kbd></button><button id="open">Open in the browser <kbd>gx</kbd></button>${mergeNote}</div>
+    ${mine ? `<div class="td-actions"><button id="draft">${p.draft ? "Ready for review" : "Back to draft"} <kbd>Space d</kbd></button><button id="reviewers">Ask a reviewer <kbd>Space u</kbd></button><button id="title">Title <kbd>i</kbd></button><button id="body">Description <kbd>cc</kbd></button></div>` : ""}
     <div class="td-muted url">${esc(p.url)}</div>`;
 }
 
@@ -177,17 +192,21 @@ const details = new Map(); // url -> { about } | { error }
 let detailsTimer;
 function loadDetails(p) {
   clearTimeout(detailsTimer);
-  detailsTimer = setTimeout(async () => {
-    if (details.has(p.url) || !data) return;
-    try {
-      const [owner, name] = p.repo.split("/");
-      const answer = data.demo ? await readJson("pr.json") : await graphql(PR_QUERY, { owner, name, number: p.number });
-      details.set(p.url, { about: aboutFrom(answer, data.demo ? { ...settings, trim_suffix: "_corp" } : settings) });
-    } catch (e) {
-      details.set(p.url, { error: `Couldn't read it: ${e.message}` });
-    }
-    if (shown()[cursor]?.url === p.url) renderDetails(p);
-  }, 250);
+  detailsTimer = setTimeout(() => readDetails(p), 250);
+}
+async function readDetails(p) {
+  if (details.has(p.url) || !data) return;
+  try {
+    const [owner, name] = p.repo.split("/");
+    const answer = data.demo ? await readJson("pr.json") : await graphql(PR_QUERY, { owner, name, number: p.number });
+    const about = aboutFrom(answer, data.demo ? { ...settings, trim_suffix: "_corp" } : settings);
+    if (data.demo) Object.assign(about, { title: p.title, draft: p.draft, merge: { ...about.merge, state: p.draft ? "DRAFT" : p.mergeable === "CONFLICTING" ? "DIRTY" : "CLEAN" } });
+    details.set(p.url, { about });
+    readFailures(p, about);
+  } catch (e) {
+    details.set(p.url, { error: `Couldn't read it: ${e.message}` });
+  }
+  if (shown()[cursor]?.url === p.url) renderDetails(p);
 }
 
 // ------------------------------------------------------------ doing things
@@ -277,6 +296,251 @@ async function reviewPr(p) {
   });
 }
 
+// ------------------------------------------------------------ asking
+/** Asks in the view's box: choices to pick (typing narrows them; search(typed) adds more), a
+ *  line (free), or a text (text: true, a textarea; Ctrl+Enter saves). The answer, or null (Esc). */
+function ask({ label, value = "", choices = null, free = !choices, text = false, hint = "", search = null }) {
+  const box = $("ask");
+  const field = text ? $("ask-text") : $("ask-input");
+  $("ask-input").hidden = text;
+  $("ask-text").hidden = !text;
+  $("ask-label").textContent = label;
+  $("ask-ok").hidden = !!choices && !free;
+  $("ask-ok").innerHTML = text ? "Save <kbd>Ctrl+Enter</kbd>" : "Save";
+  const hintText = hint || (text ? "Markdown · Ctrl+Enter: save · Esc: cancel" : choices ? `↑↓ pick · Enter${free ? " (or what you typed)" : ""} · Esc: cancel` : "Enter: save · Esc: cancel");
+  $("ask-hint").textContent = hintText;
+  box.hidden = false;
+  field.value = value;
+  let at = 0;
+  let found = [];
+  let waiting = null;
+  const matching = () => {
+    const w = field.value.trim().toLowerCase();
+    const mine = (choices ?? []).filter((c) => !w || field.value === value || `${c.label} ${c.note ?? ""}`.toLowerCase().includes(w));
+    const have = new Set(mine.map((c) => c.value));
+    return [...mine, ...found.filter((c) => !have.has(c.value))];
+  };
+  const draw = () => {
+    if (text) return;
+    const list = matching();
+    at = Math.max(0, Math.min(at, list.length - 1));
+    $("ask-choices").innerHTML = list.map((c, n) => `<li class="${n === at ? "cursor" : ""}" data-pick="${n}">${esc(c.label)}${c.note ? ` <span class="td-muted">${esc(c.note)}</span>` : ""}</li>`).join("");
+    $("ask-choices").querySelector(".cursor")?.scrollIntoView({ block: "nearest" });
+  };
+  draw();
+  field.focus();
+  if (text) field.setSelectionRange(field.value.length, field.value.length);
+  else field.select();
+  return new Promise((resolve) => {
+    const done = (answer) => {
+      box.hidden = true;
+      clearTimeout(waiting);
+      field.removeEventListener("keydown", key);
+      field.removeEventListener("input", typed);
+      $("ask-choices").onmousedown = $("ask-ok").onclick = $("ask-cancel").onclick = null;
+      $("ask-choices").innerHTML = "";
+      field.blur();
+      td.keys.take();
+      resolve(answer);
+    };
+    const pick = () => {
+      const list = matching();
+      if (!text && list[at]) return done(list[at].value);
+      if (free || text) return done(field.value);
+    };
+    const cancel = async () => {
+      if (text && field.value !== value && !(await td.ui.confirm("Leave without saving what you changed?", { yes: "Leave it", no: "Keep writing" }))) return field.focus();
+      done(null);
+    };
+    const key = (e) => {
+      if (e.key === "Escape") return e.preventDefault(), cancel();
+      if (text) {
+        if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) return e.preventDefault(), done(field.value);
+        return;
+      }
+      if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        e.preventDefault();
+        at += e.key === "ArrowDown" ? 1 : -1;
+        return draw();
+      }
+      if (e.key === "Enter") return e.preventDefault(), pick();
+    };
+    const typed = () => {
+      at = 0;
+      draw();
+      clearTimeout(waiting);
+      const q = field.value.trim();
+      if (!search || q.length < 2) return (found = []), draw();
+      waiting = setTimeout(async () => {
+        $("ask-hint").textContent = `Searching for “${q}”…`;
+        const got = await search(q).catch((e) => ({ choices: [], error: e.message }));
+        if (box.hidden || field.value.trim() !== q) return;
+        found = got.choices ?? [];
+        $("ask-hint").textContent = got.error ? `Couldn't search: ${got.error}` : hintText;
+        draw();
+      }, 300);
+    };
+    field.addEventListener("keydown", key);
+    field.addEventListener("input", typed);
+    $("ask-ok").onclick = () => (text || (free && !choices) ? done(field.value) : pick());
+    $("ask-cancel").onclick = cancel;
+    $("ask-choices").onmousedown = (e) => {
+      const li = e.target.closest("[data-pick]");
+      if (!li) return;
+      e.preventDefault();
+      at = Number(li.dataset.pick);
+      pick();
+    };
+  });
+}
+
+// ------------------------------------------------------------ changing a PR
+/** Its details (merging, checks, its id…), read now if they aren't yet */
+async function aboutOf(p) {
+  let more = details.get(p.url);
+  if (!more) {
+    await readDetails(p);
+    more = details.get(p.url);
+  }
+  if (more?.error) throw new Error(more.error);
+  return more.about;
+}
+
+/** Does something to a PR, then reads it again (the backend looks too: what changed is told) */
+async function doing(p, said, work) {
+  try {
+    await work();
+    td.ui.say(`${p.repo} #${p.number}: ${said}`);
+  } catch (e) {
+    return td.ui.say(e.message, { error: true });
+  }
+  if (data.demo) return render(); // the sample, changed here only
+  details.delete(p.url);
+  failures.delete(p.url);
+  td.backend.call("refresh").catch(() => {});
+  await refresh();
+}
+
+/** Merges it: the repo's methods, its branch deleted or kept; what GitHub won't do now is said */
+async function mergePr(p) {
+  const about = await aboutOf(p).catch((e) => td.ui.say(e.message, { error: true }));
+  if (!about) return;
+  const { why, warn } = mergeBlocker(about.merge, about.draft);
+  if (why) return td.ui.say(`GitHub won't merge #${p.number} now: ${why}`, { error: true });
+  if (!about.merge.methods.length) return td.ui.say(`${p.repo} allows no way of merging`, { error: true });
+  const method = about.merge.methods.length === 1 ? about.merge.methods[0].value
+    : await ask({ label: `Merge ${p.repo} #${p.number} “${p.title}”${warn ? ` (${warn})` : ""}`, choices: about.merge.methods });
+  if (!method) return;
+  let remove = false;
+  if (!about.merge.autoDelete && !about.merge.fork && about.head) {
+    const branch = await ask({ label: `${about.merge.methods.find((m) => m.value === method).label}: its branch ${about.head}?`,
+      choices: [{ value: "delete", label: "Delete the branch", note: about.head }, { value: "keep", label: "Keep it" }] });
+    if (!branch) return;
+    remove = branch === "delete";
+  } else if (!(await td.ui.confirm(`${about.merge.methods.find((m) => m.value === method).label}: ${p.repo} #${p.number}?${warn ? `\n\n${warn[0].toUpperCase()}${warn.slice(1)}.` : ""}`, { yes: "Merge", no: "Not now" }))) return;
+  await doing(p, `merged${remove ? `, ${about.head} deleted` : ""}`, async () => {
+    if (data.demo) return removeDemo(p);
+    // Refused if new commits came meanwhile (sha): what was looked at is what's merged
+    await gh(["api", "-X", "PUT", `repos/${p.repo}/pulls/${p.number}/merge`, "-f", `merge_method=${method}`, "-f", `sha=${about.headOid}`]);
+    if (remove) {
+      await gh(["api", "-X", "DELETE", `repos/${p.repo}/git/refs/heads/${about.head.split("/").map(encodeURIComponent).join("/")}`])
+        .catch((e) => td.ui.say(`merged, but ${about.head} wasn't deleted: ${e.message}`, { error: true }));
+    }
+  });
+}
+
+/** Re-runs its failed GitHub Actions jobs (each run's failed jobs, at once) */
+async function rerunChecks(p) {
+  const about = await aboutOf(p).catch((e) => td.ui.say(e.message, { error: true }));
+  if (!about) return;
+  const failed = about.checks.filter((c) => c.state === "failure");
+  if (!failed.length) return td.ui.say(`no failed checks on #${p.number}`);
+  const runs = [...new Set(failed.filter((c) => c.run).map((c) => c.run))];
+  const jobs = failed.filter((c) => !c.run && c.job).map((c) => c.job);
+  const others = failed.filter((c) => !c.run && !c.job).map((c) => c.name);
+  if (!runs.length && !jobs.length) return td.ui.say(`${others.join(", ")}: not GitHub Actions, re-run it where it runs`, { error: true });
+  await doing(p, `re-running ${failed.length - others.length} failed check${failed.length - others.length > 1 ? "s" : ""}${others.length ? ` (not ${others.join(", ")}: not GitHub Actions)` : ""}`, async () => {
+    if (data.demo) return;
+    for (const run of runs) await gh(["api", "-X", "POST", `repos/${p.repo}/actions/runs/${run}/rerun-failed-jobs`]);
+    for (const job of jobs) await gh(["api", "-X", "POST", `repos/${p.repo}/actions/jobs/${job}/rerun`]);
+  });
+}
+
+/** Marks a draft ready for review, or one back to draft (asked first) */
+async function toggleDraft(p) {
+  const about = await aboutOf(p).catch((e) => td.ui.say(e.message, { error: true }));
+  if (!about) return;
+  if (!about.draft && !(await td.ui.confirm(`Turn ${p.repo} #${p.number} back into a draft? Its reviewers aren't asked meanwhile.`, { yes: "Back to draft", no: "Keep it" }))) return;
+  await doing(p, about.draft ? "ready for review" : "back to draft", async () => {
+    if (data.demo) return void (p.draft = !about.draft, details.get(p.url).about.draft = p.draft);
+    await graphql(about.draft ? READY_MUTATION : DRAFT_MUTATION, { id: about.id });
+  });
+}
+
+/** Asks someone (or a team: org/team) to review it */
+async function askReviewers(p) {
+  const about = await aboutOf(p).catch((e) => td.ui.say(e.message, { error: true }));
+  if (!about) return;
+  const [owner, name] = p.repo.split("/");
+  const asked = new Set(about.reviewers.filter((r) => r.state === "asked").map((r) => r.name));
+  const choices = [
+    ...about.suggested.map((login) => ({ value: login, label: login, note: "suggested" })),
+    ...about.reviewers.filter((r) => r.state !== "asked").map((r) => ({ value: r.name, label: r.name, note: `again (${r.state})` })),
+  ].filter((c, i, all) => !asked.has(c.value) && all.findIndex((x) => x.value === c.value) === i);
+  const search = async (q) => (data.demo
+    ? { choices: ["ann_corp", "bob_corp", "dana_corp", "erik_corp"].filter((l) => l.includes(q)).map((l) => ({ value: l, label: l })) }
+    : { choices: peopleFrom(await graphql(PEOPLE_QUERY, { owner, name, q })) });
+  const typed = await ask({ label: `Ask for a review of ${p.repo} #${p.number}${asked.size ? ` (asked: ${[...asked].join(", ")})` : ""}`, choices, free: true, search,
+    hint: "Type a login (or several, or org/team): anyone who can review in the repo · ↑↓ pick · Enter · Esc" });
+  const who = reviewersFrom(typed);
+  if (!who.reviewers.length && !who.team_reviewers.length) return;
+  const names = [...who.reviewers, ...who.team_reviewers].join(", ");
+  await doing(p, `review asked of ${names}`, async () => {
+    if (data.demo) return;
+    await gh(["api", "-X", "POST", `repos/${p.repo}/pulls/${p.number}/requested_reviewers`, "--input", "-"], JSON.stringify(who));
+  });
+}
+
+/** Edits its title (field: title) or description (body) */
+async function editPr(p, field) {
+  const about = await aboutOf(p).catch((e) => td.ui.say(e.message, { error: true }));
+  if (!about) return;
+  if (!about.canUpdate) return td.ui.say(`you can't edit ${p.repo} #${p.number}`, { error: true });
+  const was = field === "title" ? about.title || p.title : about.description;
+  const to = await ask(field === "title"
+    ? { label: `Title of ${p.repo} #${p.number}`, value: was }
+    : { label: `Description of ${p.repo} #${p.number}`, value: was, text: true });
+  if (to === null || (field === "title" ? !to.trim() : false) || to.trim() === was.trim()) return to !== null && to.trim() === was.trim() && td.ui.say("nothing changed");
+  await doing(p, field === "title" ? "title changed" : "description changed", async () => {
+    if (data.demo) return void (field === "title" ? (p.title = to.trim()) : (details.get(p.url).about.description = to));
+    await gh(["api", "-X", "PATCH", `repos/${p.repo}/pulls/${p.number}`, "--input", "-"], JSON.stringify({ [field]: field === "title" ? to.trim() : to }));
+  });
+}
+
+function removeDemo(p) {
+  data.prs = data.prs.filter((x) => x !== p);
+}
+
+// ------------------------------------------------------------ failed checks
+/** url -> [{ name, step, tail, url, error }]: its failed GitHub Actions jobs, read once */
+const failures = new Map();
+async function readFailures(p, about) {
+  const failed = about.checks.filter((c) => c.state === "failure" && c.job).slice(0, 3);
+  if (!failed.length || failures.has(p.url)) return;
+  failures.set(p.url, failed.map((c) => ({ name: c.name, url: c.url, step: "", tail: "", reading: true })));
+  const got = await Promise.all(failed.map(async (c) => {
+    try {
+      const [job, log] = data.demo
+        ? [await readJson("job.json"), await td.fs.read(`${folder}/testdata/job.log`)]
+        : await Promise.all([gh(["api", `repos/${p.repo}/actions/jobs/${c.job}`]).then(JSON.parse), gh(["api", `repos/${p.repo}/actions/jobs/${c.job}/logs`]).catch(() => "")]);
+      return { name: c.name, url: c.url, step: failedStep(job), tail: logTail(log) };
+    } catch (e) {
+      return { name: c.name, url: c.url, step: "", tail: "", error: e.message };
+    }
+  }));
+  failures.set(p.url, got);
+  if (shown()[cursor]?.url === p.url) renderDetails(p);
+}
 // The "refreshed 2m ago" stays right
 setInterval(() => visible && !loading && data && render(), 60_000);
 
@@ -299,7 +563,18 @@ td.on("key", ({ action }) => {
     case "page-up": return scrollDetails(-1);
     case "refresh": return refresh();
   }
+  if (!p || !$("ask").hidden) return;
+  switch (action) {
+    case "merge": return mergePr(p);
+    case "rerun": return rerunChecks(p);
+    case "draft": return toggleDraft(p);
+    case "reviewers": return askReviewers(p);
+    case "edit": return editPr(p, "title");
+    case "change": return editPr(p, "body");
+  }
 });
+// Something changed on GitHub (the backend saw it): look again, if shown
+td.backend.on("changed", () => visible && refresh());
 td.on("settings", (s) => {
   settings = s;
   refresh();
@@ -314,6 +589,15 @@ document.addEventListener("click", (e) => {
   if (e.target.closest("#refresh")) return refresh();
   if (e.target.closest("#review")) return reviewPr(p);
   if (e.target.closest("#open")) return openPr(p);
+  const link = e.target.closest("[data-url]");
+  if (link) return e.preventDefault(), td.ui.openUrl(link.dataset.url);
+  if (!$("ask").hidden) return;
+  if (e.target.closest("#merge")) return mergePr(p);
+  if (e.target.closest("#rerun")) return rerunChecks(p);
+  if (e.target.closest("#draft")) return toggleDraft(p);
+  if (e.target.closest("#reviewers")) return askReviewers(p);
+  if (e.target.closest("#title")) return editPr(p, "title");
+  if (e.target.closest("#body")) return editPr(p, "body");
   const row = e.target.closest("[data-i]");
   if (row) move(Number(row.dataset.i));
 });

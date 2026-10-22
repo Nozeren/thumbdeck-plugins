@@ -1,8 +1,8 @@
 id = "prs"
 name = "Pull requests"
-version = "3.0.0"
+version = "3.1.0"
 api = 2
-description = "The open PRs that concern you in every repo you're in: to review again, to review, reviewed, yours; reviewed with comments, suggestions and a verdict"
+description = "The open PRs that concern you in every repo you're in: to review again, to review, reviewed, yours; reviewed with comments, suggestions and a verdict; merged, failed checks read and re-run, yours edited; notifications"
 homepage = "https://github.com/Nozeren/thumbdeck-plugins/tree/main/plugins/tabs/prs"
 icon = "icon.svg"
 
@@ -10,6 +10,11 @@ icon = "icon.svg"
 name = "Pull requests"
 page = "view.html"
 status = true
+
+[backend]
+command = "node backend.js"
+# It looks every few minutes, even while the view isn't shown, and tells you what changed
+autostart = true
 
 [[settings]]
 key = "repos"
@@ -31,6 +36,24 @@ label = "Refresh every (minutes)"
 type = "number"
 min = 1
 default = 5
+
+[[settings]]
+key = "notify_review"
+label = "Tell me when I'm asked to review"
+type = "bool"
+default = true
+
+[[settings]]
+key = "notify_verdicts"
+label = "Tell me when one of mine is approved or gets changes requested"
+type = "bool"
+default = true
+
+[[settings]]
+key = "notify_checks"
+label = "Tell me when the checks of one of mine fail"
+type = "bool"
+default = true
 
 [[settings]]
 key = "bots"
@@ -61,5 +84,11 @@ bindings = [
   { keys = ["Space f"], action = "filter", does = "the next filter: all, to review, yours, unread" },
   { keys = ["Ctrl+d", "PageDown"], action = "page-down", does = "scroll the details down" },
   { keys = ["Ctrl+u", "PageUp"], action = "page-up", does = "scroll the details up" },
+  { keys = ["Space m"], action = "merge", does = "merge it (squash, merge or rebase, as the repo allows; its branch deleted or kept)" },
+  { keys = ["Space r"], action = "rerun", does = "re-run its failed checks (GitHub Actions)" },
+  { keys = ["Space d"], action = "draft", does = "mark it ready for review (or back to draft)" },
+  { keys = ["Space u"], action = "reviewers", does = "ask someone to review it" },
+  { keys = ["i", "a"], action = "edit", does = "edit its title" },
+  { keys = ["cc"], action = "change", does = "edit its description (Markdown)" },
   { keys = ["R"], action = "refresh", does = "refresh now" },
 ]

@@ -7,6 +7,13 @@
 <body>
   <header class="td-toolbar" id="bar"></header>
   <p class="td-error" id="error" hidden></p>
+  <div id="ask" class="box" hidden>
+    <label id="ask-label" for="ask-input"></label>
+    <input id="ask-input" autocomplete="off" spellcheck="false">
+    <textarea id="ask-text" spellcheck="true" hidden></textarea>
+    <ul id="ask-choices"></ul>
+    <div class="buttons"><p class="td-muted" id="ask-hint"></p><button id="ask-cancel">Cancel</button><button id="ask-ok" class="primary">Save</button></div>
+  </div>
   <main class="td-split">
     <ul class="td-rows" id="rows"></ul>
     <section class="td-pane" id="details" hidden></section>
