@@ -174,16 +174,17 @@ function renderDetails(p) {
   const mergeNote = block ? (block.why ? `<span class="td-muted merge-note">Can't merge yet: ${esc(block.why)}</span>` : `<button id="merge">Merge <kbd>Space m</kbd></button>${block.warn ? `<span class="td-yellow merge-note">${esc(block.warn)}</span>` : ""}`) : "";
   const mine = p.category === "mine";
   const description = more?.about ? descriptionHtml(more.about.description, esc) || `<p class="td-muted">No description.</p>` : `<p class="td-muted">${more?.error ? "" : "Reading…"}</p>`;
-  $("details").innerHTML = `<h3>${esc(p.title)}${p.draft ? ` <span class="draft">draft</span>` : ""}</h3>
+  // Each button beside what it acts on: the PR's under its title, a part's with that part
+  $("details").innerHTML = `<h3>${esc(p.title)}${p.draft ? ` <span class="draft">draft</span>` : ""}${mine
+      ? ` <button class="inline" id="title" title="Edit the title (i)">Edit <kbd>i</kbd></button><button class="inline" id="draft">${p.draft ? "Ready for review" : "Back to draft"} <kbd>Space d</kbd></button>` : ""}</h3>
     <div class="td-sub"><span class="repo">${esc(p.repo)}</span><span>#${p.number}</span><span>@${esc(p.author)}</span><span>${ago(p.updated)}</span>
       ${p.head ? `<span class="branch">${esc(p.head)}</span>→<span class="branch">${esc(p.base)}</span>` : ""}</div>
-    <div class="td-actions">${pills}</div>
-    <div class="td-sect"><h5>Reviewers</h5>${reviewers}</div>
-    <div class="td-sect"><h5>Checks</h5>${checks}</div>
-    <div class="td-sect"><h5>Description</h5><div class="desc">${description}</div></div>
-    ${p.labels.length ? `<div class="td-sect"><h5>Labels</h5><div class="td-actions">${p.labels.map((l) => `<span class="td-tag">${esc(l)}</span>`).join("")}</div></div>` : ""}
     <div class="td-actions"><button class="primary" id="review">Review it <kbd>Enter</kbd></button><button id="open">Open in the browser <kbd>gx</kbd></button>${mergeNote}</div>
-    ${mine ? `<div class="td-actions"><button id="draft">${p.draft ? "Ready for review" : "Back to draft"} <kbd>Space d</kbd></button><button id="reviewers">Ask a reviewer <kbd>Space u</kbd></button><button id="title">Title <kbd>i</kbd></button><button id="body">Description <kbd>cc</kbd></button></div>` : ""}
+    <div class="td-actions">${pills}</div>
+    <div class="td-sect"><h5>Reviewers</h5>${reviewers}${mine ? `<button class="plus" id="reviewers" title="Ask someone to review it (Space u)">+ ask <kbd>Space u</kbd></button>` : ""}</div>
+    <div class="td-sect"><h5>Checks</h5>${checks}</div>
+    <div class="td-sect"><h5>Description${mine ? ` <button class="inline" id="body" title="Edit the description, as Markdown (cc)">Edit <kbd>cc</kbd></button>` : ""}</h5><div class="desc">${description}</div></div>
+    ${p.labels.length ? `<div class="td-sect"><h5>Labels</h5><div class="td-actions">${p.labels.map((l) => `<span class="td-tag">${esc(l)}</span>`).join("")}</div></div>` : ""}
     <div class="td-muted url">${esc(p.url)}</div>`;
 }
 

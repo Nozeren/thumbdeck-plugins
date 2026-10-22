@@ -24,7 +24,8 @@ the right side: verdicts, each check, the start of its description, labels. Filt
 - **Yours**: `Space d` marks a draft ready for review (or turns it back into a draft, asked first),
   `Space u` asks someone to review it (suggested reviewers first; type to search anyone who can
   review in the repo, several at once, or `org/team`), `i` edits its title and `cc` its
-  description (Markdown; Ctrl+Enter saves). The buttons under its details do the same.
+  description (Markdown; Ctrl+Enter saves). Its buttons do the same: Edit and Ready for review
+  (or Back to draft) beside its title, + ask under Reviewers, Edit beside Description.
 - **Notifications**, even while the view isn't shown (it looks every few minutes): a review
   asked of you; on yours, an approval, changes requested, and checks that started failing. Not
   what was already there at the first look. Each can be turned off in Settings.

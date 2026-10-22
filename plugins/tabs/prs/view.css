@@ -35,3 +35,7 @@ body { display: flex; flex-direction: column; font: 12.5px var(--mono); overflow
 .failed .step { color: var(--red); }
 .failed pre { margin: 4px 0; max-height: 220px; overflow: auto; padding: 6px 8px; border-radius: 6px; background: var(--bg-dim, var(--bg0)); font-size: 11px; line-height: 1.4; white-space: pre-wrap; word-break: break-word; }
 .merge-note { font-family: var(--sans); }
+/* A button beside what it acts on: in a heading (Edit), or a + link at the end of a section */
+.inline { margin-left: 6px; padding: 0 8px; font: normal 11px var(--sans); text-transform: none; letter-spacing: normal; vertical-align: 1px; }
+.plus { display: block; margin-top: 4px; padding: 0; border: 0; background: none; color: var(--grey); font: 12px var(--sans); cursor: pointer; }
+.plus:hover { color: var(--fg); }
