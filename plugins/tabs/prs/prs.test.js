@@ -64,7 +64,7 @@ test("about a PR: checks, reviewers (no bots, the asked ones too), labels", () =
   const a = aboutFrom(testdata("pr.json"), setup);
   assert.equal(a.author, "carla");
   assert.deepEqual([a.head, a.base], ["feature/discounts", "main"]);
-  assert.deepEqual(a.checks.map((c) => [c.name, c.state]), [["lint", "success"], ["unit tests", "success"], ["behave", "pending"], ["deploy/preview", "success"]]);
+  assert.deepEqual(a.checks.map((c) => [c.name, c.state]), [["lint", "success"], ["unit tests", "success"], ["behave", "pending"], ["deploy/preview", "success"], ["e2e (firefox)", "failure"]]);
   assert.deepEqual(a.reviewers, [{ name: "ann", state: "commented" }, { name: "bob", state: "approved" }, { name: "me", state: "asked" }]);
   assert.deepEqual(a.labels, ["feature", "checkout"]);
 });
@@ -112,4 +112,59 @@ test("versions", async () => {
   assert.equal(newer("0.8.0", "0.8.0"), false);
   assert.equal(newer("0.8.0", "0.10.1"), false);
   assert.equal(newer("0.8.0", undefined), true);
+});
+
+test("merging: the repo's methods, the one you used last first; what stops it", async () => {
+  const { mergeMethods, mergeBlocker } = await import("./prs.js");
+  assert.deepEqual(mergeMethods({ mergeCommitAllowed: true, squashMergeAllowed: true, rebaseMergeAllowed: false, viewerDefaultMergeMethod: "SQUASH" }).map((m) => m.value), ["squash", "merge"]);
+  assert.deepEqual(mergeMethods({}).map((m) => m.value), ["squash", "merge", "rebase"], "unknown: all");
+  assert.equal(mergeBlocker({ state: "CLEAN" }).why, "");
+  assert.equal(mergeBlocker({ state: "BLOCKED", decision: "REVIEW_REQUIRED" }).why, "it needs an approving review");
+  assert.match(mergeBlocker({ state: "BLOCKED", decision: "APPROVED" }).why, /required checks/);
+  assert.equal(mergeBlocker({ state: "DIRTY" }).why, "it has merge conflicts");
+  assert.match(mergeBlocker({ state: "CLEAN" }, true).why, /draft/);
+  assert.deepEqual(mergeBlocker({ state: "UNSTABLE" }), { why: "", warn: "some checks that aren't required failed" });
+  const a = aboutFrom(testdata("pr.json"), setup);
+  assert.deepEqual([a.id, a.headOid, a.merge.state, a.merge.fork, a.merge.autoDelete, a.merge.methods.map((m) => m.value)], ["PR_demo3", "a9c2f04", "CLEAN", false, false, ["squash", "rebase"]]);
+  assert.deepEqual(a.checks.at(-1), { name: "e2e (firefox)", state: "failure", detail: "", job: 9001, run: 77, url: "https://github.com/acme/app/actions/runs/77/job/9001" });
+  assert.deepEqual(a.suggested, ["dana_corp"]);
+});
+
+test("a failed job: its step, and the end of its log up to the error", async () => {
+  const { failedStep, logTail } = await import("./prs.js");
+  assert.equal(failedStep(testdata("job.json")), "Run behave");
+  assert.equal(failedStep({ steps: [{ name: "a", conclusion: "success" }] }), "");
+  const log = readFileSync(new URL("./testdata/job.log", import.meta.url), "utf8");
+  const tail = logTail(log, 5);
+  assert.equal(tail, "  features/checkout.feature:12  A member's discount comes off before tax\n\n0 features passed, 1 failed, 0 skipped\n4 scenarios passed, 1 failed, 0 skipped\nError: Process completed with exit code 1.");
+  assert.ok(!logTail(log).includes("Cleaning up"), "the post steps left out");
+  assert.ok(logTail(log).startsWith("▸ Run behave features/"));
+  assert.equal(logTail("a\nb\n\n", 5), "a\nb", "no error: the end");
+});
+
+test("notifications: review asked, verdicts and failed checks on yours, nothing at first", async () => {
+  const { prEvents, notices, snapshot } = await import("./prs.js");
+  const pr = (o) => ({ url: `u${o.number}`, repo: "acme/app", title: `PR ${o.number}`, author: "ann", checks: "SUCCESS", reviewers: [], category: "mine", ...o });
+  const before = [pr({ number: 1 }), pr({ number: 2, category: "reviewed" }), pr({ number: 3, reviewers: [{ name: "bob", state: "APPROVED" }] })];
+  const now = [
+    pr({ number: 1, checks: "FAILURE", reviewers: [{ name: "bob", state: "APPROVED" }, { name: "cy", state: "CHANGES_REQUESTED" }] }),
+    pr({ number: 2, category: "re-review" }),
+    pr({ number: 3, reviewers: [{ name: "bob", state: "APPROVED" }] }),
+    pr({ number: 4, category: "review" }),
+    pr({ number: 5, checks: "FAILURE" }),
+  ];
+  assert.deepEqual(prEvents(null, now), [], "the first look: nothing is news");
+  const events = prEvents(snapshot(before), now);
+  assert.deepEqual(events.map((e) => [e.kind, e.pr.number, e.by ?? ""]), [
+    ["approved", 1, "bob"], ["changes", 1, "cy"], ["checks", 1, ""], ["review", 2, ""], ["review", 4, ""],
+  ], "an approval already seen, or a new PR of yours failing, isn't news");
+  assert.deepEqual(notices(events, { notify_checks: false, notify_verdicts: false }), [["Review asked: acme/app #2", "PR 2 (@ann)"], ["Review asked: acme/app #4", "PR 4 (@ann)"]]);
+  assert.deepEqual(notices(events, {}).map(([t]) => t), ["5 changes on your pull requests"]);
+  assert.deepEqual(notices(events.slice(0, 1), {}), [["@bob approved acme/app #1", "PR 1"]]);
+});
+
+test("reviewers typed: logins and teams", async () => {
+  const { reviewersFrom, peopleFrom } = await import("./prs.js");
+  assert.deepEqual(reviewersFrom("@ann, bob acme/qa-team"), { reviewers: ["ann", "bob"], team_reviewers: ["qa-team"] });
+  assert.deepEqual(peopleFrom({ data: { repository: { assignableUsers: { nodes: [{ login: "ann", name: "Ann A" }, { login: "" }] } } } }), [{ value: "ann", label: "ann", note: "Ann A" }]);
 });

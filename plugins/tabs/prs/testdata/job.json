@@ -1,0 +1,27 @@
+{
+ "id": 9001,
+ "name": "e2e (firefox)",
+ "conclusion": "failure",
+ "steps": [
+  {
+   "name": "Set up job",
+   "conclusion": "success",
+   "number": 1
+  },
+  {
+   "name": "Install",
+   "conclusion": "success",
+   "number": 2
+  },
+  {
+   "name": "Run behave",
+   "conclusion": "failure",
+   "number": 3
+  },
+  {
+   "name": "Post Install",
+   "conclusion": "success",
+   "number": 4
+  }
+ ]
+}

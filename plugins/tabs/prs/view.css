@@ -17,3 +17,21 @@ body { display: flex; flex-direction: column; font: 12.5px var(--mono); overflow
 .desc p { margin: 0 0 8px; }
 .desc code { font-size: 12px; }
 .url { word-break: break-all; font-size: 11.5px; }
+/* Asking: a choice, a line, or a text (a description), over the list */
+.box { position: absolute; z-index: 2; top: 40px; left: 50%; transform: translateX(-50%); width: min(620px, calc(100% - 24px)); box-sizing: border-box;
+  display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border: 1px solid var(--bg3); border-radius: 8px; background: var(--bg1); box-shadow: 0 8px 28px #0007; }
+.box[hidden], .box [hidden] { display: none; }
+.box label { font-weight: 600; font-family: var(--sans); }
+.box input, .box textarea { width: 100%; box-sizing: border-box; }
+.box textarea { height: min(60vh, 460px); resize: vertical; font: 12.5px/1.5 var(--mono); }
+.box ul { list-style: none; margin: 0; padding: 0; max-height: 260px; overflow: auto; }
+.box ul:empty { display: none; }
+.box li { padding: 3px 8px; border-radius: 5px; cursor: pointer; }
+.box li.cursor { background: var(--bg2); box-shadow: inset 2px 0 var(--cursor, var(--orange)); }
+.box .buttons { display: flex; gap: 6px; align-items: center; }
+.box .buttons p { flex: 1; margin: 0; font-size: 11.5px; }
+/* A failed check: the step, the end of its log */
+.failed { margin: 4px 0 8px 18px; }
+.failed .step { color: var(--red); }
+.failed pre { margin: 4px 0; max-height: 220px; overflow: auto; padding: 6px 8px; border-radius: 6px; background: var(--bg-dim, var(--bg0)); font-size: 11px; line-height: 1.4; white-space: pre-wrap; word-break: break-word; }
+.merge-note { font-family: var(--sans); }

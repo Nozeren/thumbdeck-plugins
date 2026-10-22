@@ -1,4 +1,7 @@
-{"data":{"repository":{"pullRequest":{
+{"data":{"repository":{"mergeCommitAllowed":false,"squashMergeAllowed":true,"rebaseMergeAllowed":true,"deleteBranchOnMerge":false,"viewerDefaultMergeMethod":"SQUASH","pullRequest":{
+  "id":"PR_demo3","title":"Discounts for members and big carts","isDraft":false,"mergeStateStatus":"CLEAN","reviewDecision":"APPROVED","viewerCanUpdate":true,
+  "headRepository":{"nameWithOwner":"acme/app"},
+  "suggestedReviewers":[{"reviewer":{"login":"dana_corp"}}],
   "body":"Members get **10% off**, and carts of 5 items or more get 5.00 off: the bigger one wins.\n\nThe discount comes off before tax, as the shop's terms say. `item.qty` is now `item.quantity` everywhere.",
   "url":"https://github.com/acme/app/pull/3","headRefOid":"a9c2f04","headRefName":"feature/discounts","baseRefName":"main",
   "author":{"login":"carla_corp"},
@@ -9,7 +12,8 @@
     {"__typename":"CheckRun","name":"lint","status":"COMPLETED","conclusion":"SUCCESS"},
     {"__typename":"CheckRun","name":"unit tests","status":"COMPLETED","conclusion":"SUCCESS"},
     {"__typename":"CheckRun","name":"behave","status":"IN_PROGRESS","conclusion":null},
-    {"__typename":"StatusContext","context":"deploy/preview","state":"SUCCESS"}]}}}}]},
+    {"__typename":"StatusContext","context":"deploy/preview","state":"SUCCESS"},
+    {"__typename":"CheckRun","name":"e2e (firefox)","status":"COMPLETED","conclusion":"FAILURE","databaseId":9001,"detailsUrl":"https://github.com/acme/app/actions/runs/77/job/9001","checkSuite":{"workflowRun":{"databaseId":77}}}]}}}}]},
   "reviewThreads":{"nodes":[
     {"id":"T1","isResolved":false,"isOutdated":false,"path":"src/checkout.py","line":10,"startLine":null,"diffSide":"RIGHT",
      "comments":{"nodes":[{"author":{"login":"ann_corp"},"body":"Should a member's discount come off **before** tax? Right now it does.","createdAt":"2026-10-19T08:10:00Z"},
