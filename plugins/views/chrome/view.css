@@ -62,3 +62,5 @@ body.td-keys .rule[aria-selected="true"] { box-shadow: inset 2px 0 var(--cursor,
 .opt:disabled { opacity: 0.45; }
 /* display: grid / flex above would beat the hidden attribute */
 [hidden] { display: none !important; }
+/* Edit beside a section's heading */
+.inline { margin-left: 6px; padding: 0 8px; font: normal 11px var(--sans); text-transform: none; letter-spacing: normal; vertical-align: 1px; }

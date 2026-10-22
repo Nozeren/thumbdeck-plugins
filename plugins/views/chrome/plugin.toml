@@ -1,6 +1,6 @@
 id = "chrome"
 name = "Chrome"
-version = "2.0.0"
+version = "2.0.1"
 api = 2
 description = "Chrome profiles grouped by tenant: open the right one with a key, make, edit and delete them, and open thumbdeck's links in the profile signed in there"
 homepage = "https://github.com/Nozeren/thumbdeck-plugins/tree/main/plugins/views/chrome"
