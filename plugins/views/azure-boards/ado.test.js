@@ -2,7 +2,8 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import {
-  artifact, auth, branchName, changes, childIds, commentHtml, current, fieldSettings, gather, history, ids, item, orgUrl, page, patch, problem, rows, searchWiql, snapshot, sprintOnly, text, wiql, within,
+  areaPaths, artifact, auth, branchName, changes, childIds, commentHtml, createOps, creatable, current, fieldPatch, fieldSettings, fieldValue, gather, history, ids, isTask, item,
+  mentions, orgUrl, page, patch, pickerPeople, problem, rows, searchWiql, snapshot, sprintOnly, taskType, text, typedFields, typedValue, wiql, within,
 } from "./ado.js";
 
 const testdata = (f) => JSON.parse(readFileSync(new URL(`./testdata/${f}`, import.meta.url), "utf8"));
@@ -225,4 +226,94 @@ test("a page leaves out the fields it shows otherwise (a work log)", () => {
   const w = { id: 1, fields: { "System.Title": "x", "Custom.WorkLogData": "[{&quot;a&quot;:1}]", "Custom.Other": "y" } };
   assert.deepEqual(page(w, "contoso").other.map((f) => f.ref), ["Custom.Other", "Custom.WorkLogData"]);
   assert.deepEqual(page(w, "contoso", { skip: ["custom.worklogdata"] }).other.map((f) => f.ref), ["Custom.Other"]);
+});
+
+test("a new work item: its fields, and its parent as a link", () => {
+  assert.deepEqual(createOps({ title: " Fix it ", assignee: "me@x.test", iteration: "Shop\\Sprint 42", area: "Shop\\Accounts", parent: 4100, org: "contoso" }), [
+    { op: "add", path: "/fields/System.Title", value: "Fix it" },
+    { op: "add", path: "/fields/System.AssignedTo", value: "me@x.test" },
+    { op: "add", path: "/fields/System.IterationPath", value: "Shop\\Sprint 42" },
+    { op: "add", path: "/fields/System.AreaPath", value: "Shop\\Accounts" },
+    { op: "add", path: "/relations/-", value: { rel: "System.LinkTypes.Hierarchy-Reverse", url: "https://dev.azure.com/contoso/_apis/wit/workItems/4100" } },
+  ]);
+  assert.deepEqual(createOps({ title: "Alone", org: "contoso" }), [{ op: "add", path: "/fields/System.Title", value: "Alone" }], "nothing else when unknown");
+});
+
+test("the types a work item can be made as, and a task's", () => {
+  const categories = [
+    { referenceName: "Microsoft.TaskCategory", defaultWorkItemType: { name: "Tâche" } },
+    { referenceName: "Microsoft.HiddenCategory", workItemTypes: [{ name: "Code Review Request" }] },
+  ];
+  assert.equal(taskType(categories), "Tâche");
+  assert.equal(taskType([]), "Task");
+  assert.deepEqual(creatable([{ name: "Bug" }, { name: "Code Review Request" }, { name: "Old", isDisabled: true }, { name: "Tâche" }], categories), ["Bug", "Tâche"]);
+  assert.ok(isTask("task") && !isTask("Bug") && isTask("Tâche", "Tâche"));
+});
+
+test("the fields that can be typed: the type's, not the ones with a key or set by Azure DevOps", () => {
+  const known = new Map([
+    ["system.description", { name: "Description", type: "html" }], ["system.areapath", { name: "Area Path", type: "treePath" }],
+    ["microsoft.vsts.scheduling.remainingwork", { name: "Remaining Work", type: "double" }], ["custom.impact", { name: "Impact", type: "picklistString" }],
+    ["custom.secret", { name: "Secret", type: "string", readOnly: true }], ["system.history", { name: "History", type: "history" }],
+  ]);
+  const of = [
+    { referenceName: "System.Title", name: "Title" }, { referenceName: "System.Description", name: "Description" }, { referenceName: "System.AreaPath", name: "Area Path" },
+    { referenceName: "Microsoft.VSTS.Scheduling.RemainingWork", name: "Remaining Work" }, { referenceName: "Custom.Impact", name: "Impact", allowedValues: ["Low", "High"], alwaysRequired: true },
+    { referenceName: "Custom.Secret", name: "Secret" }, { referenceName: "System.History", name: "History" }, { referenceName: "WEF_1_Kanban.Column", name: "Column" },
+  ];
+  const got = typedFields(of, known, { "System.AreaPath": "Shop", "microsoft.vsts.scheduling.remainingwork": 2 }, { markdown: ["System.Description"] });
+  assert.deepEqual(got.map((f) => [f.ref, f.kind, f.value]), [
+    ["System.AreaPath", "path", "Shop"], ["Microsoft.VSTS.Scheduling.RemainingWork", "number", 2], ["System.Description", "html", null], ["Custom.Impact", "text", null],
+  ], "the ones with a value first, then by name");
+  assert.deepEqual(got.find((f) => f.ref === "Custom.Impact").allowed, ["Low", "High"]);
+  assert.ok(got.find((f) => f.ref === "Custom.Impact").required);
+  assert.ok(got.find((f) => f.ref === "System.Description").markdown);
+});
+
+test("what was typed for a field, as Azure DevOps takes it", () => {
+  assert.deepEqual(fieldValue("number", "3,5"), { value: 3.5 });
+  assert.deepEqual(fieldValue("number", "lots"), { problem: "a number, e.g. 2.5" });
+  assert.deepEqual(fieldValue("integer", "2.5"), { problem: "a whole number, e.g. 3" });
+  assert.deepEqual(fieldValue("integer", "-3"), { value: -3 });
+  assert.deepEqual(fieldValue("date", "2026-10-22"), { value: "2026-10-22T12:00:00Z" });
+  assert.deepEqual(fieldValue("date", "22/10/2026"), { problem: "a day, YYYY-MM-DD" });
+  assert.deepEqual(fieldValue("yes-no", "Yes"), { value: true });
+  assert.deepEqual(fieldValue("yes-no", "0"), { value: false });
+  assert.deepEqual(fieldValue("text", "  "), { value: null }, "empty: emptied");
+  assert.deepEqual(fieldValue("html", "  # Title\n\n"), { value: "  # Title" }, "a text keeps its start");
+  assert.equal(typedValue("date", "2026-03-31T00:00:00Z"), "2026-03-31");
+  assert.equal(typedValue("person", { displayName: "Dana", uniqueName: "dana@x.test" }), "dana@x.test");
+  assert.equal(typedValue("yes-no", true), "yes");
+});
+
+test("setting a field: refused if it changed meanwhile; emptied; kept as Markdown", () => {
+  assert.deepEqual(fieldPatch("Custom.A", 3, { rev: 7 }), [{ op: "test", path: "/rev", value: 7 }, { op: "add", path: "/fields/Custom.A", value: 3 }]);
+  assert.deepEqual(fieldPatch("Custom.A", null, { had: true }), [{ op: "remove", path: "/fields/Custom.A" }]);
+  assert.deepEqual(fieldPatch("Custom.A", null, { had: false, rev: 7 }), [], "nothing to empty");
+  assert.deepEqual(fieldPatch("System.Description", "# x", { markdown: true }), [
+    { op: "add", path: "/fields/System.Description", value: "# x" }, { op: "add", path: "/multilineFieldsFormat/System.Description", value: "Markdown" },
+  ]);
+});
+
+test("area paths from the classification nodes", () => {
+  assert.deepEqual(areaPaths({ name: "Shop", children: [{ name: "Accounts", children: [{ name: "SSO" }] }, { name: "Checkout" }] }),
+    ["Shop", "Shop\\Accounts", "Shop\\Accounts\\SSO", "Shop\\Checkout"]);
+});
+
+test("@mentions: in a comment, and the people picker's people", () => {
+  assert.ok(mentions({ text: '<a href="#" data-vss-mention="version:2.0,AB-12">@Me</a> look' }, "ab-12"));
+  assert.ok(mentions({ text: "@<ab-12> look", format: "markdown" }, "AB-12"), "a Markdown comment's");
+  assert.ok(mentions({ text: "", mentions: [{ targetId: "ab-12" }] }, "ab-12"));
+  assert.ok(!mentions({ text: "nothing" }, "ab-12"));
+  assert.ok(!mentions({ text: "ab-12" }, ""));
+  assert.deepEqual(pickerPeople({ results: [{ identities: [
+    { entityType: "User", displayName: "Grace Ho", signInAddress: "grace@x.test", localId: "g-1" },
+    { entityType: "User", displayName: "Not in it yet", mail: "new@x.test", originId: "o-2" },
+    { entityType: "Group", displayName: "Team", mail: "team@x.test" },
+    { entityType: "User", displayName: "No email" },
+  ] }] }), [
+    { value: "grace@x.test", label: "Grace Ho", note: "grace@x.test", id: "g-1" },
+    { value: "new@x.test", label: "Not in it yet", note: "new@x.test", id: "o-2" },
+  ]);
+  assert.equal(commentHtml("hi @Ann", "contoso", [{ name: "Ann", id: "a-1" }]), '<p>hi <a href="#" data-vss-mention="version:2.0,a-1">@Ann</a></p>');
 });

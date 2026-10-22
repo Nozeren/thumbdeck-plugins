@@ -103,6 +103,8 @@ export function item(w, org, mine = true, above = false) {
     project,
     assignedTo: f["System.AssignedTo"]?.displayName ?? "",
     assignee: f["System.AssignedTo"]?.uniqueName ?? "", // for "is it mine" and assigning
+    assigneeId: f["System.AssignedTo"]?.id ?? "", // for @mentioning them
+    area: f["System.AreaPath"] ?? "",
     changedBy: f["System.ChangedBy"]?.uniqueName ?? "",
     changedByName: f["System.ChangedBy"]?.displayName ?? "",
     rev: w.rev ?? null,
@@ -289,7 +291,7 @@ export function page(w, org, { types = new Map(), custom = new Map(), skip = [] 
     created: f["System.CreatedDate"] ?? "",
     changedBy: value(f["System.ChangedBy"]) ?? "",
     changed: f["System.ChangedDate"] ?? "",
-    rich: shown.filter((x) => x.where === "main").map((x) => ({ label: x.label, html: rich(x) })),
+    rich: shown.filter((x) => x.where === "main").map((x) => ({ label: x.label, html: rich(x), ref: x.k })),
     planning: shown.filter((x) => x.where === "planning").map((x) => (isRich(x) ? { label: x.label, value: text(f[x.k]), format: "text" } : scalar(x))),
     other: shown.filter((x) => x.where === "details").map((x) => (isRich(x) ? { label: x.label, value: text(f[x.k]), format: "text" } : scalar(x))),
     related: rels.filter((r) => /\/workItems\/\d+$/i.test(r.url ?? ""))
@@ -388,8 +390,10 @@ export function patch(set, rev) {
   return ops;
 }
 
-/** A comment as Azure DevOps keeps them (HTML), from what was typed (Markdown) */
-export const commentHtml = (typed, org) => markdown(String(typed).trim(), org ? { workItem: (id) => `${orgUrl(org)}/_workitems/edit/${id}` } : {});
+/** A comment as Azure DevOps keeps them (HTML), from what was typed (Markdown); mentions: the
+ *  people picked for @Name ([{ name, id }]), mentioned as Azure DevOps does (which tells them) */
+export const commentHtml = (typed, org, mentions = []) =>
+  markdown(String(typed).trim(), { mentions, ...(org ? { workItem: (id) => `${orgUrl(org)}/_workitems/edit/${id}` } : {}) });
 
 /** Is this you (an identity from Azure DevOps: uniqueName, an email)? */
 export const isMe = (who, me) => !!who && !!me && String(who).toLowerCase() === String(me).toLowerCase();
@@ -435,3 +439,152 @@ export function sprintOnly(items) {
 
 /** Ids in the answer of a WIQL query, in its order */
 export const ids = (answer) => (answer?.workItems ?? []).map((w) => w.id);
+
+// Creating a work item: a task under a story or a bug (o), or any type (Space a)
+/** The JSON Patch for a new work item: its title, who has it, its iteration and area, and its
+ *  parent (an id) */
+export function createOps({ title, assignee = "", iteration = "", area = "", parent = null, org }) {
+  const ops = [{ op: "add", path: "/fields/System.Title", value: String(title).trim() }];
+  if (assignee) ops.push({ op: "add", path: "/fields/System.AssignedTo", value: assignee });
+  if (iteration) ops.push({ op: "add", path: "/fields/System.IterationPath", value: iteration });
+  if (area) ops.push({ op: "add", path: "/fields/System.AreaPath", value: area });
+  if (parent != null) ops.push({ op: "add", path: "/relations/-", value: { rel: PARENT, url: `${orgUrl(org)}/_apis/wit/workItems/${parent}` } });
+  return ops;
+}
+
+/** The type a task is in a project (its Task category's: Task in every process), from
+ *  /_apis/wit/workitemtypecategories */
+export const taskType = (categories) => (categories ?? []).find((c) => c.referenceName === "Microsoft.TaskCategory")?.defaultWorkItemType?.name ?? "Task";
+
+/** The types a work item can be made as in a project (not hidden or disabled), from
+ *  /_apis/wit/workitemtypes and /_apis/wit/workitemtypecategories */
+export function creatable(types, categories) {
+  const hidden = new Set((categories ?? []).find((c) => c.referenceName === "Microsoft.HiddenCategory")?.workItemTypes?.map((t) => t.name) ?? []);
+  return (types ?? []).filter((t) => !t.isDisabled && !hidden.has(t.name)).map((t) => t.name);
+}
+
+/** Does a work item take tasks under it, or is it one (a task: a new one goes beside it) */
+export const isTask = (type, task = "Task") => String(type).toLowerCase() === String(task).toLowerCase();
+
+// Changing any field (Space x, a click on a property): how each type of field is typed
+const KINDS = {
+  html: "html", plaintext: "long", string: "text", pickliststring: "text", guid: "text", integer: "integer", picklistinteger: "integer",
+  double: "number", picklistdouble: "number", datetime: "date", boolean: "yes-no", identity: "person", treepath: "path",
+};
+/** A field's type (/_apis/wit/fields) as it's typed here; null: not typed (history…) */
+export const fieldKind = (type) => KINDS[String(type ?? "").toLowerCase()] ?? null;
+
+// Fields with their own key, or set by Azure DevOps itself
+const NOT_TYPED = new Set([
+  "System.Id", "System.Rev", "System.WorkItemType", "System.TeamProject", "System.CreatedBy", "System.CreatedDate", "System.ChangedBy",
+  "System.ChangedDate", "System.AuthorizedAs", "System.AuthorizedDate", "System.RevisedDate", "System.Watermark", "System.NodeName",
+  "System.AreaId", "System.IterationId", "System.CommentCount", "System.BoardColumn", "System.BoardColumnDone", "System.BoardLane",
+  "System.ExternalLinkCount", "System.HyperLinkCount", "System.AttachedFileCount", "System.RelatedLinkCount", "System.RemoteLinkCount",
+  "System.History", "System.Reason", "System.Parent", "System.State", "System.AssignedTo", "System.Title", "System.Tags", "System.IterationPath",
+  "Microsoft.VSTS.Common.Priority", "Microsoft.VSTS.Common.StateChangeDate", "Microsoft.VSTS.Common.ActivatedBy", "Microsoft.VSTS.Common.ActivatedDate",
+  "Microsoft.VSTS.Common.ResolvedBy", "Microsoft.VSTS.Common.ResolvedDate", "Microsoft.VSTS.Common.ClosedBy", "Microsoft.VSTS.Common.ClosedDate",
+].map((k) => k.toLowerCase()));
+
+/** The fields of a work item's type that can be typed here: its type's fields
+ *  (workitemtypes/{type}/fields?$expand=allowedValues), with the organization's types (fields:
+ *  ref lowercase -> { name, type, readOnly }), and its values. [{ ref, name, kind, value,
+ *  allowed, required, help, markdown }], the ones with a value first, then by name */
+export function typedFields(typeFields, fields, values = {}, { markdown = [] } = {}) {
+  const md = new Set(markdown.map((k) => k.toLowerCase()));
+  const out = [];
+  for (const t of typeFields ?? []) {
+    const ref = t.referenceName;
+    const f = fields.get(String(ref).toLowerCase());
+    if (!ref || NOT_TYPED.has(ref.toLowerCase()) || /^WEF_|^System\.(AreaLevel|IterationLevel)/i.test(ref) || f?.readOnly) continue;
+    const kind = fieldKind(f?.type ?? "string");
+    if (!kind) continue;
+    const v = Object.entries(values).find(([k]) => k.toLowerCase() === ref.toLowerCase())?.[1];
+    out.push({
+      ref, name: t.name || f?.name || ref, kind, value: v ?? null, allowed: (t.allowedValues ?? []).map(String), required: !!t.alwaysRequired,
+      help: t.helpText ?? "", markdown: md.has(ref.toLowerCase()),
+    });
+  }
+  const has = (x) => x.value != null && x.value !== "";
+  return out.sort((a, b) => Number(has(b)) - Number(has(a)) || a.name.localeCompare(b.name));
+}
+
+/** What was typed for a field, as Azure DevOps takes it: { value } (null: empty it) or
+ *  { problem } */
+export function fieldValue(kind, typed) {
+  const raw = typed == null ? "" : String(typed);
+  const t = raw.trim();
+  if (kind === "html" || kind === "long") return { value: t ? raw.replace(/\s+$/, "") : null };
+  if (!t) return { value: null };
+  if (kind === "integer") return /^-?\d+$/.test(t) ? { value: Number(t) } : { problem: "a whole number, e.g. 3" };
+  if (kind === "number") {
+    const n = Number(t.replace(",", "."));
+    return Number.isFinite(n) && /^-?[\d.,]+$/.test(t) ? { value: n } : { problem: "a number, e.g. 2.5" };
+  }
+  if (kind === "date") {
+    if (!/^\d{4}-\d\d-\d\d$/.test(t) || Number.isNaN(Date.parse(t))) return { problem: "a day, YYYY-MM-DD" };
+    return { value: `${t}T12:00:00Z` }; // noon (UTC): the same day wherever it's looked at
+  }
+  if (kind === "yes-no") {
+    if (/^(yes|y|true|1)$/i.test(t)) return { value: true };
+    if (/^(no|n|false|0)$/i.test(t)) return { value: false };
+    return { problem: "yes or no" };
+  }
+  return { value: t };
+}
+
+/** A field's value as it's typed (a date as YYYY-MM-DD, a person as their email…) */
+export function typedValue(kind, v) {
+  if (v == null) return "";
+  if (typeof v === "object") return v.uniqueName ?? v.displayName ?? "";
+  if (kind === "date") return String(v).slice(0, 10);
+  if (kind === "yes-no") return v === true || /^true$/i.test(String(v)) ? "yes" : "no";
+  return String(v);
+}
+
+/** The JSON Patch that sets a field (value null: empties it, if it had one; [] then: nothing to
+ *  do). markdown: kept as Markdown (Azure DevOps' Markdown fields). Refused if the work item
+ *  changed since rev */
+export function fieldPatch(ref, value, { rev = null, had = true, markdown = false } = {}) {
+  if (value == null && !had) return [];
+  const ops = rev == null ? [] : [{ op: "test", path: "/rev", value: rev }];
+  if (value == null) ops.push({ op: "remove", path: `/fields/${ref}` });
+  else {
+    ops.push({ op: "add", path: `/fields/${ref}`, value });
+    if (markdown) ops.push({ op: "add", path: `/multilineFieldsFormat/${ref}`, value: "Markdown" });
+  }
+  return ops;
+}
+
+/** A project's area paths ("Shop", "Shop\\Accounts"…), from classificationnodes/Areas?$depth= */
+export function areaPaths(node, above = "") {
+  if (!node?.name) return [];
+  const path = above ? `${above}\\${node.name}` : node.name;
+  return [path, ...(node.children ?? []).flatMap((c) => areaPaths(c, path))];
+}
+
+// @mentions: in a comment, Azure DevOps keeps one as <a data-vss-mention="version:2.0,{id}">@Name</a>
+// (in a Markdown comment: @<{id}>), the id the person's identity's
+/** Is this identity id mentioned in a comment? */
+export function mentions(comment, id) {
+  if (!id) return false;
+  const want = String(id).toLowerCase();
+  if ((comment?.mentions ?? []).some((m) => String(m.targetId ?? "").toLowerCase() === want)) return true;
+  return String(comment?.text ?? "").toLowerCase().includes(want);
+}
+
+/** The work items you were @mentioned on (Azure DevOps keeps the last 30 days') */
+export const MENTIONED_WIQL = "SELECT [System.Id] FROM WorkItems WHERE [System.Id] IN (@RecentMentions) ORDER BY [System.ChangedDate] DESC";
+
+/** People from the identity picker (/_apis/IdentityPicker/Identities): { value: their email,
+ *  label, note, id } */
+export function pickerPeople(answer) {
+  const out = [];
+  for (const r of answer?.results ?? []) {
+    for (const i of r.identities ?? []) {
+      const email = i.signInAddress || i.mail || "";
+      if (!email || i.entityType === "Group") continue;
+      out.push({ value: email, label: i.displayName || email, note: email, id: i.localId || i.originId || "" });
+    }
+  }
+  return out;
+}

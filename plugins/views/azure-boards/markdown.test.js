@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { decode, markdown, plainLines, richHtml } from "./markdown.js";
+import { decode, markdown, plainLines, richHtml, toMarkdown } from "./markdown.js";
 
 test("blocks", () => {
   assert.equal(markdown("# One\n\nSome *text*\nand more  \nend"), "<h1>One</h1>\n<p>Some <em>text</em><br>and more<br>end</p>", "a line break is kept");
@@ -50,4 +50,42 @@ test("an HTML field without tags: its entities as characters, escaped once", () 
 test("entities", () => {
   assert.equal(decode("&amp;lt; &nbsp;&#65;&#x42;&bogus; &#0;"), "&lt;  AB&bogus; &#0;");
   assert.equal(plainLines("<div>&quot;a&quot; &amp;amp;</div>"), '"a" &amp;');
+});
+
+test("@mentions: the people picked become Azure DevOps' mentions", () => {
+  const people = [{ name: "Ann", id: "a-1" }, { name: "Ann Lee", id: "a-2" }];
+  assert.equal(markdown("cc @Ann Lee and @Ann.", { mentions: people }),
+    '<p>cc <a href="#" data-vss-mention="version:2.0,a-2">@Ann Lee</a> and <a href="#" data-vss-mention="version:2.0,a-1">@Ann</a>.</p>', "the longest name first");
+  assert.equal(markdown("mail ann@Ann `@Ann` @Annie", { mentions: people }), "<p>mail ann@Ann <code>@Ann</code> @Annie</p>", "not in an email, code or a longer word");
+  assert.equal(markdown("@Bob"), "<p>@Bob</p>", "no one picked: text");
+});
+
+test("HTML as Markdown, for editing", () => {
+  const md = (html) => toMarkdown(html).text;
+  assert.equal(md("<div>One <b>bold</b> line</div><div><br></div><div>Two</div>"), "One **bold** line\n\nTwo", "the editor's lines");
+  assert.equal(md("<p>a<br>b</p><h2>Head</h2><ul><li>x<ul><li>y</li></ul></li><li>z</li></ul>"), "a\nb\n\n## Head\n\n- x\n  - y\n- z");
+  assert.equal(md('<ol start="3"><li>c</li><li>d</li></ol>'), "3. c\n4. d");
+  assert.equal(md('<p><a href="https://x.test/a b">the page</a> <a href="https://y.test">https://y.test</a> <img src="https://i.test/p.png" alt="pic"></p>'),
+    "[the page](https://x.test/a%20b) https://y.test ![pic](https://i.test/p.png)");
+  assert.equal(md("<pre><code>if (a &lt; b)\n  go()</code></pre>"), "```\nif (a < b)\n  go()\n```");
+  assert.equal(md("<blockquote><p>said</p></blockquote>"), "> said");
+  assert.equal(md("<div>2 * 3 and [x] # not a heading</div><div># this either</div>"), "2 \\* 3 and \\[x\\] # not a heading\n\\# this either", "marks escaped");
+  assert.equal(md("<table><tr><th>a</th><th>b</th></tr><tr><td>1</td><td>2|3</td></tr></table>"), "| a | b |\n| --- | --- |\n| 1 | 2\\|3 |");
+  assert.equal(md("<div>x<script>alert(1)</script></div>"), "x");
+  assert.equal(md("plain &amp; text"), "plain & text");
+});
+
+test("HTML as Markdown: mentions kept, what can't be kept said", () => {
+  const r = toMarkdown('<div><a href="#" data-vss-mention="version:2.0,ad96-1">@John Doe</a>&nbsp;<u>see</u> <span style="color:red">this</span></div><table><tr><td colspan="2">x</td></tr></table>');
+  assert.deepEqual(r.mentions, [{ name: "John Doe", id: "ad96-1" }]);
+  assert.deepEqual(r.lost.sort(), ["colours", "merged table cells", "underlines"]);
+  assert.match(r.text, /^@John Doe see this/);
+});
+
+test("Markdown → HTML → Markdown gives the same text", () => {
+  const src = "Some **bold**, *em* and `code`\nnext line\n\n## Head\n\n- one\n- two\n  - deeper\n\n1. first\n2. second\n\n> quote\n\n| a | b |\n| --- | --- |\n| 1 | 2 |\n\n```\nx < y\n```\n\ncc @Ann Lee, see [it](https://x.test)";
+  const people = [{ name: "Ann Lee", id: "a-2" }];
+  const back = toMarkdown(markdown(src, { mentions: people }));
+  assert.equal(back.text, src);
+  assert.deepEqual(back.mentions, people);
 });

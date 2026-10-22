@@ -1,8 +1,8 @@
 id = "azure-boards"
 name = "Azure Boards"
-version = "2.0.0"
+version = "2.1.0"
 api = 2
-description = "Your Azure DevOps work items as a tree, with what's under and above them: their pages as in Azure DevOps, changes (state, assignee, comments…), notifications, the current sprint, the hours you logged by day"
+description = "Your Azure DevOps work items as a tree, with what's under and above them: their pages as in Azure DevOps, new tasks, changes (state, assignee, description, any field, comments with @mentions…), notifications (@mentions too), the current sprint, the hours you logged by day"
 homepage = "https://github.com/Nozeren/thumbdeck-plugins/tree/main/plugins/views/azure-boards"
 icon = "icon.svg"
 
@@ -80,6 +80,12 @@ type = "bool"
 default = true
 
 [[settings]]
+key = "notify_mentions"
+label = "Tell me when someone @mentions me (on anyone's work item)"
+type = "bool"
+default = true
+
+[[settings]]
 key = "fields"
 label = "Fields"
 type = "list"
@@ -150,12 +156,19 @@ bindings = [
   { keys = ["r"], action = "replace", does = "change its state" },
   { keys = ["Space u"], action = "assign", does = "assign it (to you, someone, nobody)" },
   { keys = ["cc"], action = "change", does = "write a comment (the box under its activity; Ctrl+Enter sends)" },
-  { keys = ["i", "a"], action = "edit", does = "edit its title" },
+  { keys = ["i", "a"], action = "edit", does = "edit its title (a comment of yours highlighted: it)" },
   { keys = ["Space g"], action = "tags", does = "edit its tags" },
   { keys = ["Space n"], action = "priority", does = "change its priority" },
   { keys = ["Space m"], action = "iteration", does = "move it to another iteration (sprint)" },
   { keys = ["Space c"], action = "hours", does = "the hours you logged, day by day (a calendar) / back to the list" },
   { keys = ["Space l"], action = "log", does = "log time on it (the Hours field a work log), or change or remove an entry" },
+  { keys = ["o"], action = "new", does = "a new task under it (beside it, for a task): its title asked; yours, in the current sprint (:task Its title)" },
+  { keys = ["Space a"], action = "add", does = "add a work item: its type, then under it, beside it or on its own" },
+  { keys = ["Space d"], action = "description", does = "edit its description (repro steps…) as Markdown, @mentions too" },
+  { keys = ["Space x"], action = "field", does = "change another of its fields (area, remaining work, your organization's own…)" },
+  { keys = ["]t"], action = "next-thread", does = "highlight the next comment (yours: i edits it, dd takes it back)" },
+  { keys = ["[t"], action = "previous-thread", does = "highlight the previous comment" },
+  { keys = ["dd"], action = "delete", does = "take back the highlighted comment (yours; asks first)" },
   { keys = ["R"], action = "refresh", does = "look again now" },
 ]
 
@@ -177,15 +190,22 @@ bindings = [
   { keys = ["r"], action = "replace", does = "change its state" },
   { keys = ["Space u"], action = "assign", does = "assign it" },
   { keys = ["cc"], action = "change", does = "write a comment" },
-  { keys = ["i", "a"], action = "edit", does = "edit its title" },
+  { keys = ["i", "a"], action = "edit", does = "edit its title (a comment of yours highlighted: it)" },
   { keys = ["Space g"], action = "tags", does = "edit its tags" },
   { keys = ["Space n"], action = "priority", does = "change its priority" },
   { keys = ["Space m"], action = "iteration", does = "move it to another iteration" },
   { keys = ["Space l"], action = "log", does = "log time on it, or change or remove an entry" },
+  { keys = ["o"], action = "new", does = "a new task under it (beside it, for a task)" },
+  { keys = ["Space a"], action = "add", does = "add a work item: its type, then where" },
+  { keys = ["Space d"], action = "description", does = "edit its description as Markdown" },
+  { keys = ["Space x"], action = "field", does = "change another of its fields" },
+  { keys = ["]t"], action = "next-thread", does = "highlight the next comment (yours: i edits it, dd takes it back)" },
+  { keys = ["[t"], action = "previous-thread", does = "highlight the previous comment" },
+  { keys = ["dd"], action = "delete", does = "take back the highlighted comment (yours)" },
   { keys = ["Space /"], action = "search-wide", does = "search work items" },
   { keys = ["Space c"], action = "hours", does = "the hours calendar" },
   { keys = ["R"], action = "refresh", does = "look again" },
-  { keys = ["q", "Escape"], action = "leave", does = "back where you came from (the calendar, the search, the list)" },
+  { keys = ["q", "Escape"], action = "leave", does = "back where you came from (the calendar, the search, the list); a comment highlighted: let it go" },
 ]
 
 [keys.search]

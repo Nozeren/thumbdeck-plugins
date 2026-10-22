@@ -220,3 +220,31 @@ body.td-keys .found tr.cursor td:first-child { box-shadow: inset 2px 0 var(--cur
 .found .title { white-space: normal; width: 100%; }
 .found .state, .found .who { color: var(--grey); }
 #search-button { padding: 2px 8px; }
+/* Writing a long text (a description, your comment): Markdown, in a box over the page */
+#editor { position: absolute; z-index: 2; top: 44px; bottom: 12px; left: 50%; transform: translateX(-50%); width: min(760px, calc(100% - 24px));
+  display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; box-sizing: border-box;
+  border: 1px solid var(--bg3); border-radius: 8px; background: var(--bg1); box-shadow: 0 8px 28px #0007; }
+#editor[hidden] { display: none; }
+#editor .head { display: flex; gap: 8px; align-items: baseline; }
+#editor label { font-weight: 600; }
+#editor .td-error { margin: 0; font-size: 12px; }
+#editor textarea { flex: 1; min-height: 120px; width: 100%; box-sizing: border-box; resize: none; font: 13px/1.5 var(--mono); }
+#editor .buttons { display: flex; gap: 6px; align-items: center; }
+#editor .buttons p { flex: 1; margin: 0; font-size: 12px; }
+#editor .buttons button { padding: 3px 12px; }
+#editor-ok { background: var(--bg3); }
+/* @mentions: the people offered while typing @… */
+#mention { position: fixed; z-index: 3; list-style: none; margin: 0; padding: 4px; max-height: 260px; overflow: auto;
+  border: 1px solid var(--bg3); border-radius: 8px; background: var(--bg1); box-shadow: 0 8px 28px #0007; }
+#mention li { display: flex; align-items: center; gap: 6px; padding: 3px 8px; border-radius: 5px; cursor: pointer; white-space: nowrap; overflow: hidden; }
+#mention li.cursor { background: var(--bg2); box-shadow: inset 2px 0 var(--cursor, var(--orange)); }
+#mention li.hint { cursor: default; font-size: 11px; }
+#mention .avatar { display: inline-grid; place-items: center; flex: none; width: 18px; height: 18px; border-radius: 50%; background: var(--bg3); font-size: 11px; text-transform: uppercase; }
+/* Your comments: changed or taken back (]t highlights one) */
+.activity .comment .yours { margin-left: auto; display: flex; gap: 4px; opacity: 0; }
+.activity .comment:hover .yours, .activity .comment.picked .yours { opacity: 1; }
+.activity .comment .yours button { padding: 0 8px; font-size: 11px; font-weight: normal; }
+.activity .comment.picked { box-shadow: inset 2px 0 var(--cursor, var(--orange)), 0 0 0 1px var(--bg3); }
+/* Writing a text (its Edit beside the heading) */
+#detail h3 button.write { text-transform: none; letter-spacing: normal; margin-left: 6px; padding: 0 8px; font-size: 11px; font-weight: normal; vertical-align: 1px; }
+.props .editable[data-edit="field"] { white-space: nowrap; }
