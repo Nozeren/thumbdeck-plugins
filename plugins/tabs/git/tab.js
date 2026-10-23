@@ -1,12 +1,13 @@
 // The Git tab: the project's repo at a glance, read-only. Three lists (Tab switches): the
 // uncommitted changes, recent commits, and branches with stashes; the highlighted one beside
-// them: a file's diff, a commit's message, files and diff, a branch against main. Keys come from
-// thumbdeck as actions (plugin.toml [keys.git]).
+// them: a file's diff, a commit's message, files and diff, a branch against main. In Commits, v
+// picks a run of commits to see together, as a pull request shows them. Keys come from thumbdeck
+// as actions (plugin.toml [keys.git], and [keys.visual] while picking).
 import {
   ago, BRANCH_FORMAT, cut, diffLines, groupChanges, LOG_STAT_ARGS, mainBranch, parseBranches, parseLogStat,
-  parseNumstat, parseStashes, parseStatus, refNames, STASH_FORMAT, stateWord, track,
+  parseNumstat, parseStashes, parseStatus, pickRange, refNames, STASH_FORMAT, stateWord, track,
 } from "./git.js";
-import { git, review } from "./repo.js";
+import { before, git, notIn, review } from "./repo.js";
 
 const td = window.thumbdeck;
 const esc = td.escape;
@@ -71,6 +72,7 @@ let commits = null;
 let refs = null;
 let setup = await td.setup.get();
 let visible = true;
+let anchor = null; // the commit where picking started (v): it and the cursor's commit, and all between, go together
 
 function rows() {
   if (view === "changes") return groupChanges(st?.changes ?? []).map((file) => ({ kind: "file", file }));
@@ -79,6 +81,11 @@ function rows() {
     ...(refs?.branches ?? []).map((branch) => ({ kind: "branch", branch })),
     ...(refs?.stashes ?? []).map((stash) => ({ kind: "stash", stash })),
   ];
+}
+
+/** The picked commits as [newest, oldest] indexes in the list, while picking */
+function picked() {
+  return view === "commits" ? pickRange(commits ?? [], anchor, cursor) : null;
 }
 
 /** Which row that is: the same after a refresh rebuilds the list */
@@ -97,6 +104,8 @@ async function load(which = view) {
   } catch (e) {
     error = e.message;
   }
+  // The commit picking started from is gone (a rebase, a reset): stop picking
+  if (anchor && !picked()) stopPicking(false);
   cursor = Math.min(cursor, Math.max(0, rows().length - 1));
   render();
 }
@@ -120,12 +129,14 @@ function renderBar() {
   html += `<span class="spacer"></span>`;
   const g = groupChanges(st?.changes ?? []);
   const n = { changes: st ? g.length : null, commits: commits?.length ?? null, branches: refs ? refs.branches.length : null };
+  const pick = picked();
+  if (pick) html += `<span class="td-chip td-blue">${pick[1] - pick[0] + 1} picked <kbd>Esc</kbd></span>`;
   for (const v of views) html += `<button class="td-chip" aria-pressed="${v === view}" data-view="${v}">${viewName[v]}${n[v] !== null ? ` <b>${n[v]}</b>` : ""}</button>`;
   html += `<kbd title="Tab: the next list">Tab</kbd><button class="tool" id="setup" title="Set up this tab (Space S)">⚙ <kbd>Space S</kbd></button>`;
   $("bar").innerHTML = html;
 }
 
-function rowHtml(r, i) {
+function rowHtml(r, i, inPick) {
   const sel = `aria-selected="${i === cursor}" data-i="${i}"`;
   if (r.kind === "file") {
     const f = r.file;
@@ -139,7 +150,7 @@ function rowHtml(r, i) {
   if (r.kind === "commit") {
     const c = r.commit;
     const chips = refNames(c.refs).map((n) => `<span class="ref${n === st?.branch?.name ? " head" : n.startsWith("tag: ") ? " tag" : ""}">${esc(n.replace(/^tag: /, "🏷 "))}</span>`).join("");
-    return `<li class="td-row" ${sel}><span></span>
+    return `<li class="td-row${inPick ? " picked" : ""}" ${sel}><span class="state td-blue">${inPick ? "▌" : ""}</span>
       <span class="td-l1"><span class="td-title">${esc(c.subject)}</span>${chips}</span>
       <span class="td-side">${c.stat.files ? `<span>${c.stat.files} file${c.stat.files === 1 ? "" : "s"}</span><span><span class="td-green">+${c.stat.added}</span> <span class="td-red">−${c.stat.removed}</span></span>` : ""}</span>
       <span class="td-l2"><span class="hash">${esc(c.short)}</span><span>${esc(c.author)}</span><span>${ago(c.date)}</span></span></li>`;
@@ -165,6 +176,7 @@ function render() {
   $("error").hidden = !error;
   $("error").textContent = error;
   const list = rows();
+  const pick = picked();
   let html = "";
   list.forEach((r, i) => {
     const prev = list[i - 1];
@@ -172,7 +184,7 @@ function render() {
       html += `<li class="td-group">${groupTitle[r.file.group]} <span class="n">${list.filter((x) => x.kind === "file" && x.file.group === r.file.group).length}</span></li>`;
     } else if (r.kind === "branch" && i === 0) html += `<li class="td-group">Branches <span class="n">${refs.branches.length}</span></li>`;
     else if (r.kind === "stash" && prev?.kind !== "stash") html += `<li class="td-group">Stashes <span class="n">${refs.stashes.length}</span></li>`;
-    html += rowHtml(r, i);
+    html += rowHtml(r, i, pick && i >= pick[0] && i <= pick[1]);
   });
   if (!list.length) {
     const looking = view === "changes" ? !st : view === "commits" ? !commits : !refs;
@@ -182,7 +194,7 @@ function render() {
   $("rows").innerHTML = html;
   $("rows").querySelector('[aria-selected="true"]')?.scrollIntoView({ block: "nearest" });
   $("preview").hidden = !list[cursor];
-  const key = rowKey(list[cursor]);
+  const key = pick && pick[0] !== pick[1] ? `picked:${commits[pick[0]].hash}:${commits[pick[1]].hash}` : rowKey(list[cursor]);
   if (key !== shownKey) {
     shownKey = key;
     clearTimeout(detailTimer);
@@ -208,14 +220,39 @@ function diffHtml(text) {
 }
 const filesHtml = (stats) => `<div class="files">${[...stats].map(([p, s]) => `<div class="f"><span class="p">${esc(p)}</span>${counts(s)}</div>`).join("")}</div>`;
 // Under the title, before the message and files (they can be long)
-const reviewButton = (what) => `<div class="td-actions"><button class="primary" id="review">Review ${what} <kbd>Enter</kbd></button></div>`;
+const reviewButton = (what, more = "") => `<div class="td-actions"><button class="primary" id="review">Review ${what} <kbd>Enter</kbd></button>${more}</div>`;
+const pickButton = `<button id="pick">Pick commits to see together <kbd>v</kbd></button>`;
+
+/** Picked commits together: from before the oldest to the newest, the end result as a pull request shows it */
+async function pickedHtml([first, last]) {
+  const list = commits.slice(first, last + 1);
+  const newest = list[0];
+  const oldest = list.at(-1);
+  const range = `${await before(oldest.hash)}..${newest.hash}`;
+  const [numstat, patch, missing] = await Promise.all([
+    git(["diff", "--numstat", "--find-renames", range]), review(range), notIn(list.slice(1).map((c) => c.hash), newest.hash),
+  ]);
+  const left = list.filter((c) => missing.includes(c.hash));
+  const stats = parseNumstat(numstat);
+  let added = 0, removed = 0;
+  for (const s of stats.values()) if (s) (added += s[0]), (removed += s[1]);
+  return `<div class="phead"><h3>${list.length} commits together</h3>
+      <div class="sub"><span class="hash">${esc(oldest.short)}</span><span>to</span><span class="hash">${esc(newest.short)}</span><span>${ago(oldest.date)} to ${ago(newest.date)}</span></div>
+      ${reviewButton(`the ${list.length} commits`, `<button id="pick">Stop picking <kbd>Esc</kbd></button>`)}
+      ${left.length ? `<p class="td-orange">Not in this diff: ${left.map((c) => `<span class="hash">${esc(c.short)}</span> ${esc(c.subject)}`).join(", ")}. ${left.length === 1 ? "It's" : "They're"} on another branch, not in ${esc(newest.short)}'s history.</p>` : ""}
+      <div class="td-sect"><h5>Commits · ${list.length}</h5><div class="files">${list.map((c) => `<div class="f${missing.includes(c.hash) ? " dim" : ""}"><span class="hash">${esc(c.short)}</span><span class="p">${esc(c.subject)}</span><span class="dim">${ago(c.date)}</span></div>`).join("")}</div></div>
+      <div class="td-sect"><h5>${stats.size} file${stats.size === 1 ? "" : "s"} · <span class="td-green">+${added}</span> <span class="td-red">−${removed}</span></h5>${filesHtml(stats)}</div></div>
+    <div class="td-diff">${diffHtml(patch)}</div>`;
+}
 
 async function loadDetail(fromTop = true) {
   const r = rows()[cursor];
+  const pick = picked();
   const mine = ++asked;
   let html = "";
   try {
-    if (!r) html = "";
+    if (pick && pick[0] !== pick[1]) html = await pickedHtml(pick);
+    else if (!r) html = "";
     else if (r.kind === "file") {
       const f = r.file;
       const text = await diff(f.change.path, f.group === "staged", f.group === "untracked");
@@ -233,7 +270,7 @@ async function loadDetail(fromTop = true) {
       const body = message.trim().split("\n").slice(1).join("\n").trim();
       html = `<div class="phead"><h3>${esc(c.subject)}</h3>
           <div class="sub"><span class="hash">${esc(c.short)}</span><span>${esc(c.author)}</span><span>${ago(c.date)}</span>${refNames(c.refs).map((n) => `<span class="ref">${esc(n)}</span>`).join("")}</div>
-          ${reviewButton("the commit")}
+          ${reviewButton("the commit", pick ? `<button id="pick">Stop picking <kbd>Esc</kbd></button>` : pickButton)}
           ${body ? `<p class="message">${esc(body)}</p>` : ""}
           <div class="td-sect"><h5>${c.stat.files} file${c.stat.files === 1 ? "" : "s"} · <span class="td-green">+${c.stat.added}</span> <span class="td-red">−${c.stat.removed}</span></h5>${filesHtml(parseNumstat(numstat))}</div></div>
         <div class="td-diff">${diffHtml(patch)}</div>`;
@@ -269,6 +306,7 @@ async function loadDetail(fromTop = true) {
 
 // ------------------------------------------------------------ doing things
 function showView(to) {
+  stopPicking(false);
   view = to;
   cursor = 0;
   render();
@@ -280,8 +318,30 @@ function move(to) {
   render();
 }
 
-/** The review page for the highlighted row: all changes (at its file), a commit, a stash */
+/** v in Commits: the commit here and the ones j / k reach go together */
+function startPicking() {
+  if (view !== "commits") return td.ui.say("Picking commits to see together is in Commits (Tab)");
+  if (!commits?.[cursor]) return;
+  anchor = commits[cursor].hash;
+  td.keys.use("visual");
+  render();
+}
+
+function stopPicking(draw = true) {
+  if (!anchor) return;
+  anchor = null;
+  td.keys.use("git");
+  if (draw) render();
+}
+
+/** The review page for the highlighted row: all changes (at its file), a commit, a stash; or
+ *  the picked commits together */
 function reviewRow() {
+  const pick = picked();
+  if (pick) {
+    stopPicking();
+    if (pick[0] !== pick[1]) return reviewCommits(commits.slice(pick[0], pick[1] + 1));
+  }
   const r = rows()[cursor];
   const name = project?.name ?? "";
   if (view === "changes") {
@@ -301,6 +361,21 @@ function reviewRow() {
   }
 }
 
+/** Commits (newest first) as one diff: what the oldest one's parent became in the newest */
+function reviewCommits(list) {
+  const newest = list[0];
+  const oldest = list.at(-1);
+  td.ui.openReview({
+    title: `${list.length} commits: ${oldest.short}..${newest.short}`,
+    subtitle: `from “${oldest.subject}” to “${newest.subject}” · ${project?.name ?? ""}`,
+    diff: async () => review(`${await before(oldest.hash)}..${newest.hash}`),
+    // Keyed by where it starts: picking newer commits later keeps what you viewed, and marks the
+    // files whose changes are different now
+    viewedKey: `commits:${oldest.hash}`,
+    file: fileAt(newest.hash),
+  });
+}
+
 /** A file's whole text, for the review page's hidden lines (f): in a commit, or in the working tree */
 const fileAt = (rev) => async (path) => {
   const r = await td.exec(rev ? ["git", "show", `${rev}:${path}`] : ["cat", "--", path]);
@@ -318,6 +393,8 @@ td.on("key", ({ action }) => {
     case "first": return move(0);
     case "last": return move(rows().length - 1);
     case "open": case "review": case "diff": return reviewRow();
+    case "visual": case "visual-line": return anchor ? stopPicking() : startPicking();
+    case "leave": return stopPicking();
     case "next-list": return showView(views[(i + 1) % views.length]);
     case "previous-list": return showView(views[(i + views.length - 1) % views.length]);
     case "page-down": return scrollDetail(1);
@@ -343,8 +420,12 @@ document.addEventListener("click", (e) => {
   if (seg) return showView(seg.dataset.view);
   if (e.target.closest("#setup")) return td.setup.edit();
   if (e.target.closest("#review")) return reviewRow();
+  if (e.target.closest("#pick")) return anchor ? stopPicking() : startPicking();
   const row = e.target.closest("[data-i]");
-  if (row) move(Number(row.dataset.i));
+  if (!row) return;
+  // Shift+click picks from the highlighted commit to this one
+  if (e.shiftKey && !anchor) startPicking();
+  move(Number(row.dataset.i));
 });
 document.addEventListener("dblclick", (e) => e.target.closest("[data-i]") && reviewRow());
 

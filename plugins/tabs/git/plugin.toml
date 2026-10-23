@@ -1,6 +1,6 @@
 id = "git"
 name = "Git"
-version = "2.0.1"
+version = "2.1.0"
 api = 2
 description = "The repo at a glance: changes and their diffs, the branch, commits, branches and stashes (read-only)"
 homepage = "https://github.com/Nozeren/thumbdeck-plugins/tree/main/plugins/tabs/git"
@@ -61,9 +61,33 @@ bindings = [
   { keys = ["l"], action = "open", does = "review: all changes (at this file), the commit, the stash" },
   { keys = ["Enter"], action = "review", does = "the same" },
   { keys = ["gd"], action = "diff", does = "the same" },
+  { keys = ["v"], action = "visual", does = "in Commits: pick commits to see together (j / k pick more)" },
+  { keys = ["V"], action = "visual-line", does = "the same" },
   { keys = ["Tab"], action = "next-list", does = "next list: changes → commits → branches" },
   { keys = ["Shift+Tab"], action = "previous-list", does = "previous list" },
   { keys = ["Ctrl+d", "PageDown"], action = "page-down", does = "scroll the diff down" },
   { keys = ["Ctrl+u", "PageUp"], action = "page-up", does = "scroll the diff up" },
   { keys = ["R"], action = "refresh", does = "refresh" },
+]
+
+# While picking commits (v in Commits)
+[keys.visual]
+name = "VISUAL"
+surface = "tab:git"
+bindings = [
+  { keys = ["j", "ArrowDown"], action = "down", does = "pick one more below" },
+  { keys = ["k", "ArrowUp"], action = "up", does = "pick one more above" },
+  { keys = ["gg"], action = "first", does = "pick up to the first" },
+  { keys = ["G"], action = "last", does = "pick down to the last" },
+  { keys = ["Enter"], action = "review", does = "review the picked commits together" },
+  { keys = ["l"], action = "open", does = "the same" },
+  { keys = ["gd"], action = "diff", does = "the same" },
+  { keys = ["Ctrl+d", "PageDown"], action = "page-down", does = "scroll the diff down" },
+  { keys = ["Ctrl+u", "PageUp"], action = "page-up", does = "scroll the diff up" },
+  { keys = ["Tab"], action = "next-list", does = "stop picking: the next list" },
+  { keys = ["Shift+Tab"], action = "previous-list", does = "stop picking: the previous list" },
+  { keys = ["R"], action = "refresh", does = "refresh" },
+  { keys = ["v"], action = "visual", does = "stop picking" },
+  { keys = ["V"], action = "visual-line", does = "stop picking" },
+  { keys = ["q", "Escape"], action = "leave", does = "stop picking" },
 ]

@@ -182,3 +182,10 @@ export function diffLines(text) {
 
 /** The repo's main branch among the local ones (main, master, trunk, develop), or null */
 export const mainBranch = (names) => ["main", "master", "trunk", "develop"].find((n) => names.includes(n)) ?? null;
+
+/** Picked commits as [newest, oldest] indexes in the list (newest first): from the commit picking
+ *  started at to the cursor, either way; null when that commit isn't in the list */
+export function pickRange(commits, anchor, cursor) {
+  const a = anchor ? commits.findIndex((c) => c.hash === anchor) : -1;
+  return a < 0 ? null : [Math.min(a, cursor), Math.max(a, cursor)];
+}

@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { ago, cut, groupChanges, lineKind, MAX_DIFF, parseBranch, parseBranches, parseLog, parseStatus, refNames, track } from "./git.js";
+import { ago, cut, groupChanges, lineKind, MAX_DIFF, parseBranch, pickRange, parseBranches, parseLog, parseStatus, refNames, track } from "./git.js";
 
 test("branch lines", () => {
   assert.deepEqual(parseBranch("## main...origin/main [ahead 2, behind 1]"), { name: "main", upstream: "origin/main", ahead: 2, behind: 1, gone: false });
@@ -78,4 +78,13 @@ test("a diff as lines to draw, without git's headers", async () => {
   ]);
   assert.equal(mainBranch(["dev", "master"]), "master");
   assert.equal(mainBranch(["x"]), null);
+});
+
+test("picked commits", () => {
+  const commits = ["e", "d", "c", "b", "a"].map((hash) => ({ hash }));
+  assert.deepEqual(pickRange(commits, "d", 3), [1, 3]); // picked down from d
+  assert.deepEqual(pickRange(commits, "b", 0), [0, 3]); // picked up from b
+  assert.deepEqual(pickRange(commits, "c", 2), [2, 2]); // just started: one commit
+  assert.equal(pickRange(commits, null, 2), null); // not picking
+  assert.equal(pickRange(commits, "gone", 2), null); // rebased away
 });
